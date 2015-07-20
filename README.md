@@ -23,10 +23,11 @@ fit(pfm, :Sales, df, weight = :Pop)
 ```
 
 The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. This has three importants benefits compared to eigenvalue decomposition:
-- estimate unbalanced panels (with missing (id x time) observation). Another way to do it would be through an EM algorithm, which replaces missing values by the predicted values from the factor model until convergence. This algorithm is generally slower to converge and takes more memory
+- estimate unbalanced panels, i.e. with missing (id x time) observations. 
 - estimate weighted factor models, where weights are not constant within id or time
-- avoid the creation of a matrix N x T which takes memory
+- avoid the creation of a matrix N x T
 
+Another way to solve the first issue would be to use a version of the EM algorithm, replacing missing values by the predicted values from the factor model until convergence. However, the EM algorithm is generally slower to converge.
 
 #### Interactive Fixed Effect Models
 Estimate models with interactive fixed effects (Bai 2009) 
