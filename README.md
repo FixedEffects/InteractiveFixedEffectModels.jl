@@ -1,7 +1,7 @@
 
 This package estimates factor models on datasets where each row represents an observation.
 
-I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - alternatively, they correspon to (variable x observation) for PCA and (user x movie) for recommandation systems.
+I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - alternatively, they are referred as (variable x observation) for PCA and (user x movie) for recommandation problems.
 
 ### PanelFactorModel
 Starting from a a dataframe,  construct an object of type `PanelFactorModel` by specifying the id variable, the time variable, and the factor dimension. Both the the id and time variable must be of type `PooledDataVector`.
