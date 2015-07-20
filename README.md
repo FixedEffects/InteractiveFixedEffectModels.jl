@@ -1,5 +1,7 @@
 
-This package estimates factor models (or alternatively PCA) on datasets where each row represents a pair id x time, which I'll call "panels". Compared to the matrix N x T approach, panels are more memory efficient (in case of missing observations) and generally easier to work.
+This package estimates factor models on datasets where each row represents an observation.
+
+I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - they correspond to variable x observation for PCA or user x movie for recommandation systems.
 
 ### PanelFactorModel
 Starting from a a dataframe,  construct an object of type `PanelFactorModel` by specifying the id variable, the time variable, and the factor dimension. Both the the id and time variable must be of type `PooledDataVector`.
