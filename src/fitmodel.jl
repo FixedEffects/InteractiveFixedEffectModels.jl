@@ -7,7 +7,7 @@
 function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; weight = nothing, maxiter::Int64 = 10000, tol::Float64 = 1e-10)
 
 	#################
-# Prepare the data (transform dataframe to matrix, demean if fixed effects, multiply by weight
+	# Prepare the data (transform dataframe to matrix, demean if fixed effects, multiply by weight
 	#################
 	rf = deepcopy(f)
 
@@ -96,20 +96,20 @@ end
 
 
 
-	##############################################################################
-	##
-	## Factor / beta iteration
-	##
-	##############################################################################
+##############################################################################
+##
+## Factor / beta iteration
+##
+##############################################################################
 
 
 
 
-	function fill_matrix!{F <: FloatingPoint}(res_matrix::Matrix{F}, y::Vector{F}, res_vector::Vector{F}, idrefs, timerefs)
-		@inbounds @simd for i in 1:length(y)
-			res_matrix[idrefs[i], timerefs[i]] = y[i] - res_vector[i]
-		end
+function fill_matrix!{F <: FloatingPoint}(res_matrix::Matrix{F}, y::Vector{F}, res_vector::Vector{F}, idrefs, timerefs)
+	@inbounds @simd for i in 1:length(y)
+		res_matrix[idrefs[i], timerefs[i]] = y[i] - res_vector[i]
 	end
+end
 
 function fill_vector!{F <: FloatingPoint}(res_vector::Vector{F}, y::Vector{F}, res_matrix::Matrix{F}, idrefs, timerefs)
 	@inbounds @simd for i in 1:length(y)
