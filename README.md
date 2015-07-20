@@ -1,7 +1,8 @@
 
-This package estimates factor models on datasets in a "panel" form, where each row represents a pair id x time. Compared to the matrix N x T approach, a panel data is generally easier to work with and more memory efficient than a matrix N x T
+This package estimates factor models (or alternatively PCA) on datasets where each row represents a pair id x time, which I'll call "panels". Compared to the matrix N x T approach, panels are more memory efficient (in case of missing observations) and generally easier to work.
 
-Construct an object of type `PanelFactorModel`, 
+### PanelFactorModel
+Starting from a a dataframe,  construct an object of type `PanelFactorModel` by specifying the id variable, the time variable, and the factor dimension. Both the the id and time variable must be of type `PooledDataVector`.
 
 ```julia
 using RDatasets, DataFrames, FixedEffectModels
@@ -19,7 +20,7 @@ fit(pfm, :Sales, df)
 fit(pfm, :Sales, df, weight = :Pop)
 ```
 
-The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. There are three main benefits compared to the usual estimation of a factor model through PCA:
+The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. This allows three importants benefits compared to the usual estimation of a factor model through eigenvalue decomposition:
 - estimate unbalanced panels (with missing (id x time) observation). Another way to do it would be through an EM algorithm, which replaces missing values by the predicted values from the factor model until convergence. This algorithm is generally slower to converge and takes more memory
 - estimate weighted factor models, where weights are not constant within id or time
 - avoid the creation of a matrix N x T which takes memory
