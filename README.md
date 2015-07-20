@@ -22,7 +22,7 @@ fit(pfm, :Sales, df)
 fit(pfm, :Sales, df, weight = :Pop)
 ```
 
-The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. This has three importants benefits compared to eigenvalue decomposition:
+The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. This yields three importants benefits compared to an eigenvalue decomposition:
 - estimate unbalanced panels, i.e. with missing (id x time) observations. 
 - estimate weighted factor models, where weights are not constant within id or time
 - avoid the creation of a matrix N x T
