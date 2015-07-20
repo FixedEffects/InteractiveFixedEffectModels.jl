@@ -1,8 +1,6 @@
 
-This package estimates factor models on dataframes, and more generally on datasets in a "panel" form, where each row represents a pair (id, time).
-This "panel" form is easier to work with and more memory efficient than a matrix N x T
+This package estimates factor models on datasets in a "panel" form, where each row represents a pair id x time. Compared to the matrix N x T approach, a panel data is generally easier to work with and more memory efficient than a matrix N x T
 
-#### Factor Models
 Construct an object of type `PanelFactorModel`, 
 
 ```julia
@@ -13,7 +11,7 @@ df[:pYear] =  pool(df[:Year])
 pfm = PanelFactorModel(:pState, :pYear, 2)
 ```
 
-
+#### Estimate factor models by incremental SVD
 Estimate a factor model for the variable `Sales`
 
 ```julia
@@ -21,10 +19,10 @@ fit(pfm, :Sales, df)
 fit(pfm, :Sales, df, weight = :Pop)
 ```
 
-The function estimates the factor model by incremental SVD, i.e. minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. Contrary to the usual estimation of a factor model through PCA
-- this allows to estimate unbalanced panels. Another way to do it is the EM algorithm (replace missing values by the predicted values from the factor model until convergence). This solution converges more slowly 
-- this allows to estimate weighted PCA, where weights are not constant within id or time
-- this avoids to construct a matrix N x T which may be huge (as in the Netflix problem).
+The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. There are three main benefits compared to the usual estimation of a factor model through PCA, this 
+- estimate unbalanced panels (with missing (id x time) observation). Another way to do it would be through an EM algorithm, which replaces missing values by the predicted values from the factor model until convergence. This algorithm is generally slower to converge.
+- estimate weighted factor models, where weights are not constant within id or time
+- avoid the creation of a matrix N x T which may be huge (as in the Netflix problem).
 
 
 #### Interactive Fixed Effect Models
