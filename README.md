@@ -1,5 +1,5 @@
 
-This package estimates factor models on datasets where each row represents an observation.
+This package estimates factor models on datasets where each row represents an observation (instead of a matrix N x T).
 
 I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - alternatively, they are referred as (variable x observation) for PCA and (user x movie) for recommandation problems.
 
