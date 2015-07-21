@@ -25,8 +25,11 @@ fit(pfm, :Sales, df, weight = :Pop)
 ```
 
 The factor model is estimated by incremental SVD, i.e. by minimizing the sum of the squared residuals incrementally for each dimension. By default, the minimization uses a gradient descent. This yields three importants benefits compared to an eigenvalue decomposition:
+
 1. estimate unbalanced panels, i.e. with missing (id x time) observations. 
+
 2. estimate weighted factor models, where weights are not constant within id or time
+
 3. avoid the creation of a matrix N x T
 
 Another way to solve 1. would be to use a version of the EM algorithm, replacing missing values by the predicted values from the factor model until convergence. However, the EM algorithm is generally slower to converge.
