@@ -3,7 +3,7 @@
 ## Factor Models
 ##
 ##############################################################################
-function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, method::Symbol = :gradient_descent)
+function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, method::Symbol = :gradient_descent, lambda::Real = 0.0)
 
     factor_vars = [m.id, m.time]
     all_vars = vcat(variable, factor_vars)
@@ -53,9 +53,9 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
     x0 = fill(0.1, length(ids.pool) + length(times.pool))
 
     for r in 1:m.rank
-        d = DifferentiableFunction(x -> sum_of_squares(x, sqrtw, ratings, times.refs, ids.refs, l),
-                                    (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, ratings, times.refs, ids.refs, l),
-                                    (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, ratings, times.refs, ids.refs, l)
+        d = DifferentiableFunction(x -> sum_of_squares(x, sqrtw, ratings, times.refs, ids.refs, l, lambda),
+                                    (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, ratings, times.refs, ids.refs, l, lambda),
+                                    (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, ratings, times.refs, ids.refs, l, lambda)
                                     )
         # optimize
         result = optimize(d, x0, method = method)  
@@ -85,36 +85,46 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
 end
 
 # function to minimize
-function sum_of_squares(x::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int)
+function sum_of_squares(x::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int, lambda::Real)
     out = zero(Float64)
     @inbounds @simd for i in 1:length(ratings)
         id = idsrefs[i]
         time = timesrefs[i] + l
         loading = x[id]
         factor = x[time]
-        error = sqrtw[i] * (ratings[i] - loading * factor)
+        sqrtwi = sqrtw[i]
+        error = sqrtwi * (ratings[i] - loading * factor)
         out += abs2(error)
+    end
+    # penalty term
+    @inbounds @simd for i in 1:length(x)
+        out += lambda * abs2(x[i])
     end
     return out
 end
 
 # gradient
-function sum_of_squares_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int)
+function sum_of_squares_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int, lambda::Real)
     fill!(storage, zero(Float64))
     @inbounds @simd for i in 1:length(ratings)
         id = idsrefs[i]
         time = timesrefs[i] + l
         loading = x[id]
         factor = x[time]
-        error = sqrtw[i] * (ratings[i] - loading * factor)
-        storage[id] -= 2.0 * error * factor * sqrtw[i] 
-        storage[time] -= 2.0 * error * loading * sqrtw[i]
+        sqrtwi = sqrtw[i]
+        error = sqrtwi * (ratings[i] - loading * factor)
+        storage[id] -= 2.0 * error * factor * sqrtwi 
+        storage[time] -= 2.0 * error * loading * sqrtwi
+    end
+    # penalty term
+    @inbounds @simd for i in 1:length(x)
+        storage[i] += 2.0 * lambda * x[i]
     end
     return storage
 end
 
 # function + gradient in the same loop
-function sum_of_squares_and_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int)
+function sum_of_squares_and_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int, lambda::Real)
     fill!(storage, zero(Float64))
     out = zero(Float64)
     @inbounds @simd for i in 1:length(ratings)
@@ -122,10 +132,16 @@ function sum_of_squares_and_gradient!(x::Vector, storage::Vector, sqrtw::Vector{
         time = timesrefs[i]+l
         loading = x[id]
         factor = x[time]
-        error = sqrtw[i] * (ratings[i] - loading * factor)
+        sqrtwi = sqrtw[i]
+        error =  sqrtwi * (ratings[i] - loading * factor)
         out += abs2(error)
-        storage[id] -= 2.0 * error * factor * sqrtw[i] 
-        storage[time] -= 2.0 * error * loading * sqrtw[i]
+        storage[id] -= 2.0 * error * factor * sqrtwi 
+        storage[time] -= 2.0 * error * loading * sqrtwi
+    end
+    # penalty term
+    @inbounds @simd for i in 1:length(x)
+        out += lambda * abs2(x[i])
+        storage[i] += 2.0 * lambda * x[i]
     end
     return out
 end
