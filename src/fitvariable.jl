@@ -6,6 +6,7 @@
 
 function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; method::Symbol = :gradient_descent, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing,maxiter::Integer = 10000, tol::Real = 1e-9)
 
+    # Transform symbols + dataframe into real vectors
     factor_vars = [m.id, m.time]
     all_vars = vcat(variable, factor_vars)
     all_vars = unique(convert(Vector{Symbol}, all_vars))
@@ -33,13 +34,10 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; metho
     else
         y = convert(Vector{Float64}, subdf[variable])
     end
-
-
-
+    broadcast!(*, y, y, sqrtw)
 
     ids = subdf[m.id]
     times = subdf[m.time]
-
 
     estimate_factor_variable(y, ids, times, m.rank, sqrtw, lambda, method, maxiter, tol)
 
@@ -54,34 +52,32 @@ end
 
 function estimate_factor_variable{Tids, Rids, Ttimes, Rtimes}(y::Vector{Float64}, ids::PooledDataVector{Tids, Rids}, times::PooledDataVector{Ttimes, Rtimes}, rank::Integer, sqrtw::Vector{Float64}, lambda::Real,  method::Symbol, maxiter::Integer = 10000, tol::Real = 1e-9)
     
-    broadcast!(*, y, y, sqrtw)
-
-
     # initialize
     iterations = Int[]
     x_converged = Bool[]
     f_converged = Bool[]
     gr_converged = Bool[]
-
-
     loadings =  Array(Float64, length(ids.pool))
     factors =  Array(Float64, length(times.pool))
     loadingsmatrix = Array(Float64, (length(ids.pool), rank))
     factorsmatrix = Array(Float64, (length(times.pool), rank))
 
-    # x is a vector of length N + T, whigh holds loading_n for n < N and factor_{n-N} for n > N
-    # this dataformat is required by optimize in Optim.jl
+    # Optim acceps a vector as an argument, so squeeze loadinags and factors in a vector
     l = length(ids.pool)
     x0 = fill(0.1, length(ids.pool) + length(times.pool))
 
     for r in 1:rank
+
+        # set up optimization problem
         f = x -> sum_of_squares(x, sqrtw, y, times.refs, ids.refs, l, lambda)
         g! = (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
         fg! = (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
         h! = (x, storage) -> sum_of_squares_hessian!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
         d = TwiceDifferentiableFunction(f, g!, fg!, h!)
+
         # optimize
         result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = 1e-32, grtol = 1e-32)
+        
         # write results
         loadings[:] = result.minimum[1:l]
         factors[:] = result.minimum[(l+1):end]
@@ -90,10 +86,10 @@ function estimate_factor_variable{Tids, Rids, Ttimes, Rtimes}(y::Vector{Float64}
         push!(f_converged, result.f_converged)
         push!(gr_converged, result.gr_converged)
 
-        # residualize
+        # take the residuals y - lambda_i * ft
         residualize!(y, factors, loadings, ids.refs, times.refs)
        
-        # normalize so that F'F = Id
+        # normalize so that factors' * factors = Id
         factorscale = norm(factors, 2) 
         scale!(factors, 1 / factorscale)
         scale!(loadings, factorscale)
@@ -105,9 +101,14 @@ function estimate_factor_variable{Tids, Rids, Ttimes, Rtimes}(y::Vector{Float64}
     PanelFactorResult(ids, times, loadingsmatrix, factorsmatrix, iterations, x_converged, f_converged, gr_converged)
 end
 
+function residualize!{Ttime, Tid}(y::Vector{Float64}, factors::Vector{Float64}, loadings::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+    @inbounds @simd for i in 1:length(y)
+        y[i] -= factors[timesrefs[i]] * loadings[idsrefs[i]]
+    end
+end
 ##############################################################################
 ##
-## function to optimize, gradient, hessian
+## sum of squared residuals, gradient, hessian
 ##
 ##############################################################################
 
@@ -196,14 +197,6 @@ function sum_of_squares_hessian!{Ttime, Tid}(x::Vector{Float64}, storage::Matrix
         storage[i, i] += 2.0 * lambda
     end
     return storage
-end
-
-
-
-function residualize!{Ttime, Tid}(y::Vector{Float64}, factors::Vector{Float64}, loadings::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
-    @inbounds @simd for i in 1:length(y)
-        y[i] -= factors[timesrefs[i]] * loadings[idsrefs[i]]
-    end
 end
 
 
