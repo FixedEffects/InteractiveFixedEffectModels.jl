@@ -2,7 +2,7 @@
 ## Motivation
 This package estimates factor models on "long" datasets where each row represents an observation. 
 
-I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - they correspond to the pair variable x observation in PCA and the pair user x movie in recommandation problems.
+I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - it corresponds to the pair variable x observation in PCA and the pair user x movie in recommandation problems.
 
 
 
