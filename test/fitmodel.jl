@@ -7,7 +7,12 @@ df[:pYear] = pool(df[:Year])
 
 
 result = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9, maxiter = 10000)
+result = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9, maxiter = 10000, method = :newton)
 resultsvd = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9, maxiter = 10000, method = :svd)
+
+
+resultsvd = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df, tol = 1e-9, maxiter = 10000)
+
 
 # test coef
 @test_approx_eq_eps result.coef [163.01350,-0.40610] 1e-4

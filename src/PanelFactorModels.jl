@@ -10,7 +10,7 @@ import DataArrays: RefArray, PooledDataVector, DataVector
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
 using FixedEffectModels
 import StatsBase: fit, model_response
-import Optim: optimize, DifferentiableFunction
+import Optim: optimize, DifferentiableFunction, TwiceDifferentiableFunction
 
 ##############################################################################
 ##

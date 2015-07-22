@@ -1,9 +1,10 @@
 ##############################################################################
 ##
-## Factor Models
+## From DataFrame
 ##
 ##############################################################################
-function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, method::Symbol = :gradient_descent, lambda::Real = 0.0)
+
+function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; method::Symbol = :gradient_descent, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing,maxiter::Integer = 10000, tol::Real = 1e-9)
 
     factor_vars = [m.id, m.time]
     all_vars = vcat(variable, factor_vars)
@@ -32,48 +33,69 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
     else
         y = convert(Vector{Float64}, subdf[variable])
     end
+
+
+
+
     ids = subdf[m.id]
     times = subdf[m.time]
 
+
+    estimate_factor_variable(y, ids, times, m.rank, sqrtw, lambda, method, maxiter, tol)
+
+end
+
+
+##############################################################################
+##
+## From Matrix
+##
+##############################################################################
+
+function estimate_factor_variable{Tids, Rids, Ttimes, Rtimes}(y::Vector{Float64}, ids::PooledDataVector{Tids, Rids}, times::PooledDataVector{Ttimes, Rtimes}, rank::Integer, sqrtw::Vector{Float64}, lambda::Real,  method::Symbol, maxiter::Integer = 10000, tol::Real = 1e-9)
+    
+    w = sqrtw .^2
+    broadcast!(*, y, y, sqrtw)
+
+
     # initialize
     iterations = Int[]
-    iteration_converged = Bool[]
     x_converged = Bool[]
     f_converged = Bool[]
     gr_converged = Bool[]
 
+
     loadings =  Array(Float64, length(ids.pool))
     factors =  Array(Float64, length(times.pool))
-    loadingsmatrix = Array(Float64, (length(ids.pool), m.rank))
-    factorsmatrix = Array(Float64, (length(times.pool), m.rank))
+    loadingsmatrix = Array(Float64, (length(ids.pool), rank))
+    factorsmatrix = Array(Float64, (length(times.pool), rank))
 
     # x is a vector of length N + T, whigh holds loading_n for n < N and factor_{n-N} for n > N
     # this dataformat is required by optimize in Optim.jl
     l = length(ids.pool)
     x0 = fill(0.1, length(ids.pool) + length(times.pool))
 
-    for r in 1:m.rank
-        d = DifferentiableFunction(x -> sum_of_squares(x, sqrtw, y, times.refs, ids.refs, l, lambda),
+    for r in 1:rank
+        d = TwiceDifferentiableFunction(x -> sum_of_squares(x, sqrtw, y, times.refs, ids.refs, l, lambda),
                                     (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda),
-                                    (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
+                                    (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda),
+                                    (x, storage) -> sum_of_squares_hessian!(x, storage, w, y, times.refs, ids.refs, l, lambda)
                                     )
         # optimize
-        result = optimize(d, x0, method = method)  
-
+        result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = 1e-32, grtol = 1e-32)
         # write results
         loadings[:] = result.minimum[1:l]
         factors[:] = result.minimum[(l+1):end]
         push!(iterations, result.iterations)
-        push!(iteration_converged, result.iteration_converged)
         push!(x_converged, result.x_converged)
         push!(f_converged, result.f_converged)
         push!(gr_converged, result.gr_converged)
-        
+
         # residualize
         residualize!(y, factors, loadings, ids.refs, times.refs)
        
-        # normalize so that F'F/T = Id
-        factorscale = norm(factors, 2) / sqrt(length(times.pool))
+        # normalize so that F'F = Id
+        factorscale = norm(factors, 2) 
         scale!(factors, 1 / factorscale)
         scale!(loadings, factorscale)
 
@@ -81,8 +103,15 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
         loadingsmatrix[:, r] = loadings
     end
 
-    PanelFactorResult(ids, times, loadingsmatrix, factorsmatrix, iterations, iteration_converged, x_converged, f_converged, gr_converged)
+    PanelFactorResult(ids, times, loadingsmatrix, factorsmatrix, iterations, x_converged, f_converged, gr_converged)
 end
+
+##############################################################################
+##
+## function to optimize, gradient, hessian
+##
+##############################################################################
+
 
 # function to minimize
 function sum_of_squares{Ttime, Tid}(x::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, l::Integer, lambda::Real)
@@ -93,7 +122,7 @@ function sum_of_squares{Ttime, Tid}(x::Vector{Float64}, sqrtw::Vector{Float64}, 
         loading = x[id]
         factor = x[time]
         sqrtwi = sqrtw[i]
-        error = sqrtwi * (y[i] - loading * factor)
+        error = y[i] - sqrtwi * loading * factor
         out += abs2(error)
     end
     # penalty term
@@ -112,7 +141,7 @@ function sum_of_squares_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::Vecto
         loading = x[id]
         factor = x[time]
         sqrtwi = sqrtw[i]
-        error = sqrtwi * (y[i] - loading * factor)
+        error = y[i] - sqrtwi * loading * factor
         storage[id] -= 2.0 * error * sqrtwi * factor 
         storage[time] -= 2.0 * error * sqrtwi * loading
     end
@@ -133,7 +162,7 @@ function sum_of_squares_and_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::V
         loading = x[id]
         factor = x[time]
         sqrtwi = sqrtw[i]
-        error =  sqrtwi * (y[i] - loading * factor)
+        error =  y[i] - sqrtwi * loading * factor
         out += abs2(error)
         storage[id] -= 2.0 * error * sqrtwi * factor 
         storage[time] -= 2.0 * error * sqrtwi * loading 
@@ -144,6 +173,28 @@ function sum_of_squares_and_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::V
         storage[i] += 2.0 * lambda * x[i]
     end
     return out
+end
+
+# hessian (used in newton method)
+function sum_of_squares_hessian!{Ttime, Tid}(x::Vector{Float64}, storage::Matrix{Float64}, w::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, l::Integer, lambda::Real)
+    fill!(storage, zero(Float64))
+    @inbounds @simd for i in 1:length(y)
+        id = idsrefs[i]
+        time = timesrefs[i]+l
+        loading = x[id]
+        factor = x[time]
+        wi = w[i]
+        storage[id, id] += 2.0 * wi * factor^2
+        storage[time, time] += 2.0 * wi * loading^2
+        cross = 4.0 * wi * factor * loading
+        storage[time, id] += cross
+        storage[id, time] += cross
+    end
+    # penalty term
+    @inbounds @simd for i in 1:length(x)
+        storage[i, i] += 2.0 * lambda
+    end
+    return storage
 end
 
 

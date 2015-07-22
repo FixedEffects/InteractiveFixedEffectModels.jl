@@ -1,13 +1,12 @@
 
 ## Motivation
-This package estimates factor models on datasets where each row represents an observation. This contrasts to the usual litterature that start from a matrix N x T.
-
+This package estimates factor models on "long" datasets where each row represents an observation. 
 
 I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - they correspond to the pair variable x observation in PCA and the pair user x movie in recommandation problems.
 
 
 
-This packages estimates factor models by directly minimizing the sum of residuals. This yields four main benefits compared to an eigenvalue decomposition:
+This packages estimates factor models by directly minimizing the sum of residuals. This yields four main benefits compared to a traditional eigenvalue decomposition:
 
 1. estimate unbalanced panels, i.e. with missing (id x time) observations. 
 
@@ -21,7 +20,7 @@ This packages estimates factor models by directly minimizing the sum of residual
 
 4. avoid the creation of a matrix N x T, which may use a lot of memory
 
-An alternative for issue 1 is the the EM algorithm, which replaces iteratively missing values by the predicted values from the factor model until convergence. In my experience, the EM algorithm is generally slower to converge.
+An alternative for issue 1 is the the EM algorithm, which replaces iteratively missing values by the predicted values from the factor model until convergence. In my experience however, the EM algorithm is generally slower to converge.
 
 
 
@@ -57,15 +56,16 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 		```
 
 
-- `fit` also has keyword arguments:
+- `fit` has also keyword arguments:
 	- `subset`
 	- `weights`: This minimizes the sum of weighted residuals
 	- `lambda` This option implements a Tikhonov regularization, i.e. minimizing the 
 		```
 		sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
 		```
-	- `method`. This option allows to vary the optimization method used. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs` when estimating a linear model with interactive fixed effects.   Available optimizers are:
+	- `method`. This option is redirected to the minimization method from Optim. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs` when estimating a linear model with interactive fixed effects.   Available optimizers are:
 
+		- `:newton`
 		- `:bfgs`
 		- `:cg`
 		- `:gradient_descent`
@@ -77,6 +77,6 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 
 ## Install
 
-	```julia
-	Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
-	```
+```julia
+Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
+```

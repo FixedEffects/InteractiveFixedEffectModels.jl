@@ -4,10 +4,10 @@
 ##
 ##############################################################################
 
-function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; weight = nothing, lambda::Real = 0.0 maxiter::Integer = 10000, tol::Real = 1e-10, method::Symbol = :bfgs, lambda::Real = 0.0)
+function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; method::Symbol = :bfgs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9)
 
 	if method == :svd
-		weight != nothing || error("The svd methods does not suppoer weights")
+		weight != nothing || error("The svd methods does not support weights")
 		lambda == 0.0 || error("The svd method does not support lambda")
 	end
 
@@ -100,7 +100,7 @@ function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; weight = no
 		M = A_mul_Bt(inv(cholfact!(H)), X)
 		estimate_factor_model(X, M, b, y, subdf[m.id], subdf[m.time], m.rank, maxiter, tol) 
 	else
-		estimate_factor_model(X, b, y, df[m.id], df[m.time], m.rank, sqrtw, maxiter, tol, method, lambda) 
+		estimate_factor_model(X, b, y, df[m.id], df[m.time], m.rank, method, lambda, sqrtw, maxiter, tol) 
 	end
 end
 
@@ -167,8 +167,6 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Ma
 	for j in 1:d
 		newfactors[:, j] = factors[:, d + 1 - j]
 	end
-	scale!(newfactors, sqrt(length(times.pool)))
-	loadings = scale!(res_matrix * newfactors, 1/length(times.pool))
 	return PanelFactorModelResult(b, ids, times, loadings, newfactors, iterations, converged, converged, false, false)
 end
 
@@ -181,7 +179,7 @@ end
 ##############################################################################
 
 
-function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::Vector{Float64}, y::Vector{Float64}, ids::PooledDataVector{Tid, Rid}, times::PooledDataVector{Ttime, Rtime}, rank::Integer, sqrtw::Vector{Float64}, maxiter::Int, tol::Real, method::Symbol, lambda::Real)
+function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::Vector{Float64}, y::Vector{Float64}, ids::PooledDataVector{Tid, Rid}, times::PooledDataVector{Ttime, Rtime}, rank::Integer, method::Symbol, lambda::Real, sqrtw::Vector{Float64}, maxiter::Int, tol::Real)
 
 	
 	n_regressors = size(X, 2)
@@ -205,19 +203,19 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::V
 	# Translate X (for cache property)
 	Xt = X'
 	# optimize
-    d = DifferentiableFunction(x -> sum_of_squares(x, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt),
-                                (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt),
-                                (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt)
+    d = TwiceDifferentiableFunction(x -> sum_of_squares(x, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda),
+                                (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda),
+                                (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda),
+                                (x, storage) -> sum_of_squares_hessian!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
                                 )
-    result = optimize(d, x0, method = method, xtol = tol, iterations = maxiter)  
-
+    result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = 1e-32, grtol = 1e-32)  
     b = result.minimum[1:n_regressors]
     loadings = Array(Float64, (length(ids.pool), rank))
     factors = Array(Float64, (length(times.pool), rank))
     fill!(loadings, result.minimum, n_regressors)
-    fill!(factors, result.minimum, n_regressors + length(ids.pool) * rank)    
-    result = PanelFactorModelResult(b, ids, times, loadings, factors, result.iterations, result.iteration_converged, result.x_converged, result.f_converged, result.gr_converged)
-    normalize!(result)
+    fill!(factors, result.minimum, n_regressors + length(ids.pool) * rank)  
+    (loadings, factors) = normalize(loadings, factors)
+    result = PanelFactorModelResult(b, ids, times, loadings, factors, result.iterations, result.x_converged, result.f_converged, result.gr_converged)
     return result
 end
 
@@ -231,26 +229,25 @@ function Base.fill!(M::Matrix{Float64}, v::Vector{Float64}, start::Integer)
 	end
 end
 
-function Base.scale!(factors::Matrix{Float64}, loadings::Matrix{Float64})
-
-    @inbounds for j in 1:size(factors, 2)
-        out = zero(Float64)
-        @simd for i in 1:size(factors, 1)
-            out += abs2(factors[i, j])
-        end
-        scale = sqrt(out / size(factors, 1))
-        @simd for i in 1:size(loadings, 1)
-            loadings[i, j] *= scale
-        end
-        scale = 1 / scale
-        @simd for i in 1:size(factors, 1)
-            factors[i, j] *= scale
-        end
-    end
+# Ilink Raiko (2010) Journal of Machine Learning Research (never constructs a matrix N x T)
+function normalize(loadings::Matrix{Float64}, factors::Matrix{Float64})
+    U = eigfact!(At_mul_B(factors, factors))
+    sqrtDx = diagm(sqrt(abs(U[:values])))
+    newfactors = factors *  U[:vectors] * sqrtDx
+    V = eigfact!(At_mul_B(newfactors, newfactors))
+    A_mul_B!(newfactors, factors, U[:vectors] * (sqrtDx \ V[:vectors]))
+    return (loadings * (U[:vectors] * sqrtDx * V[:vectors]), newfactors)
 end
 
-# function to minimize
-function sum_of_squares{Tid, Ttime}(x::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64})
+
+##############################################################################
+##
+## function to optimize, gradient, hessian
+##
+##############################################################################
+
+
+function sum_of_squares{Tid, Ttime}(x::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real)
 	out = zero(Float64)
 	@inbounds @simd for i in 1:length(y)
 		prediction = zero(Float64)
@@ -263,9 +260,9 @@ function sum_of_squares{Tid, Ttime}(x::Vector{Float64}, sqrtw::Vector{Float64}, 
 		    prediction += x[k] * Xt[k, i]
 		end
 		for r in 1:rank
-		  prediction += x[id + r] * x[time + r]
+		  prediction += sqrtwi * x[id + r] * x[time + r]
 		end
-		error = sqrtwi * (y[i] - prediction)
+		error = y[i] - prediction
 		out += abs2(error)
 	end
 	# penalty term
@@ -276,25 +273,23 @@ function sum_of_squares{Tid, Ttime}(x::Vector{Float64}, sqrtw::Vector{Float64}, 
 end
 
 # gradient
-function sum_of_squares_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vector, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64})
+function sum_of_squares_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real)
     out = zero(Float64)
     fill!(storage, zero(Float64))
     @inbounds @simd for i in 1:length(y)
     	prediction = zero(Float64)
         id = idsrefs[i]
         time = timesrefs[i]
-        loading = x[id]
-        factor = x[time]
         sqrtwi = sqrtw[i]
         for k in  1:n_regressors
             prediction += x[k] * Xt[k, i]
         end
 	    for r in 1:rank
-	    	prediction += x[id + r] * x[time + r]
+	    	prediction += sqrtwi * x[id + r] * x[time + r]
 	    end
-        error =  sqrtwi * (y[i] - prediction)
+        error =  y[i] - sqrtwi * prediction
         for k in 1:n_regressors
-            storage[k] -= 2.0 * error * sqrtwi * Xt[k, i] 
+            storage[k] -= 2.0 * error * Xt[k, i] 
         end
         for r in 1:rank
         	storage[time + r] -= 2.0 * error * sqrtwi * x[id + r] 
@@ -311,26 +306,24 @@ function sum_of_squares_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vecto
 end
 
 # function + gradient in the same loop
-function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vector, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64})
+function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real)
     fill!(storage, zero(Float64))
     out = zero(Float64)
     @inbounds @simd for i in 1:length(y)
 	    prediction = zero(Float64)
 		id = idsrefs[i]
 		time = timesrefs[i]
-		loading = x[id]
-		factor = x[time]
 		sqrtwi = sqrtw[i]
 		for k in 1:n_regressors
 		    prediction += x[k] * Xt[k, i]
 		end
 		for r in 1:rank
-			prediction += x[id + r] * x[time + r]
+			prediction += sqrtwi * x[id + r] * x[time + r]
 		end
 		error =  sqrtwi * (y[i] - prediction)
 		out += abs2(error)
 		for k in 1:n_regressors
-			storage[k] -= 2.0 * error * sqrtwi * Xt[k, i] 
+			storage[k] -= 2.0 * error  * Xt[k, i] 
 		end
 		for r in 1:rank
 			storage[time + r] -= 2.0 * error * sqrtwi * x[id + r] 
@@ -345,6 +338,74 @@ function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::V
         storage[i] += 2.0 * lambda * x[i]
     end
     return out
+end
+
+# hessian (used in newton method)
+function sum_of_squares_hessian!{Tid, Ttime}(x::Vector{Float64}, storage::Matrix{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real)
+    fill!(storage, zero(Float64))
+    @inbounds @simd for i in 1:length(y)
+        id = idsrefs[i]
+	    time = timesrefs[i]
+	    sqrtwi = sqrtw[i]
+	    wi = sqrtwi^2
+	    
+	    # derivative wrt beta
+	    for k in 1:n_regressors
+	    	xk = Xt[k, i]
+	    	for l in 1:k
+		    	cross = 2.0 *  xk * Xt[l, i]
+    			storage[k, l] += cross
+    			if k != l
+	    			storage[l, k] += cross
+	    		end
+    		end
+			for r in 1:rank
+		    	cross = 2.0 * sqrtwi * x[time + r] * xk
+		    	storage[k, id + r] += cross
+		    	storage[id + r, k] += cross
+		    end
+    		for r in 1:rank
+		    	cross = 2.0 * sqrtwi * x[id + r] * xk
+		    	storage[k, time + r] += cross
+		    	storage[time + r, k] += cross
+			end
+	    end
+
+        # derivative wrt loadings
+        for r in 1:rank
+        	for s in 1:r
+    	    	cross = 2.0 * wi * x[time + r] * x[time + s]
+    	    	storage[id + r, id + s] += cross
+    	    	if s != r
+    		    	storage[id + s, id + r] += cross
+    		    end
+    		end
+	        for s in 1:rank
+	        	cross = 2.0 * wi * x[time + r] * x[id + s]
+	        	if s == r
+	        		cross *= 2.0
+	        	end
+		        storage[id + r, time + s] += cross
+	        	storage[time + s, id + r] += cross
+	        end
+        end
+
+	    # derivative wrt factors
+	    for r in 1:rank
+	    	for s in 1:r
+		    	cross =  2.0 * wi * x[id + r] * x[id + s]
+		    	storage[time + r, time + s] += cross
+		    	if s != r
+		    		storage[time + s, time + r] += cross
+		    	end
+	    	end
+	    end
+    end
+    # penalty term
+    @inbounds @simd for i in (n_regressors+1):length(x)
+        storage[i, i] += 2.0 * lambda
+    end
+    return storage
 end
 
 
