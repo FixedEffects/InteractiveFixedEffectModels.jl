@@ -7,7 +7,7 @@
 function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; method::Symbol = :bfgs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9)
 
 	if method == :svd
-		weight != nothing || error("The svd methods does not support weights")
+		weight == nothing || error("The svd methods does not support weights")
 		lambda == 0.0 || error("The svd method does not support lambda")
 	end
 
@@ -132,7 +132,6 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Ma
 	# initialize at zero for missing values
 	res_matrix = fill(zero(Float64), (length(ids.pool), length(times.pool)))
 	new_res_matrix = deepcopy(res_matrix)
-	loadings = Array(Float64, (length(ids.pool), d))
 	factors = Array(Float64, (length(times.pool), d))
 	variance = Array(Float64, (length(times.pool), length(times.pool)))
 	converged = false
@@ -167,7 +166,8 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Ma
 	for j in 1:d
 		newfactors[:, j] = factors[:, d + 1 - j]
 	end
-	return PanelFactorModelResult(b, ids, times, loadings, newfactors, iterations, converged, converged, false, false)
+	loadings = new_res_matrix * factors
+	return PanelFactorModelResult(b, ids, times, loadings, newfactors, iterations, converged, false, false)
 end
 
 
@@ -210,10 +210,13 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::V
                                 )
     result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = 1e-32, grtol = 1e-32)  
     b = result.minimum[1:n_regressors]
+    # construct loadings
     loadings = Array(Float64, (length(ids.pool), rank))
-    factors = Array(Float64, (length(times.pool), rank))
     fill!(loadings, result.minimum, n_regressors)
+    # construct factors
+    factors = Array(Float64, (length(times.pool), rank))
     fill!(factors, result.minimum, n_regressors + length(ids.pool) * rank)  
+    # normalize so that factors' * factors = Id
     (loadings, factors) = normalize(loadings, factors)
     result = PanelFactorModelResult(b, ids, times, loadings, factors, result.iterations, result.x_converged, result.f_converged, result.gr_converged)
     return result
@@ -229,14 +232,12 @@ function Base.fill!(M::Matrix{Float64}, v::Vector{Float64}, start::Integer)
 	end
 end
 
-# Ilink Raiko (2010) Journal of Machine Learning Research (never constructs a matrix N x T)
 function normalize(loadings::Matrix{Float64}, factors::Matrix{Float64})
     U = eigfact!(At_mul_B(factors, factors))
     sqrtDx = diagm(sqrt(abs(U[:values])))
-    newfactors = factors *  U[:vectors] * sqrtDx
+    newfactors = loadings *  U[:vectors] * sqrtDx
     V = eigfact!(At_mul_B(newfactors, newfactors))
-    A_mul_B!(newfactors, factors, U[:vectors] * (sqrtDx \ V[:vectors]))
-    return (loadings * (U[:vectors] * sqrtDx * V[:vectors]), newfactors)
+    return ((loadings * U[:vectors]) * (sqrtDx * V[:vectors]),  factors *  U[:vectors] * (sqrtDx \ V[:vectors]))
 end
 
 
