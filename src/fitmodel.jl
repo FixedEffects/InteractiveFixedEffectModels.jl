@@ -177,9 +177,8 @@ end
 
 function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::Vector{Float64}, y::Vector{Float64}, ids::PooledDataVector{Tid, Rid}, times::PooledDataVector{Ttime, Rtime}, rank::Integer, method::Symbol, lambda::Real, sqrtw::Vector{Float64}, maxiter::Int, tol::Real)
 
-	n_regressors = size(X, 2)
-
 	# Optim acceps a vector as an argument, so squeeze beta, loadinags and factors in a vector
+	n_regressors = size(X, 2)
 	x0 = fill(0.1, n_regressors + rank * length(ids.pool) + rank * length(times.pool))
 	x0[1:n_regressors] = b
 	idsrefs = similar(ids.refs)
@@ -190,8 +189,9 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::V
 	@inbounds for i in 1:length(times.refs)
 		timesrefs[i] = n_regressors + length(ids.pool) * rank + (times.refs[i] - 1) * rank 
 	end
-	Xt = X'
 
+	# use Xt rather than X for better cache performances
+	Xt = X'
 
 	# optimize
 	f = x -> sum_of_squares(x, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
@@ -216,11 +216,9 @@ end
 
 function Base.fill!(M::Matrix{Float64}, v::Vector{Float64}, start::Integer)
 	idx = start
-	for i in 1:size(M, 1)
-		for j in 1:size(M, 2)
-			idx += 1
-			M[i, j] = v[idx]
-		end
+	for i in 1:size(M, 1), j in 1:size(M, 2)
+		idx += 1
+		M[i, j] = v[idx]
 	end
 end
 
@@ -258,7 +256,8 @@ function sum_of_squares{Tid, Ttime}(x::Vector{Float64}, sqrtw::Vector{Float64}, 
 		error = y[i] - prediction
 		out += abs2(error)
 	end
-	# penalty term
+
+	# Tikhonov term
 	@inbounds @simd for i in (n_regressors+1):length(x)
 	    out += lambda * abs2(x[i])
 	end
@@ -291,7 +290,8 @@ function sum_of_squares_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vecto
         	storage[id + r] -= 2.0 * error * sqrtwi * x[time + r] 
         end
     end
-    # penalty term
+
+    # Tikhonov term
     @inbounds @simd for i in (n_regressors+1):length(x)
         storage[i] += 2.0 * lambda * x[i]
     end
@@ -325,7 +325,8 @@ function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::V
 			storage[id + r] -= 2.0 * error * sqrtwi * x[time + r] 
 		end
     end
-    # penalty term
+
+    # Tikhonov term
     @inbounds @simd for i in (n_regressors+1):length(x)
         out += lambda * abs2(x[i])
         storage[i] += 2.0 * lambda * x[i]
@@ -336,7 +337,6 @@ end
 
 # hessian (used in newton method)
 function sum_of_squares_hessian!{Tid, Ttime}(x::Vector{Float64}, storage::Matrix{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real)
-
     fill!(storage, zero(Float64))
     @inbounds @simd for i in 1:length(y)
         id = idsrefs[i]
@@ -405,7 +405,8 @@ function sum_of_squares_hessian!{Tid, Ttime}(x::Vector{Float64}, storage::Matrix
 	    	end
 	    end
     end
-    # penalty term
+
+    # Tikhonov term
     @inbounds @simd for i in (n_regressors+1):length(x)
         storage[i, i] += 2.0 * lambda
     end

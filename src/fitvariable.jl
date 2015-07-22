@@ -125,7 +125,8 @@ function sum_of_squares{Ttime, Tid}(x::Vector{Float64}, sqrtw::Vector{Float64}, 
         error = y[i] - sqrtwi * loading * factor
         out += abs2(error)
     end
-    # penalty term
+    
+    # Tikhonov term
     @inbounds @simd for i in 1:length(x)
         out += lambda * abs2(x[i])
     end
@@ -145,7 +146,8 @@ function sum_of_squares_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::Vecto
         storage[id] -= 2.0 * error * sqrtwi * factor 
         storage[time] -= 2.0 * error * sqrtwi * loading
     end
-    # penalty term
+    
+    # Tikhonov term
     @inbounds @simd for i in 1:length(x)
         storage[i] += 2.0 * lambda * x[i]
     end
@@ -167,7 +169,8 @@ function sum_of_squares_and_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::V
         storage[id] -= 2.0 * error * sqrtwi * factor 
         storage[time] -= 2.0 * error * sqrtwi * loading 
     end
-    # penalty term
+    
+    # Tikhonov term
     @inbounds @simd for i in 1:length(x)
         out += lambda * abs2(x[i])
         storage[i] += 2.0 * lambda * x[i]
@@ -192,7 +195,8 @@ function sum_of_squares_hessian!{Ttime, Tid}(x::Vector{Float64}, storage::Matrix
         storage[time, id] += cross
         storage[id, time] += cross
     end
-    # penalty term
+    
+    # Tikhonov term
     @inbounds @simd for i in 1:length(x)
         storage[i, i] += 2.0 * lambda
     end
