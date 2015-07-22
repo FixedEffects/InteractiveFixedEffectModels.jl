@@ -72,7 +72,7 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 		- `:l_bfgs`
 	
 
-		Instead of an optimization method, choose the method described in Bai (2009) using `method = :svd`.
+		Rather than an optimization method, you can also choose the method described in Bai (2009) using `method = :svd`.
 	## Install
 
 	```julia
