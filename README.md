@@ -1,4 +1,5 @@
 
+## Motivation
 This package estimates factor models on datasets where each row represents an observation. This contrasts to the usual litterature that start from a matrix N x T.
 
 
@@ -24,7 +25,7 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 
 
 
-### Syntax
+## Syntax
 - The first argument of `fit` is an object of type `PanelFactorModel`. An object of type `PanelFactorModel` can be constructed by specifying the id variable, the time variable, and the factor dimension in the dataframe. Both the id and time variable must be of type `PooledDataVector`.
 
 	```julia
@@ -73,7 +74,8 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 	
 
 		Rather than an optimization method, you can also choose the method described in Bai (2009) using `method = :svd`.
-	## Install
+
+## Install
 
 	```julia
 	Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
