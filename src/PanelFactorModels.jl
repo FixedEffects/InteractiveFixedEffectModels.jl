@@ -19,7 +19,8 @@ import Optim: optimize, DifferentiableFunction
 ##############################################################################
 export PanelFactorModel,
 PanelFactorResult,
-PanelFactorModelResult
+PanelFactorModelResult,
+fit2
 ##############################################################################
 ##
 ## Load files
@@ -30,4 +31,4 @@ include("types.jl")
 include("fitvariable.jl")
 include("fitmodel.jl")
 
-end  # module FixedEffectModels
+end

@@ -4,7 +4,10 @@ df = dataset("plm", "Cigar")
 df[:pState] = pool(df[:State])
 df[:pYear] = pool(df[:Year])
 
+
+
 result = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9, maxiter = 10000)
+resultsvd = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9, maxiter = 10000, method = :svd)
 
 # test coef
 @test_approx_eq_eps result.coef [163.01350,-0.40610] 1e-4
@@ -20,3 +23,4 @@ result = fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9
 @test_approx_eq_eps fit(PanelFactorModel(:pState, :pYear, 2),  Sales ~ Price |> pState, df , tol = 1e-9).coef  [-0.42538] 1e-4
 
 
+ fit2(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df, tol = 1e-9, maxiter = 10000)

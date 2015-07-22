@@ -6,9 +6,11 @@ type PanelFactorModel
 end
 
 # object returned by fitting variable
-type PanelFactorResult 
-    id::PooledDataVector
-    time::PooledDataVector
+abstract AbstractPanelFactorResult
+
+type PanelFactorResult{Tid, Ttime} <: AbstractPanelFactorResult
+    id::PooledDataVector{Tid}
+    time::PooledDataVector{Ttime}
     loadings::Matrix{Float64}  # N x d
     factors::Matrix{Float64} # T x d
     iterations::Vector{Int64}
@@ -18,14 +20,32 @@ type PanelFactorResult
     gr_converged::Vector{Bool}
 end
 
+
 # Object returned when fitting model
-type PanelFactorModelResult 
-    id::PooledDataVector
-    time::PooledDataVector
-    coef::Vector{Float64} 
+type PanelFactorModelResult{Tid, Ttime} <: AbstractPanelFactorResult
+    coef::Vector{Float64}
+    id::PooledDataVector{Tid}
+    time::PooledDataVector{Ttime}
     loadings::Matrix{Float64}  # N x d
     factors::Matrix{Float64} # T x d
     iterations::Int64
-    converged::Bool
+    iteration_converged::Bool
+    x_converged::Bool
+    f_converged::Bool
+    gr_converged::Bool
 end
 
+
+function normalize!(x::AbstractPanelFactorResult)
+    res_matrix = A_mul_Bt(x.loadings, x.factors)
+    variance = At_mul_B(res_matrix, res_matrix)
+    F = eigfact!(variance)
+    factors = sub(F[:vectors], :, (size(x.factors, 1) - size(x.factors, 2) + 1):size(x.factors, 1))
+    newfactors = Array(Float64, (size(x.factors, 1), size(x.factors, 2)))
+    for j in 1:size(x.factors, 2)
+        x.factors[:, j] = factors[:, size(x.factors, 2) + 1 - j]
+    end
+    scale!(x.factors, sqrt(size(x.factors, 1)))
+    A_mul_B!(x.loadings, res_matrix, x.factors)
+    x.loadings = scale!(x.loadings, 1/size(x.factors, 1))
+end

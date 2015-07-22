@@ -28,9 +28,9 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
     end
 
     if typeof(subdf[variable]) == Vector{Float64}
-        ratings = deepcopy(df[variable])
+        y = deepcopy(df[variable])
     else
-        ratings = convert(Vector{Float64}, subdf[variable])
+        y = convert(Vector{Float64}, subdf[variable])
     end
     ids = subdf[m.id]
     times = subdf[m.time]
@@ -53,9 +53,9 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
     x0 = fill(0.1, length(ids.pool) + length(times.pool))
 
     for r in 1:m.rank
-        d = DifferentiableFunction(x -> sum_of_squares(x, sqrtw, ratings, times.refs, ids.refs, l, lambda),
-                                    (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, ratings, times.refs, ids.refs, l, lambda),
-                                    (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, ratings, times.refs, ids.refs, l, lambda)
+        d = DifferentiableFunction(x -> sum_of_squares(x, sqrtw, y, times.refs, ids.refs, l, lambda),
+                                    (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda),
+                                    (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
                                     )
         # optimize
         result = optimize(d, x0, method = method)  
@@ -70,11 +70,11 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
         push!(gr_converged, result.gr_converged)
         
         # residualize
-        residualize!(ratings, factors, loadings, ids.refs, times.refs)
+        residualize!(y, factors, loadings, ids.refs, times.refs)
        
         # normalize so that F'F/T = Id
-        factorscale = norm(factors, 2) /  sqrt(length(times.pool))
-        scale!(factors, 1/factorscale)
+        factorscale = norm(factors, 2) / sqrt(length(times.pool))
+        scale!(factors, 1 / factorscale)
         scale!(loadings, factorscale)
 
         factorsmatrix[:, r] = factors
@@ -85,15 +85,15 @@ function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; subse
 end
 
 # function to minimize
-function sum_of_squares(x::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int, lambda::Real)
+function sum_of_squares{Ttime, Tid}(x::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, l::Integer, lambda::Real)
     out = zero(Float64)
-    @inbounds @simd for i in 1:length(ratings)
+    @inbounds @simd for i in 1:length(y)
         id = idsrefs[i]
         time = timesrefs[i] + l
         loading = x[id]
         factor = x[time]
         sqrtwi = sqrtw[i]
-        error = sqrtwi * (ratings[i] - loading * factor)
+        error = sqrtwi * (y[i] - loading * factor)
         out += abs2(error)
     end
     # penalty term
@@ -104,17 +104,17 @@ function sum_of_squares(x::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float
 end
 
 # gradient
-function sum_of_squares_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int, lambda::Real)
+function sum_of_squares_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, l::Integer, lambda::Real)
     fill!(storage, zero(Float64))
-    @inbounds @simd for i in 1:length(ratings)
+    @inbounds @simd for i in 1:length(y)
         id = idsrefs[i]
         time = timesrefs[i] + l
         loading = x[id]
         factor = x[time]
         sqrtwi = sqrtw[i]
-        error = sqrtwi * (ratings[i] - loading * factor)
-        storage[id] -= 2.0 * error * factor * sqrtwi 
-        storage[time] -= 2.0 * error * loading * sqrtwi
+        error = sqrtwi * (y[i] - loading * factor)
+        storage[id] -= 2.0 * error * sqrtwi * factor 
+        storage[time] -= 2.0 * error * sqrtwi * loading
     end
     # penalty term
     @inbounds @simd for i in 1:length(x)
@@ -124,19 +124,19 @@ function sum_of_squares_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Floa
 end
 
 # function + gradient in the same loop
-function sum_of_squares_and_gradient!(x::Vector, storage::Vector, sqrtw::Vector{Float64}, ratings::Vector{Float64}, timesrefs::Vector, idsrefs::Vector, l::Int, lambda::Real)
+function sum_of_squares_and_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::Vector{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, l::Integer, lambda::Real)
     fill!(storage, zero(Float64))
     out = zero(Float64)
-    @inbounds @simd for i in 1:length(ratings)
+    @inbounds @simd for i in 1:length(y)
         id = idsrefs[i]
         time = timesrefs[i]+l
         loading = x[id]
         factor = x[time]
         sqrtwi = sqrtw[i]
-        error =  sqrtwi * (ratings[i] - loading * factor)
+        error =  sqrtwi * (y[i] - loading * factor)
         out += abs2(error)
-        storage[id] -= 2.0 * error * factor * sqrtwi 
-        storage[time] -= 2.0 * error * loading * sqrtwi
+        storage[id] -= 2.0 * error * sqrtwi * factor 
+        storage[time] -= 2.0 * error * sqrtwi * loading 
     end
     # penalty term
     @inbounds @simd for i in 1:length(x)
@@ -148,10 +148,17 @@ end
 
 
 
-function residualize!(ratings::Vector{Float64}, factors::Vector{Float64}, loadings::Vector{Float64}, idsrefs::Vector, timesrefs::Vector)
-    @inbounds @simd for i in 1:length(ratings)
-        ratings[i] -= factors[timesrefs[i]] * loadings[idsrefs[i]]
+function residualize!{Ttime, Tid}(y::Vector{Float64}, factors::Vector{Float64}, loadings::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+    @inbounds @simd for i in 1:length(y)
+        y[i] -= factors[timesrefs[i]] * loadings[idsrefs[i]]
     end
 end
+
+
+
+
+
+
+
 
 
