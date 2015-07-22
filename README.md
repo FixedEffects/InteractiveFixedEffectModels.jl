@@ -59,11 +59,11 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 	- `lambda` This option implements a Tikhonov regularization, i.e. minimizing the sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
 	- `method`. This option allows to vary the optimization method used. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs` when estimating a linear model with interactive fixed effects.   Available optimizers are:
 
-		`:bfgs`
-		`:cg`
-		`:gradient_descent`
-		`:momentum_gradient_descent`
-		`:l_bfgs`
+		- `:bfgs`
+		- `:cg`
+		- `:gradient_descent`
+		- `:momentum_gradient_descent`
+		- `:l_bfgs`
 	
 
 		You can also choose the method described in Bai (2009) by using `method = :svd`.
