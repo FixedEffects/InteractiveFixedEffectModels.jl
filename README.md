@@ -84,4 +84,4 @@ Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
 
 ## References
 - Ilin, Alexander, and Tapani Raiko. *Practical approaches to principal component analysis in the presence of missing values.* The Journal of Machine Learning Research 11 (2010): 1957-2000.
--  Sarwar, Badrul, et al. *Incremental singular value decomposition algorithms for highly scalable recommender systems.* Fifth International Conference on Computer and Information Science. 2002.
+-  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. ACM, 2008.
