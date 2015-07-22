@@ -1,8 +1,8 @@
 
-This package estimates factor models on datasets where each row represents an observation,  as opposed to a matrix N x T.
+This package estimates factor models on datasets where each row represents an observation. This contrasts to the usual litterature that start from a matrix N x T.
 
 
-I'll use the term "panels" to refer to these long datasets , and id x time to refer to the two dimensions of the factor structure - they correspond to (variable x observation) in PCA and (user x movie) in recommandation problems.
+I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - they correspond to the pair variable x observation in PCA and the pair user x movie in recommandation problems.
 
 
 
@@ -12,10 +12,10 @@ This packages estimates factor models by directly minimizing the sum of residual
 
 2. estimate weighted factor models, where weights are not constant within id or time
 
-3. estimate factor models with a penalization for the norm of loadings and factors (Tikhonov regularization). 
+3. estimate factor models with a penalization for the norm of loadings and factors (Tikhonov regularization), ie minimizing 
 
    ```
-   sum of errors + lambda *(||loadings||^2 + ||factors||^2)
+   sum of squared residuals + lambda *(||loadings||^2 + ||factors||^2)
    ```
 
 4. avoid the creation of a matrix N x T, which may use a lot of memory
@@ -25,7 +25,7 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 
 
 ### Syntax
-- The first argument of `fit` is an object of type `PanelFactorModel`. This must be constructed by specifying the id variable, the time variable, and the factor dimension in the dataframe. Both the id and time variable must be of type `PooledDataVector`.
+- The first argument of `fit` is an object of type `PanelFactorModel`. An object of type `PanelFactorModel` can be constructed by specifying the id variable, the time variable, and the factor dimension in the dataframe. Both the id and time variable must be of type `PooledDataVector`.
 
 	```julia
 	using RDatasets, DataFrames, PanelFactorModels
@@ -44,11 +44,14 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 		fit(PanelFactorModel(:pState, :pYear, 2), :Sales)
 		```
 
-	- When the second argument is a formula, `fit` fits a linear model with interactive fixed effects (as in Bai (2000))
-		Note that the id or time fixed effects can be specified using `|>` as in the [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) package
+	- When the second argument is a formula, `fit` fits a linear model with interactive fixed effects (Bai (2009))
+	
 
 		```julia
 		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df)
+		```
+		Note that the id or time fixed effects can be specified using `|>` as in the [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) package
+		```
 		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df)
 		```
 
