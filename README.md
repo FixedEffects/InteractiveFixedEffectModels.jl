@@ -38,13 +38,13 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 	```
 
 - The second argument of `fit` is either a symbol or a formule.
-	- Whn it is a symbol,` fit` fits a factor model on a variable. 
+	- When the second argument is a symbol,` fit` fits a factor model on a variable. 
 
 		```julia
 		fit(PanelFactorModel(:pState, :pYear, 2), :Sales)
 		```
 
-	- When it is a formula, `fit` fits a linear model with interactive fixed effects (as in Bai (2000))
+	- When the second argument is a formula, `fit` fits a linear model with interactive fixed effects (as in Bai (2000))
 		Note that the id or time fixed effects can be specified using `|>` as in the [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) package
 
 		```julia
@@ -56,7 +56,10 @@ An alternative for issue 1 is the the EM algorithm, which replaces iteratively m
 - `fit` also has keyword arguments:
 	- `subset`
 	- `weights`: This minimizes the sum of weighted residuals
-	- `lambda` This option implements a Tikhonov regularization, i.e. minimizing the sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
+	- `lambda` This option implements a Tikhonov regularization, i.e. minimizing the 
+		```
+		sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
+		```
 	- `method`. This option allows to vary the optimization method used. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs` when estimating a linear model with interactive fixed effects.   Available optimizers are:
 
 		- `:bfgs`
