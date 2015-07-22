@@ -67,12 +67,11 @@ The idea is to directly minimize the sum of residuals. This yields four main ben
 		```
 	- `method`: this option is passed to the minimization method from Optim. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs` when estimating a linear model with interactive fixed effects.   Available optimizers are:
 
-		- `:newton`
 		- `:bfgs`
+		- `:l_bfgs`
 		- `:cg`
 		- `:gradient_descent`
 		- `:momentum_gradient_descent`
-		- `:l_bfgs`
 	
 
 		Rather than an optimization method, you can also choose the method described in Bai (2009) using `method = :svd`.

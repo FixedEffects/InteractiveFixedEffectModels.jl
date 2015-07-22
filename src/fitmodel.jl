@@ -203,11 +203,12 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::V
 	# Translate X (for cache property)
 	Xt = X'
 	# optimize
-    d = TwiceDifferentiableFunction(x -> sum_of_squares(x, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda),
-                                (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda),
-                                (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda),
-                                (x, storage) -> sum_of_squares_hessian!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
-                                )
+	f = x -> sum_of_squares(x, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
+	g! = (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
+	fg! = (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
+	h =  (x, storage) -> sum_of_squares_hessian!(x, storage, sqrtw, y, timesrefs, idsrefs, n_regressors, rank, Xt, lambda)
+    d = TwiceDifferentiableFunction(f, g!, fg!, h)
+
     result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = 1e-32, grtol = 1e-32)  
     b = result.minimum[1:n_regressors]
     # construct loadings
@@ -321,7 +322,7 @@ function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::V
 		for r in 1:rank
 			prediction += sqrtwi * x[id + r] * x[time + r]
 		end
-		error =  sqrtwi * (y[i] - prediction)
+		error = y[i] - prediction
 		out += abs2(error)
 		for k in 1:n_regressors
 			storage[k] -= 2.0 * error  * Xt[k, i] 
@@ -341,8 +342,10 @@ function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::V
     return out
 end
 
+
 # hessian (used in newton method)
 function sum_of_squares_hessian!{Tid, Ttime}(x::Vector{Float64}, storage::Matrix{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real)
+
     fill!(storage, zero(Float64))
     @inbounds @simd for i in 1:length(y)
         id = idsrefs[i]
@@ -350,6 +353,15 @@ function sum_of_squares_hessian!{Tid, Ttime}(x::Vector{Float64}, storage::Matrix
 	    sqrtwi = sqrtw[i]
 	    wi = sqrtwi^2
 	    
+	    prediction = zero(Float64)
+	    for k in 1:n_regressors
+	        prediction += x[k] * Xt[k, i]
+	    end
+	    for r in 1:rank
+	    	prediction += sqrtwi * x[id + r] * x[time + r]
+	    end
+	    error = y[i] - prediction
+
 	    # derivative wrt beta
 	    for k in 1:n_regressors
 	    	xk = Xt[k, i]
@@ -384,7 +396,7 @@ function sum_of_squares_hessian!{Tid, Ttime}(x::Vector{Float64}, storage::Matrix
 	        for s in 1:rank
 	        	cross = 2.0 * wi * x[time + r] * x[id + s]
 	        	if s == r
-	        		cross *= 2.0
+	        		cross -= 2.0 * sqrtwi * error 
 	        	end
 		        storage[id + r, time + s] += cross
 	        	storage[time + s, id + r] += cross
