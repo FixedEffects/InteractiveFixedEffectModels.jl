@@ -146,9 +146,9 @@ function estimate_factor_model{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Ma
 		fill!(res_matrix, y, res_vector, ids.refs, times.refs)
 		# create covariance matrix and do PCA
 		At_mul_B!(variance, res_matrix, res_matrix)
-		F = eigfact!(variance)
+		F = eigfact!(Symmetric(variance), (length(times.pool) - d + 1):length(times.pool))
 		# obtain d largest eigenvectors
-		factors = sub(F[:vectors], :, (length(times.pool) - d + 1):length(times.pool))
+		factors = F[:vectors]
 		# compute the low rank approximation of res_matrix
 		A_mul_Bt!(variance, factors, factors)
 		A_mul_B!(new_res_matrix, res_matrix, variance)
