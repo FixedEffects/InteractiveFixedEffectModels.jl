@@ -20,9 +20,6 @@ The idea is to directly minimize the sum of residuals. This yields four main ben
    sum of squared residuals + lambda *(||loadings||^2 + ||factors||^2)
    ```
 
-4. avoid the creation of a matrix N x T, which may use a lot of memory
-
-
 
 
 ## Syntax
@@ -44,7 +41,7 @@ The idea is to directly minimize the sum of residuals. This yields four main ben
 		```julia
 		fit(PanelFactorModel(:pState, :pYear, 2), :Sales)
 		```
-
+		The factor model is fits iteratively for each dimension.
 	- When the second argument is a formula, `fit` fits a linear model with interactive fixed effects (Bai (2009))
 	
 
@@ -65,13 +62,7 @@ The idea is to directly minimize the sum of residuals. This yields four main ben
 		```
 		sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
 		```
-	- `method`: this option is passed to the minimization method from Optim. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs` when estimating a linear model with interactive fixed effects.   Available optimizers are:
-
-		- `:bfgs`
-		- `:l_bfgs`
-		- `:cg`
-		- `:gradient_descent`
-		- `:momentum_gradient_descent`
+	- `method`: this option is passed to the minimization method from Optim. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs`  when estimating a linear model with interactive fixed effects.  
 	
 
 		Rather than an optimization method, you can also choose the method described in Bai (2009) using `method = :svd`.

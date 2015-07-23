@@ -11,7 +11,7 @@ import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms,
 using FixedEffectModels
 import StatsBase: fit, model_response
 import Optim: optimize, DifferentiableFunction, TwiceDifferentiableFunction
-using Calculus
+using NLopt: Opt, xtol_rel!, min_objective!, optimize!
 ##############################################################################
 ##
 ## Exported methods and types 

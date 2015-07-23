@@ -65,15 +65,13 @@ function estimate_factor_variable{Tids, Rids, Ttimes, Rtimes}(y::Vector{Float64}
     # Optim acceps a vector as an argument, so squeeze loadinags and factors in a vector
     l = length(ids.pool)
     x0 = fill(0.1, length(ids.pool) + length(times.pool))
-
     for r in 1:rank
 
         # set up optimization problem
         f = x -> sum_of_squares(x, sqrtw, y, times.refs, ids.refs, l, lambda)
         g! = (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
         fg! = (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
-        h! = (x, storage) -> sum_of_squares_hessian!(x, storage, sqrtw, y, times.refs, ids.refs, l, lambda)
-        d = TwiceDifferentiableFunction(f, g!, fg!, h!)
+        d = DifferentiableFunction(f, g!, fg!)
 
         # optimize
         result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = 1e-32, grtol = 1e-32)
@@ -176,31 +174,6 @@ function sum_of_squares_and_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::V
         storage[i] += 2.0 * lambda * x[i]
     end
     return out
-end
-
-# hessian (used in newton method)
-function sum_of_squares_hessian!{Ttime, Tid}(x::Vector{Float64}, storage::Matrix{Float64}, sqrtw::Vector{Float64}, y::Vector{Float64}, timesrefs::Vector{Ttime}, idsrefs::Vector{Tid}, l::Integer, lambda::Real)
-    fill!(storage, zero(Float64))
-    @inbounds @simd for i in 1:length(y)
-        id = idsrefs[i]
-        time = timesrefs[i]+l
-        loading = x[id]
-        factor = x[time]
-        sqrtwi = sqrtw[i]
-        wi = sqrtwi^2
-        error = y[i] - sqrtwi * loading * factor
-        storage[id, id] += 2.0 * wi * factor^2
-        storage[time, time] += 2.0 * wi * loading^2
-        cross = - 2.0 * sqrtwi * error + 2.0 * wi * factor * loading
-        storage[time, id] += cross
-        storage[id, time] += cross
-    end
-    
-    # Tikhonov term
-    @inbounds @simd for i in 1:length(x)
-        storage[i, i] += 2.0 * lambda
-    end
-    return storage
 end
 
 
