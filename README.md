@@ -6,7 +6,7 @@ I'll use the term "panels" to refer to these long datasets, and id x time to ref
 
 
 
-The idea is to directly minimize the sum of residuals. This yields four main benefits compared to a traditional eigenvalue decomposition:
+This package estimates factor models by minimizing the sum of residuals through an optimization algorithm. This yields four main benefits compared to a traditional eigenvalue decomposition:
 
 1. estimate unbalanced panels, i.e. with missing (id x time) observations. 
 	An alternative would be the EM algorithm, which replaces iteratively missing values by the predicted values from the factor model until convergence. In my experience however, the EM algorithm is generally slower to converge.
