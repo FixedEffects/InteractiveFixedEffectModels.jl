@@ -19,7 +19,8 @@ This package estimates factor models by minimizing the sum of residuals through 
    ```
    sum of squared residuals + lambda *(||loadings||^2 + ||factors||^2)
    ```
-
+   
+4. Avoids the creation of a matrix N x T
 
 
 ## Syntax
