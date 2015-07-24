@@ -12,7 +12,7 @@ This package estimates factor models by minimizing the sum of residuals through 
 	An alternative would be the EM algorithm, which replaces iteratively missing values by the predicted values from the factor model until convergence. In my experience however, the EM algorithm is generally slower to converge.
 
 
-2. estimate weighted factor models, where weights are not constant within id or time
+2. estimate weighted factor models, where weights are not constant within id or time. Note however that, in this case, the cost function can have multiple local minima (Srebro Jaakkola)
 
 3. estimate factor models with a penalization for the norm of loadings and factors (Tikhonov regularization), ie minimizing 
 
@@ -75,5 +75,6 @@ Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
 ```
 
 ## References
-- Ilin, Alexander, and Tapani Raiko. *Practical approaches to principal component analysis in the presence of missing values.* The Journal of Machine Learning Research 11 (2010): 1957-2000.
--  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. ACM, 2008.
+- Ilin, Alexander, and Tapani Raiko. *Practical approaches to principal component analysis in the presence of missing values.* (2010) The Journal of Machine Learning Research 11 
+-  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* (2008) Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. 
+- Bai, Jushan. *Panel data models with interactive fixed effects.* (2009) Econometrica 

@@ -1,4 +1,81 @@
 
+##############################################################################
+##
+## Chebyshev
+##
+##############################################################################
+
+function chebyshev{T, N}(x::Array{T, N})
+	distance = zero(Float64)
+	@inbounds @simd for i in eachindex(x)
+		current = abs(x[i])
+		if current > distance
+			distance = current
+		end
+	end
+	return distance
+end
+
+
+
+function chebyshev{T, N}(x::Array{T, N}, y::Array{T, N})
+	distance = zero(Float64)
+	@inbounds @simd for i in eachindex(x)
+		current = abs(x[i] - y[i])
+		if current > distance
+			distance = current
+		end
+	end
+	return distance
+end
+
+
+
+function sqeuclidean{T, N}(x::Array{T, N}, y::Array{T, N})
+	distance = zero(Float64)
+	@inbounds @simd for i in eachindex(x)
+		distance += abs2(x[i] - y[i])
+	end
+	return sqrt(distance)
+end
+
+
+
+##############################################################################
+##
+## fill matrix into a vector and conversely
+##
+##############################################################################
+
+function Base.fill!(M::Matrix{Float64}, x::Vector{Float64}, start::Integer)
+	idx = start
+	for i in 1:size(M, 1), j in 1:size(M, 2)
+		idx += 1
+		M[i, j] = x[idx]
+	end
+end
+
+function Base.fill!(x::Vector{Float64}, M::Matrix{Float64}, start::Integer)
+	idx = start
+	for i in 1:size(M, 1), j in 1:size(M, 2)
+		idx += 1
+		x[idx] = M[i, j]
+	end
+end
+
+
+function Base.fill!{Tid, Ttime}(ymatrix::Matrix{Float64}, yvector::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+	@inbounds @simd for i in 1:length(yvector)
+		ymatrix[idsrefs[i], timesrefs[i]] = yvector[i]
+	end
+end
+
+function Base.fill!{Tid, Ttime}(yvector::Vector{Float64}, ymatrix::Matrix{Float64},  idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+	@inbounds @simd for i in 1:length(yvector)
+		yvector[i] = ymatrix[idsrefs[i], timesrefs[i]]
+	end
+end
+
 
 ##############################################################################
 ##
@@ -41,9 +118,9 @@ function isnaorneg{T <: Real}(a::Vector{T})
 end
 function isnaorneg{T <: Real}(a::DataVector{T}) 
 	out = !a.na
-	@simd for i in 1:length(a)
+	@inbounds @simd for i in 1:length(a)
 		if out[i]
-			@inbounds out[i] = a[i] > zero(Float64)
+			out[i] = a[i] > zero(Float64)
 		end
 	end
 	bitpack(out)
@@ -81,7 +158,7 @@ function dropUnusedLevels!(f::PooledDataVector)
 	sort!(uu)
 	T = reftype(length(uu))
 	dict = Dict(uu, 1:convert(T, length(uu)))
-	@inbounds @simd  for i in 1:length(f.refs)
+	@inbounds @simd for i in 1:length(f.refs)
 		 f.refs[i] = dict[f.refs[i]]
 	end
 	f.pool = f.pool[uu]

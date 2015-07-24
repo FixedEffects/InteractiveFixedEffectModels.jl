@@ -14,10 +14,7 @@ type PanelFactorResult{Tid, Ttime} <: AbstractPanelFactorResult
     loadings::Matrix{Float64}  # N x d
     factors::Matrix{Float64} # T x d
     iterations::Vector{Int64}
-    x_converged::Vector{Bool}
-    f_converged::Vector{Bool}
-    gr_converged::Vector{Bool}
-
+    converged::Vector{Bool}
 end
 
 
@@ -29,9 +26,8 @@ type PanelFactorModelResult{Tid, Ttime} <: AbstractPanelFactorResult
     loadings::Matrix{Float64}  # N x d
     factors::Matrix{Float64} # T x d
     iterations::Int64
-    x_converged::Bool
-    f_converged::Bool
-    gr_converged::Bool
+    converged::Bool
 end
+
 
 

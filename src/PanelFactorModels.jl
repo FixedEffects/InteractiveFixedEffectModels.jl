@@ -5,13 +5,12 @@ module PanelFactorModels
 ## Dependencies
 ##
 ##############################################################################
-import Distances: chebyshev
+using Compat
 import DataArrays: RefArray, PooledDataVector, DataVector
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
 using FixedEffectModels
 import StatsBase: fit, model_response
 import Optim: optimize, DifferentiableFunction, TwiceDifferentiableFunction
-using NLopt: Opt, xtol_rel!, min_objective!, optimize!
 ##############################################################################
 ##
 ## Exported methods and types 
@@ -19,8 +18,7 @@ using NLopt: Opt, xtol_rel!, min_objective!, optimize!
 ##############################################################################
 export PanelFactorModel,
 PanelFactorResult,
-PanelFactorModelResult,
-fit2
+PanelFactorModelResult
 ##############################################################################
 ##
 ## Load files
@@ -28,6 +26,7 @@ fit2
 ##############################################################################
 include("utils.jl")
 include("types.jl")
+include("update!.jl")
 include("fitvariable.jl")
 include("fitmodel.jl")
 
