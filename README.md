@@ -2,7 +2,7 @@
 ## Motivation
 
 This package fits models of the form
-<img src="img/model.png" alt="Smiley face" height="42" width="42">
+<img src="img/model.png" alt="Smiley face" height="200" width="1000">
 
 The estimate are obtained by solving the following optimization problem
 ![minimization](img/minimization.png)
