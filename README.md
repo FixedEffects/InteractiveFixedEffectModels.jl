@@ -9,10 +9,10 @@ Estimate correspond to the solution of the following optimization problem
 
 ![minimization](img/minimization.png)
 
-In contrast to traditional factor models.
 
-- This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
--  X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
+This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
+
+X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
 
 
 
