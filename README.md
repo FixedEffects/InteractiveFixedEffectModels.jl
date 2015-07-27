@@ -2,10 +2,9 @@
 ## Motivation
 
 This package fits models of the form
-<img src="img/model.png" alt="Model" width = "768" height = "152">
-
+<img src="img/model.png" alt="Model" height = "152">
 The estimate are obtained by solving the following optimization problem
-<img src="img/minimization.png" alt="minimization" width = "1079" height = "162">
+<img src="img/minimization.png" alt="minimization"  height = "162">
 
 Compared to traditional factor models:
 
