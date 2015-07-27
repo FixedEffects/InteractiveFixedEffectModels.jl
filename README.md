@@ -2,11 +2,11 @@
 ## Motivation
 
 This package fits models of the form
-![model](img/model.png)
+![model](img/model1.png)
 
 The estimate are obtained by solving the following optimization problem
 
-![minimization](img/minimization.png)
+![minimization](img/minimization1.png)
 
 Traditional estimation of factor models  requires a matrix N x T and that the set of regressors is null or equals a set of id or time dummies. In contrast, 
 
