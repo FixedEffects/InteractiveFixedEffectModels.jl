@@ -47,8 +47,8 @@ function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; method::Sym
 	if has_iv
 		error("partial_out does not support instrumental variables")
 	end
-	has_regressors = allvars(rf.rhs) != []
 	rt = Terms(rf)
+	has_regressors = allvars(rf.rhs) != [] || rt.intercept == true
 
 	## create a dataframe without missing values & negative weights
 	vars = allvars(rf)

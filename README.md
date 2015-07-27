@@ -2,8 +2,12 @@
 ## Motivation
 
 This package fits models of the form
+![model](img/rsz_model.png)
+
 <img src="img/model.png" alt="Model" width = "716" height = "152">
 The estimate are obtained by solving the following optimization problem
+
+![minimization](img/rsz_minimization.jpg)
 <img src="img/minimization.png" alt="minimization"  width = "1079" height = "162">
 
 Traditional estimation of factor models  requires a matrix N x T and that the set of regressors is null or equals a set of id or time dummies. In contrast, 
@@ -41,13 +45,13 @@ fit(pfm::PanelFactorModel,
 	```
 
 - The fit argument of `fit` is either a symbol or a formula
-	- When the only regressor is `1`, it simply fits a factor model on the left hand side variable
+	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
 
 		```julia
-		fit(Sales ~ 1, PanelFactorModel(:pState, :pYear, 2))
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ 0)
 		```
 
-		Fit a factor variable on a demeaned variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
+		Pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
 
 		```
 		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
@@ -76,7 +80,7 @@ Three methods are available
 
 - `:svd`. This option fits a factor model through the method described in Bai (2009). In case of an unbalanced panel, missing values are replaced by the values predicted by the factor model fitted in the previous iteration. 
 
-The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
+	The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
 
 
 - Optimization methods (such as `:gradient_descent`, `:bgfgs` and `:l_bgfs`). These methods estimate the model by directly minimizing the sum of squared residuals using the Package Optim. This can be very fast in some problem.
@@ -92,7 +96,7 @@ When weights are not constant within id or time, the optimization problem has lo
 ## lambda
 `lambda` adds a Tikhonov regularization term to the sum of squared residuals, i.e.
 
-	```
+	```julia
 	sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
 	```
 This option is only available for optimziation methods
