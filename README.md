@@ -4,11 +4,9 @@
 This package fits models of the form
 ![model](img/rsz_model.png)
 
-<img src="img/model.png" alt="Model" width = "716" height = "152">
 The estimate are obtained by solving the following optimization problem
 
 ![minimization](img/rsz_minimization.png)
-<img src="img/minimization.png" alt="minimization"  width = "1079" height = "162">
 
 Traditional estimation of factor models  requires a matrix N x T and that the set of regressors is null or equals a set of id or time dummies. In contrast, 
 
