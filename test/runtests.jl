@@ -1,13 +1,19 @@
-using PanelFactorModels
+using FixedEffectModels
 
-tests = ["fitvariable", 
-		 "fitmodel"
+tests = ["fitvariable.jl", 
+		 "fitmodel.jl", 
 		 ]
 
 println("Running tests:")
 
-for t in tests
-    tfile = string(t, ".jl")
-    println(" * $(tfile) ...")
-    include(tfile)
+for test in tests
+	try
+		include(test)
+		println("\t\033[1m\033[32mPASSED\033[0m: $(test)")
+	 catch e
+	 	println("\t\033[1m\033[31mFAILED\033[0m: $(test)")
+	 	showerror(STDOUT, e, backtrace())
+	 	rethrow(e)
+	 end
 end
+

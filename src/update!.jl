@@ -16,13 +16,13 @@ end
 ##
 ##############################################################################
 
-function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::Vector{Float64}, r::Integer)
+function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
 	changeid = update_half!(id, time, y, sqrtw, r)
 	changetime = update_half!(time, id, y, sqrtw, r)
 	changeid + changetime
 end
 
-function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vector{Float64}, sqrtw::Vector{Float64}, r::Integer)
+function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
 	fill!(p1.storage1, zero(Float64))
 	fill!(p1.storage2, zero(Float64))
 	 @inbounds @simd for i in 1:length(p1.refs)
@@ -52,7 +52,7 @@ end
 ##############################################################################
 
 
-function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::Vector{Float64}, regularizer::Real, learning_rate::Real, r::Integer)
+function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, r::Integer)
 	out = zero(Float64)
      @inbounds @simd for i in 1:length(y)
         idi = id.refs[i]
@@ -72,7 +72,7 @@ end
 
 ##############################################################################
 ##
-## rescale!
+## rescale! a factor model
 ##
 ##############################################################################
 
@@ -94,12 +94,12 @@ end
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(scaledloadings::Matrix{Float64}, scaledfactors::Matrix{Float64}, loadings::Matrix{Float64}, factors::Matrix{Float64})
     U = eigfact!(Symmetric(At_mul_B(factors, factors)))
-    sqrtDx = diagm(sqrt(U[:values]))
+    sqrtDx = diagm(sqrt(abs(U[:values])))
     A_mul_B!(scaledloadings,  loadings,  U[:vectors] * sqrtDx)
     V = eigfact!(At_mul_B(scaledloadings, scaledloadings))
-    A_mul_B!(scaledloadings, loadings, U[:vectors] * sqrtDx * V[:vectors])
-    A_mul_B!(scaledfactors, factors, U[:vectors] * (sqrtDx \ V[:vectors]))
-    return (scaledloadings, scaledfactors)
+    A_mul_B!(scaledloadings, loadings, reverse(U[:vectors] * sqrtDx * V[:vectors]))
+    A_mul_B!(scaledfactors, factors, reverse(U[:vectors] * (sqrtDx \ V[:vectors])))
+    return scaledloadings, scaledfactors
 end
 
 function rescale(loadings::Matrix{Float64}, factors::Matrix{Float64})
@@ -107,6 +107,9 @@ function rescale(loadings::Matrix{Float64}, factors::Matrix{Float64})
 	newfactors = similar(factors)
 	rescale!(newloadings, newfactors, loadings, factors)
 end
+
+
+
 
 ##############################################################################
 ##
@@ -122,25 +125,17 @@ function subtract_b!(res::Vector{Float64}, y::Vector{Float64}, b::Vector{Float64
 end
 
 #To do : define with abstract Vector
-function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::Vector{Float64}, idrefs::Vector{R1}, loadings::Matrix{Float64}, timerefs::Vector{R2}, factors::Matrix{Float64}, r::Integer)
-	if r > 0
-		 @inbounds @simd for i in 1:length(y)
-			y[i] -= sqrtw[i] * loadings[idrefs[i], r] * factors[timerefs[i], r]
-		end
-	else
-		for s in 1:size(loadings, 2)
-			if s != -r
-				subtract_factor!(y, sqrtw, idrefs, loadings, timerefs, factors, s)
-			end
-		end
+function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, idrefs::Vector{R1}, loadings::Matrix{Float64}, timerefs::Vector{R2}, factors::Matrix{Float64}, r::Integer)
+	 @inbounds @simd for i in 1:length(y)
+		y[i] -= sqrtw[i] * loadings[idrefs[i], r] * factors[timerefs[i], r]
 	end
 end
 
-function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::Vector{Float64},  id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
+function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64},  id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
 	subtract_factor!(y, sqrtw, id.refs, id.pool, time.refs, time.pool, r)
 end
 
-function subtract_factor!{R1, R2}(res::Vector{Float64}, y::Vector{Float64}, sqrtw::Vector{Float64},  p1::PooledFactor{R1}, p2::PooledFactor{R2})
+function subtract_factor!{R1, R2}(res::Vector{Float64}, y::Vector{Float64}, sqrtw::AbstractVector{Float64},  p1::PooledFactor{R1}, p2::PooledFactor{R2})
 	 @inbounds @simd for i in 1:length(y)
 		res[i] = y[i] - sqrtw[i] * p1.pool[p1.refs[i], 1] * p2.pool[p2.refs[i], 1]
 	end
@@ -148,6 +143,7 @@ function subtract_factor!{R1, R2}(res::Vector{Float64}, y::Vector{Float64}, sqrt
 		subtract_factor!(res, sqrtw, p1, p2, r)
 	end
 end
+
 
 
 

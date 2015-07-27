@@ -1,30 +1,34 @@
 
 ## Motivation
-This package estimates factor models on "long" datasets, where each row represents an observation. 
 
-I'll use the term "panels" to refer to these long datasets, and id x time to refer to the two dimensions of the factor structure - corresponding to the pair variable x observation in PCA and the pair user x movie in recommandation problems.
+This package fits linear factor models of the form
+![](img/model.png]
 
+The estimate are obtained by solving the following optimization problem
+![](img/minimization.png]
 
+Compared to traditional factor models:
+	- This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
+	-  While typical factor models typically requires that X is null or equals a set of id or time dummies, X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
 
-This package estimates factor models by minimizing the sum of residuals through an optimization algorithm. This yields four main benefits compared to a traditional eigenvalue decomposition:
-
-1. estimate unbalanced panels, i.e. with missing (id x time) observations. 
-	An alternative would be the EM algorithm, which replaces iteratively missing values by the predicted values from the factor model until convergence. In my experience however, the EM algorithm is generally slower to converge.
-
-
-2. estimate weighted factor models, where weights are not constant within id or time. Note however that, in this case, the cost function can have multiple local minima (Srebro Jaakkola)
-
-3. estimate factor models with a penalization for the norm of loadings and factors (Tikhonov regularization), ie minimizing 
-
-   ```
-   sum of squared residuals + lambda *(||loadings||^2 + ||factors||^2)
-   ```
-
-4. avoid the creation of a matrix N x T
 
 
 ## Syntax
-- The first argument of `fit` is an object of type `PanelFactorModel`. Such an object `PanelFactorModel` can be constructed by specifying the id variable, the time variable, and the factor dimension in the dataframe. Both the id and time variable must be of type `PooledDataVector`.
+
+The general syntax is
+```julia
+fit(pfm::PanelFactorModel,
+	f::Formula, 
+    df::AbstractDataFrame, 
+ 	method::Symbol
+    weight::Union(Symbol, Nothing) = nothing, 
+    subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
+    maxiter::Int64 = 10000, tol::Float64 = 1e-8
+    )
+```
+
+
+- The first argument of `fit` is an object of type `PanelFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the factor dimension in the dataframe. Both the id and time variable must be of type `PooledDataVector`.
 
 	```julia
 	using RDatasets, DataFrames, PanelFactorModels
@@ -36,37 +40,65 @@ This package estimates factor models by minimizing the sum of residuals through 
 	factormodel = PanelFactorModel(:pState, :pYear, 2)
 	```
 
-- The second argument of `fit` is either a symbol or a formule.
-	- When the second argument is a symbol,` fit` fits a factor model on a variable. 
+- The fit argument of `fit` is either a symbol or a formula
+	- When the only regressor is `1`, it simply fits a factor model on the left hand side variable
 
 		```julia
-		fit(PanelFactorModel(:pState, :pYear, 2), :Sales)
+		fit(Sales ~ 1, PanelFactorModel(:pState, :pYear, 2))
 		```
-		The factor model is fits iteratively for each dimension.
-	- When the second argument is a formula, `fit` fits a linear model with interactive fixed effects (Bai (2009))
+
+		Fit a factor variable on a demeaned variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
+
+		```
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df)
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df)
+		```
+
+	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
 	
 
 		```julia
 		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price, df)
 		```
-		Specify id or time fixed effects using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
 
-		```
-		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df)
+		Similarly, you may add id  or time fixed effects
+		```julia
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
 		```
 
 
-- `fit` has also keyword arguments:
-	- `subset`: estimate the model on a subset of the dataframe
-	- `weights`: minimizes the sum of weighted residuals
-	- `lambda`: add a Tikhonov regularization, i.e. minimize the 
-		```
-		sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
-		```
-	- `method`: this option is passed to the minimization method from Optim. It defaults to `:gradient_descent` when estimating a factor model, and `:bfgs`  when estimating a linear model with interactive fixed effects.  
-	
+## method
+Three methods are available
 
-		Rather than an optimization method, you can also choose the method described in Bai (2009) using `method = :svd`.
+- `:gs` (default) This option fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [gauss-seidel iterations](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). This is generally the fastest and most memory efficient method. 
+
+
+- `:svd`. This option fits a factor model through the method described in Bai (2009). In case of an unbalanced panel, missing values are replaced by the values predicted by the factor model fitted in the previous iteration. 
+
+The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
+
+
+- Optimization methods (such as `:gradient_descent`, `:bgfgs` and `:l_bgfs`). These methods estimate the model by directly minimizing the sum of squared residuals using the Package Optim. This can be very fast in some problem.
+
+You may find some comparisons [here](benchmar/benchmark.md)
+
+## weights
+
+The `weights` option allows to minimize the sum of weighted residuals. This option is not available for the option `:svd`. 
+
+When weights are not constant within id or time, the optimization problem has local minima that are not global. You mawy want to use the method `:gs` rather than an optimization method
+
+## lambda
+`lambda` adds a Tikhonov regularization term to the sum of squared residuals, i.e.
+
+	```
+	sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
+	```
+This option is only available for optimziation methods
+
+## save
+The option `save = true` saves a new dataframe which stores residuals, factors, loadings and the eventual fixed effects. The new dataframe is aligned with the initial dataframe: rows not used in the estimation are simply filled with NA.
 
 ## Install
 
@@ -75,6 +107,8 @@ Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
 ```
 
 ## References
+- Bai, Jushan. *Panel data models with interactive fixed effects.* (2009) Econometrica 
 - Ilin, Alexander, and Tapani Raiko. *Practical approaches to principal component analysis in the presence of missing values.* (2010) The Journal of Machine Learning Research 11 
 -  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* (2008) Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. 
-- Bai, Jushan. *Panel data models with interactive fixed effects.* (2009) Econometrica 
+- Srebro, Nathan, and Tommi Jaakkola. *Weighted low-rank approximations* (2010) The Journal of Machine Learning Research 11 
+

@@ -6,10 +6,10 @@ module PanelFactorModels
 ##
 ##############################################################################
 using Compat
-import DataArrays: RefArray, PooledDataVector, DataVector
+import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
-using FixedEffectModels
-import StatsBase: fit, model_response
+import FixedEffectModels: reg, demean!, getfe, decompose!, allvars, AbstractFixedEffect, FixedEffect, FixedEffectIntercept, FixedEffectSlope
+import StatsBase: model_response, fit
 import Optim: optimize, DifferentiableFunction, TwiceDifferentiableFunction
 ##############################################################################
 ##
@@ -17,17 +17,15 @@ import Optim: optimize, DifferentiableFunction, TwiceDifferentiableFunction
 ##
 ##############################################################################
 export PanelFactorModel,
-PanelFactorResult,
-PanelFactorModelResult
+PanelFactorResult
 ##############################################################################
 ##
 ## Load files
 ##
 ##############################################################################
 include("utils.jl")
-include("types.jl")
 include("update!.jl")
 include("fitvariable.jl")
 include("fitmodel.jl")
-
+include("fitdataframe.jl")
 end

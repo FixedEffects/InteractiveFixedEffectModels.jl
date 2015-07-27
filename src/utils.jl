@@ -1,3 +1,44 @@
+##############################################################################
+##
+## Create light weight type
+## 
+##############################################################################
+
+# http://stackoverflow.com/a/30968709/3662288
+type Ones <: AbstractVector{Float64}
+	length::Int
+end
+Base.size(O::Ones) = O.length
+Base.getindex(O::Ones, I::Int...) = one(Float64)
+Base.broadcast!(op::Function, X::Matrix{Float64}, Y::Matrix{Float64}, O::Ones) = nothing
+Base.broadcast!(op::Function, X::Vector{Float64}, Y::Vector{Float64}, O::Ones) = nothing
+Base.scale!(X::Vector{Float64}, O::Ones) = nothing
+
+
+function get_weight(df::AbstractDataFrame, weight::Symbol)
+	w = convert(Vector{Float64}, df[weight])
+	sqrtw = sqrt(w)
+end
+get_weight(df::AbstractDataFrame, weight::Nothing) = Ones(size(df, 1))
+
+
+##############################################################################
+##
+## Reverse matrix (eifact! gives smaller eigenvalues first)
+## 
+##############################################################################
+
+function reverse{R}(m::Matrix{R})
+	out = similar(m)
+	for j in 1:size(m, 2)
+		invj = size(m, 2) + 1 - j 
+		@inbounds @simd for i in 1:size(m, 1)
+			out[i, j] = m[i, invj]
+		end
+	end
+	return out
+end
+
 
 ##############################################################################
 ##
@@ -77,25 +118,6 @@ function Base.fill!{Tid, Ttime}(yvector::Vector{Float64}, ymatrix::Matrix{Float6
 end
 
 
-##############################################################################
-##
-## read formula
-##
-##############################################################################
-
-
-# decompose formula into normal + iv vs absorbpart
-function decompose_absorb!(rf::Formula)
-	has_absorb = false
-	absorb_formula = nothing
-	if typeof(rf.rhs) == Expr && rf.rhs.args[1] == :(|>)
-		has_absorb = true
-		absorb_formula = Formula(nothing, rf.rhs.args[3])
-		rf.rhs = rf.rhs.args[2]
-	end
-	return(rf, has_absorb, absorb_formula)
-end
-
 
 
 ##############################################################################
@@ -104,7 +126,12 @@ end
 ##
 ##############################################################################
 
-
+function reftype(sz) 
+	sz <= typemax(Uint8)  ? Uint8 :
+	sz <= typemax(Uint16) ? Uint16 :
+	sz <= typemax(Uint32) ? Uint32 :
+	Uint64
+end
 function simpleModelFrame(df, t, esample)
 	df1 = DataFrame(map(x -> df[x], t.eterms))
 	names!(df1, convert(Vector{Symbol}, map(string, t.eterms)))
@@ -139,15 +166,6 @@ function remove_response(t::Terms)
     end
     return t
 end
-
-
-function allvars(ex::Expr)
-    if ex.head != :call error("Non-call expression encountered") end
-    [[allvars(a) for a in ex.args[2:end]]...]
-end
-allvars(f::Formula) = unique(vcat(allvars(f.rhs), allvars(f.lhs)))
-allvars(sym::Symbol) = [sym]
-allvars(v::Any) = Array(Symbol, 0)
 
 
 # used when removing certain rows in a dataset
