@@ -25,6 +25,10 @@ println("$method : factor model")
   @time fit(PanelFactorModel(:id, :time, 2), y ~ x1 |> id, df, tol = 1e-3, method = method) 
 end
 ```
+
+Results
+
+```
 bfgs : factor model
 elapsed time: 0.495285785 seconds (99838012 bytes allocated)
 elapsed time: 0.700387654 seconds (196365136 bytes allocated, 9.45% gc time)
@@ -55,5 +59,5 @@ elapsed time: 0.072009936 seconds (10638216 bytes allocated, 73.50% gc time)
 gradient_descent : linear factor model
 elapsed time: 8.506200819 seconds (1529276516 bytes allocated, 19.79% gc time)
 elapsed time: 13.170571735 seconds (3131808856 bytes allocated, 26.14% gc time)
-
+``
 
