@@ -1,11 +1,11 @@
 
 ## Motivation
 
-This package fits linear factor models of the form
-![](img/model.png]
+This package fits models of the form
+![model](img/model.png)
 
 The estimate are obtained by solving the following optimization problem
-![](img/minimization.png]
+![minimization](img/minimization.png)
 
 Compared to traditional factor models:
 	- This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
