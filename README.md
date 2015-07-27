@@ -2,6 +2,7 @@
 ## Motivation
 
 This package fits models of the form
+
 ![model](img/model1.png)
 
 The estimate are obtained by solving the following optimization problem
