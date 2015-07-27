@@ -5,11 +5,11 @@ This package fits models of the form
 
 ![model](img/model.png)
 
-The estimate are obtained by solving the following optimization problem
+Estimate correspond to the solution of the following optimization problem
 
 ![minimization](img/minimization.png)
 
-Traditional estimation of factor models  requires a matrix N x T and that the set of regressors is null or equals a set of id or time dummies. In contrast, 
+In contrast to traditional factor models.
 
 - This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
 -  X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
@@ -31,7 +31,7 @@ fit(pfm::PanelFactorModel,
 ```
 
 
-- The first argument of `fit` is an object of type `PanelFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the factor dimension in the dataframe. Both the id and time variable must be of type `PooledDataVector`.
+- The first argument of `fit` is an object of type `PanelFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model. Both the id and time variable must be of type `PooledDataVector`.
 
 	```julia
 	using RDatasets, DataFrames, PanelFactorModels
@@ -43,19 +43,20 @@ fit(pfm::PanelFactorModel,
 	factormodel = PanelFactorModel(:pState, :pYear, 2)
 	```
 
-- The fit argument of `fit` is either a symbol or a formula
+- The second argument of `fit` is a formula
 	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
 
 		```julia
 		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ 0)
 		```
 
-		Pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
+
+		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
 
 		```
-		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
-		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df)
-		fit(PanelFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df)
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales |> pState, df)
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales |> pYear, df)
+		fit(PanelFactorModel(:pState, :pYear, 2), Sales |> pState + pYear, df)
 		```
 
 	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
@@ -74,34 +75,27 @@ fit(pfm::PanelFactorModel,
 ## method
 Three methods are available
 
-- `:gs` (default) This option fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [gauss-seidel iterations](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). This is generally the fastest and most memory efficient method. 
+- `:gs` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). In my tests, this is the fastest and most memory efficient method. 
 
 
-- `:svd`. This option fits a factor model through the method described in Bai (2009). In case of an unbalanced panel, missing values are replaced by the values predicted by the factor model fitted in the previous iteration. 
-
-	The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
+- `:svd`. This method fits a factor model through the method described in Bai (2009). In case of an unbalanced panel, missing values are replaced by the values predicted by the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
 
 
 - Optimization methods (such as `:gradient_descent`, `:bgfgs` and `:l_bgfs`). These methods estimate the model by directly minimizing the sum of squared residuals using the Package Optim. This can be very fast in some problem.
 
-You may find some comparisons [here](benchmar/benchmark.md)
+You may find some speed comparisons [here](benchmark/benchmark.md)
 
 ## weights
 
 The `weights` option allows to minimize the sum of weighted residuals. This option is not available for the option `:svd`. 
 
-When weights are not constant within id or time, the optimization problem has local minima that are not global. You mawy want to use the method `:gs` rather than an optimization method
+When weights are not constant within id or time, the optimization problem has local minima that are not global. You may want to use the method `:gs` rather than an optimization method
 
 ## lambda
-`lambda` adds a Tikhonov regularization term to the sum of squared residuals, i.e.
-
-	```julia
-	sum of residuals +  lambda( ||factors||^2 + ||loadings||^2)
-	```
-This option is only available for optimziation methods
+`lambda` adds a Tikhonov regularization term to the sum of squared residuals. This option is only available when using an optimization method.
 
 ## save
-The option `save = true` saves a new dataframe which stores residuals, factors, loadings and the eventual fixed effects. The new dataframe is aligned with the initial dataframe: rows not used in the estimation are simply filled with NA.
+The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
 ## Install
 

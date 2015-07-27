@@ -1,3 +1,4 @@
+```julia
 using DataFrames, PanelFactorModels
 M = 10000
 N = 1000
@@ -23,6 +24,7 @@ println("$method : factor model")
   @time fit(PanelFactorModel(:id, :time, 1), y ~ x1, df, tol = 1e-3, method = method)  
   @time fit(PanelFactorModel(:id, :time, 2), y ~ x1 |> id, df, tol = 1e-3, method = method) 
 end
+```
 bfgs : factor model
 elapsed time: 0.495285785 seconds (99838012 bytes allocated)
 elapsed time: 0.700387654 seconds (196365136 bytes allocated, 9.45% gc time)
