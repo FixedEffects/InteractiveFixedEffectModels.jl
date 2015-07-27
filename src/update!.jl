@@ -19,7 +19,7 @@ end
 function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
 	changeid = update_half!(id, time, y, sqrtw, r)
 	changetime = update_half!(time, id, y, sqrtw, r)
-	changeid + changetime
+	return max(changeid,changetime)
 end
 
 function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
@@ -34,10 +34,12 @@ function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vec
 	end
 	change = zero(Float64)
 	 @inbounds @simd for i in 1:size(p1.pool, 1)
-		result = p1.storage1[i] / p1.storage2[i]
-		current = abs(p1.pool[i, r] - result)
-		if current > change
-			change = current
+		if p1.storage2[i] > zero(Float64)
+			result = p1.storage1[i] / p1.storage2[i]
+			current = abs(p1.pool[i, r] - result)
+			if current > change
+				change = current
+			end
 		end
 		p1.pool[i, r] = result
 	end
@@ -103,9 +105,10 @@ function rescale!(scaledloadings::Matrix{Float64}, scaledfactors::Matrix{Float64
 end
 
 function rescale(loadings::Matrix{Float64}, factors::Matrix{Float64})
-	newloadings = similar(loadings)
-	newfactors = similar(factors)
-	rescale!(newloadings, newfactors, loadings, factors)
+	scaledloadings = similar(loadings)
+	scaledfactors = similar(factors)
+	rescale!(scaledloadings, scaledfactors, loadings, factors)
+	return scaledloadings, scaledfactors
 end
 
 

@@ -1,28 +1,30 @@
 ```julia
 using DataFrames, PanelFactorModels
-M = 10000
-N = 1000
-T = 1000
+# compared to the Netflix dataset
+# 1/100th of users, 1/100th movies, 1/10000th ratings
+M = 10_000
+N = 5_000
+T = 200
+l1 = randn(N)
+l2 = randn(N)
+f1 = randn(T)
+f2 = randn(T)
 id =  pool(rand(1:N, M))
 time =  pool(rand(1:T, M))
-l1 = PooledDataArray(DataArrays.RefArray(id.refs), randn(N))
-f1 = PooledDataArray(DataArrays.RefArray(time.refs), randn(T))
-l2 = PooledDataArray(DataArrays.RefArray(id.refs), randn(N))
-f2 = PooledDataArray(DataArrays.RefArray(time.refs), randn(T))
 x1 = Array(Float64, M)
-y = similar(x1)
+y = Array(Float64, M)
 for i in 1:M
-  x1[i] = f1[id[i]] * l1[time[i]] + f2[id[i]] * l2[time[i]] + randn()
-  y[i] = 3 * x1[i] + 4 * f1[id[i]] * l1[time[i]] + f2[id[i]] * l2[time[i]] + randn()
+  x1[i] = f1[time[i]] * l1[id[i]] + f2[time[i]] * l2[id[i]] + l1[id[i]]^2 + f1[time[i]]^2 + randn()
+  y[i] = 3 * x1[i] + 4 * f1[time[i]] * l1[id[i]] + f2[time[i]] * l2[id[i]] + l1[id[i]]^2 + f1[time[i]]^2 + randn()
 end
 df = DataFrame(id = id, time = time, x1 = x1, y = y)
-for method in [:gs :svd,, :gradient_descent, :bfgs, :l_bfgs]
-println("\n $method : factor model")
-  @time fit(PanelFactorModel(:id, :time, 1), y ~ 1 |> id, df, tol = 1e-3, method = method) 
-  @time fit(PanelFactorModel(:id, :time, 2), y ~ 1 |> id, df, tol = 1e-3, method = method)  
+for method in [:gs, :svd, :gradient_descent, :bfgs, :l_bfgs]
+	println("\n $method : factor model")
+  @time result = fit(PanelFactorModel(:id, :time, 2), x1 ~ 1 |> id + time, df, method = method, maxiter = 100_000);
+  result.converged  
   println("$method : linear factor model")
-  @time fit(PanelFactorModel(:id, :time, 1), y ~ x1, df, tol = 1e-3, method = method)  
-  @time fit(PanelFactorModel(:id, :time, 2), y ~ x1 |> id, df, tol = 1e-3, method = method) 
+  @time result = fit(PanelFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 100_000);
+  result
 end
 ```
 

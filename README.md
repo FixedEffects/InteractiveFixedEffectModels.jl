@@ -23,6 +23,7 @@ The general syntax is
 fit(pfm::PanelFactorModel,
 	f::Formula, 
     df::AbstractDataFrame, 
+    vcov_method::AbstractVcovMethod = VcovSimple(),
  	method::Symbol
     weight::Union(Symbol, Nothing) = nothing, 
     subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
