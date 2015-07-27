@@ -2,7 +2,7 @@
 ## Motivation
 
 This package fits models of the form
-<img src="img/model.png" alt="Smiley face" witdh = "100">
+<img src="img/model.png" alt="Smiley face" witdh = "80">
 
 The estimate are obtained by solving the following optimization problem
 ![minimization](img/minimization.png)
