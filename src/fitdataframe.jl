@@ -203,7 +203,7 @@ end
 
 
 # Symbol to formul Symbol ~ 0
-function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; method::Symbol = :gradient_descent, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-8)
+function fit(m::PanelFactorModel, variable::Symbol, df::AbstractDataFrame; method::Symbol = :gs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-8)
     formula = Formula(variable, 0)
     fit(m, formula, df, method = method, lambda = lambda, subset = subset, weight = weight, subset = subset, maxiter = maxiter, tol = tol, save = true)
 end
