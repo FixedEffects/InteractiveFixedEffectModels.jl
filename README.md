@@ -2,12 +2,13 @@
 ## Motivation
 
 This package fits models of the form
-![model](img/model.png)
+<img src="img/model.png" alt="Smiley face" height="42" width="42">
 
 The estimate are obtained by solving the following optimization problem
 ![minimization](img/minimization.png)
 
 Compared to traditional factor models:
+
 	- This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
 	-  While typical factor models typically requires that X is null or equals a set of id or time dummies, X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
 
