@@ -6,10 +6,10 @@ This package fits models of the form
 The estimate are obtained by solving the following optimization problem
 <img src="img/minimization.png" alt="minimization"  width = "1079" height = "162">
 
-Compared to traditional factor models:
+Traditional estimation of factor models  requires a matrix N x T and that the set of regressors is null or equals a set of id or time dummies. In contrast, 
 
-- Typical estimation of factor models requires a matrix N x T. In contrast, this package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
--  Typical estimation of factor models requires that X is null or equals a set of id or time dummies. In contrast, X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
+- This package estimates factor models on "long" datasets, where each row represents an outcome for a pair id x time. In particular, there may be zero or more than one observed outcome per pair. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
+-  X can be any set of regressors. Estimation of this general model is described in Bai (2009). 
 
 
 
