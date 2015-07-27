@@ -24,7 +24,7 @@ end
 ##
 ##############################################################################
 
-function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; method::Symbol = :l_bfgs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true)
+function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame; method::Symbol = :gs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true)
 
 	##############################################################################
 	##
