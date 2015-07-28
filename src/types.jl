@@ -1,5 +1,5 @@
 # Object constructed by the user
-type PanelFactorModel
+type SparseFactorModel
     id::Symbol
     time::Symbol
     rank::Int64
@@ -7,7 +7,7 @@ end
 
 # object returned by fitting variable
 
-type PanelFactorResult 
+type SparseFactorResult 
     esample::BitVector
     augmentdf::DataFrame
 

@@ -1,4 +1,4 @@
-module PanelFactorModels
+module SparseFactorModels
 
 ##############################################################################
 ##
@@ -17,8 +17,8 @@ import GLM: df_residual
 ## Exported methods and types 
 ##
 ##############################################################################
-export PanelFactorModel,
-PanelFactorResult
+export SparseFactorModel,
+SparseFactorResult
 ##############################################################################
 ##
 ## Load files
