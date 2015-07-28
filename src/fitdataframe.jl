@@ -49,7 +49,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		esample &= convert(BitArray, subset)
 	end
 	subdf = df[esample, all_vars]
-	main_vars = unique(convert(Vector{Symbol}, vars))
+	main_vars = unique(convert(Vector{Symbol}, vcat(vars, factor_vars)))
 	for v in main_vars
 		dropUnusedLevels!(subdf[v])
 	end
@@ -106,36 +106,39 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	##
 	##############################################################################
 
-
+	# initialize factor models
+	idf = PooledFactor(id.refs, length(id.pool), m.rank)
+	timef = PooledFactor(time.refs, length(time.pool), m.rank)
 	## Case regressors
 	if has_regressors
 		# initial b
 		crossx = cholfact!(At_mul_B(X, X))
 		coef =  crossx \ At_mul_B(X, y)
+		(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 
 		# dispatch manually to the right method
 		if method == :svd
 			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_svd(X, M, coef, y, id, time, m.rank, maxiter = maxiter, tol = tol) 
+			(coef, loadings, factors, iterations, converged) = fit_svd(X, M, coef, y, idf, timef, maxiter = maxiter, tol = tol) 
 		elseif method == :gs
 			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, id, time, m.rank, sqrtw, maxiter = maxiter, tol = tol) 
+			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
 		else
-			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, id, time, m.rank,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
+			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
 		end
-
-
-
 	else
+		(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 		coef = [0.0]
 		if method == :svd
-			(loadings, factors, iterations, converged) = fit_svd(y, id, time, m.rank, maxiter = maxiter, tol = tol)
+			(loadings, factors, iterations, converged) = fit_svd(y, idf, timef, maxiter = maxiter, tol = tol)
 		elseif method == :gs
-			(loadings, factors, iterations, converged) = fit_gs(y, id, time, m.rank, sqrtw, maxiter = maxiter, tol = tol)
+			(loadings, factors, iterations, converged) = fit_gs(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
 		elseif method == :backpropagation
-		    (loadings, factors, iterations, converged) = fit_backpropagation(y, id, time, m.rank, sqrtw, regularizer = 0.001, learning_rate = 0.001, maxiter = maxiter, tol = tol)
+			idf = PooledFactor(id.refs, length(id.pool), m.rank)
+			timef = PooledFactor(time.refs, length(time.pool), m.rank)
+			(loadings, factors, iterations, converged) = fit_backpropagation(y, idf, timef, sqrtw, regularizer = 0.0, learning_rate = 1e-3, maxiter = maxiter, tol = tol)
 		else
-		    (loadings, factors, iterations, converged) = fit_optimization(y, id, time, m.rank, sqrtw, lambda = lambda, method = method, maxiter = maxiter, tol = tol)
+		    (loadings, factors, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, lambda = lambda, method = method, maxiter = maxiter, tol = tol)
 		end
 	end
 
@@ -158,15 +161,25 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		crossxm = cholfact!(At_mul_B(Xm, Xm))
 
 		# compute the right degree of freedom
-		df_absorb = 0
+		df_absorb_fe = 0
 		if has_absorb 
+			df_absorb_fe = 0
 			## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
-			for fe in vcat(fes, newfes)
-				df_absorb += (typeof(vcov_method) == VcovCluster && in(fe.name, vcov_vars)) ? 0 : sum(fe.scale .!= zero(Float64))
+			for fe in fes
+				df_absorb_fe += (typeof(vcov_method) == VcovCluster && in(fe.name, vcov_vars)) ? 0 : sum(fe.scale .!= zero(Float64))
 			end
 		end
-		df_residual = size(X, 1) - size(X, 2) - df_absorb 
-		df_residual > 0 || error("There are more parameters than degrees of freedom")
+		df_absorb_factors = 0
+		df_absorb_factors = 0
+		for fe in newfes
+			df_absorb_factors += (typeof(vcov_method) == VcovCluster && in(fe.name, vcov_vars)) ? 0 : sum(fe.scale .!= zero(Float64))
+		end
+		df_residual = size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors 
+		if df_residual < 0
+			println("There are more parameters than degrees of freedom => No degree of freedom adjustment for factor structure")
+			df_residual = size(X, 1) - size(X, 2) - df_absorb_fe 
+		end
+
 		# return vcovdata object
 		vcov_data = VcovData{1}(inv(crossxm), Xm, residualsm, df_residual)
 		matrix_vcov = vcov!(vcov_method_data, vcov_data)

@@ -5,25 +5,25 @@
 ##
 ##############################################################################
 
-function fit_optimization{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, id::PooledDataVector{Tid, Rid}, time::PooledDataVector{Ttime, Rtime}, rank::Integer, sqrtw::AbstractVector{Float64}; lambda::Real = 0.0,  method::Symbol = :gradient_descent, maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_optimization{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; lambda::Real = 0.0,  method::Symbol = :gradient_descent, maxiter::Integer = 100_000, tol::Real = 1e-9)
     
     invlen = 1 / abs2(norm(sqrtw, 2)) 
-
+    N = size(idf.pool, 1)
+    T = size(timef.pool, 1)
+    rank = size(idf.pool, 2)
     # initialize
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
-    loadings = Array(Float64, (length(id.pool), rank))
-    factors = Array(Float64, (length(time.pool), rank))
+
 
     # squeeze (loadings and factors) -> x0
-    l = length(id.pool)
-    x0 = fill(0.1, length(id.pool) + length(time.pool))
+    x0 = fill(0.1, N + T)
     res = deepcopy(y)
     for r in 1:rank
         # set up optimization problem
-        f = x -> sum_of_squares(x, sqrtw, res, time.refs, id.refs, l, lambda, invlen)
-        g! = (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, res, time.refs, id.refs, l, lambda, invlen)
-        fg! = (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, res, time.refs, id.refs, l, lambda, invlen)
+        f = x -> sum_of_squares(x, sqrtw, res, timef.refs, idf.refs, N, lambda, invlen)
+        g! = (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, res, timef.refs, idf.refs, N, lambda, invlen)
+        fg! = (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, res, timef.refs, idf.refs, N, lambda, invlen)
         d = DifferentiableFunction(f, g!, fg!)
 
         # optimize
@@ -31,15 +31,15 @@ function fit_optimization{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, id::Pooled
         result = optimize(d, x0, method = method, iterations = maxiter, xtol = -nextfloat(0.0), ftol = tol, grtol = -nextfloat(0.0))
         
         # develop minimumm -> (loadings and factors)
-        loadings[:, r] = result.minimum[1:l]
-        factors[:, r] = result.minimum[(l+1):end]
+        idf.pool[:, r] = result.minimum[1:N]
+        timef.pool[:, r] = result.minimum[(N+1):end]
         iterations[r] = result.iterations
         converged[r] = result.x_converged || result.f_converged || result.gr_converged
         
         # take the residuals res - lambda_i * ft
-        subtract_factor!(res, sqrtw, id.refs, loadings, time.refs, factors, r)
+        subtract_factor!(res, sqrtw, idf.refs, idf.pool, timef.refs, timef.pool, r)
     end
-    (newloadings, newfactors) = rescale(loadings, factors)
+    (newloadings, newfactors) = rescale(idf.pool, timef.pool)
 
     return (newloadings, newfactors, iterations, converged)
 end
@@ -120,17 +120,22 @@ end
 ##
 ##############################################################################
 
-function fit_svd{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, ids::PooledDataVector{Tid, Rid}, times::PooledDataVector{Ttime, Rtime}, rank::Integer; maxiter::Integer = 100_000, tol::Real = 1e-8)
+function fit_svd{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}; maxiter::Integer = 100_000, tol::Real = 1e-8)
  
+
+    N = size(idf.pool, 1)
+    T = size(timef.pool, 1)
+    rank = size(idf.pool, 2)
     # initialize at zero for missing values
-    res_matrix = fill(zero(Float64), (length(ids.pool), length(times.pool)))
+    res_matrix = A_mul_Bt(idf.pool, timef.pool)
     predict_matrix = deepcopy(res_matrix)
-    factors = Array(Float64, (length(times.pool), rank))
-    variance = Array(Float64, (length(times.pool), length(times.pool)))
+    factors = timef.pool
+    variance = Array(Float64, (T, T))
     converged = Bool[false]
     iterations = Int[maxiter]
     error = zero(Float64)
     olderror = zero(Float64)
+
 
     # starts the loop
     iter = 0
@@ -139,11 +144,11 @@ function fit_svd{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, ids::PooledDataVect
         (predict_matrix, res_matrix) = (res_matrix, predict_matrix)
         (error, olderror) = (olderror, error)
         # transform vector into matrix
-        fill!(res_matrix, y, ids.refs, times.refs)
+        fill!(res_matrix, y, idf.refs, timef.refs)
 
         # principal components
         At_mul_B!(variance, res_matrix, res_matrix)
-        F = eigfact!(Symmetric(variance), (length(times.pool) - rank + 1):length(times.pool))
+        F = eigfact!(Symmetric(variance), (T - rank + 1):T)
         factors = F[:vectors]
         
         # predict matrix
@@ -172,11 +177,10 @@ end
 ##
 ##############################################################################
 
-function fit_backpropagation{Tids, Rids, Ttimes, Rtimes}(y::Vector{Float64}, id::PooledDataVector{Tids, Rids}, time::PooledDataVector{Ttimes, Rtimes}, rank::Integer, sqrtw::AbstractVector{Float64} ; regularizer::Real = 0.0, learning_rate::Real = 1e-3, maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_backpropagation{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64} ; regularizer::Real = 0.0, learning_rate::Real = 1e-3, maxiter::Integer = 100_000, tol::Real = 1e-9)
     
     # initialize
-    idf = PooledFactor(id.refs, length(id.pool), rank)
-    timef = PooledFactor(time.refs, length(time.pool), rank)
+    rank = size(idf.pool, 2)
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
 
@@ -210,14 +214,14 @@ end
 ##
 ##############################################################################
 
-function fit_gs{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, id::PooledDataVector{Tid, Rid}, time::PooledDataVector{Ttime, Rtime}, rank::Integer, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9)
+function fit_gs{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9)
 
     # initialize
-    idf = PooledFactor(id.refs, length(id.pool), rank)
-    timef = PooledFactor(time.refs, length(time.pool), rank)
+    rank = size(idf.pool, 2)
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
 
+    # initialize by some backpropagation
     iter = 0
     res = deepcopy(y)
     for r in 1:rank

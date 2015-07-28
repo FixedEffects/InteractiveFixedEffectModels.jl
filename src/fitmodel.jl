@@ -5,15 +5,13 @@
 ##
 ##############################################################################
 
-function fit_gs{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, id::PooledDataVector{Tid, Rid}, time::PooledDataVector{Ttime, Rtime}, rank::Integer, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9)
 
-	# initialize
-	idf = PooledFactor(id.refs, length(id.pool), rank)
-	timef = PooledFactor(time.refs, length(time.pool), rank)
+	rank = size(idf.pool, 2)
+	N = size(idf.pool, 1)
+	T = size(timef.pool, 1)
 
-	(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X*b, id, time, rank, sqrtw, lambda = zero(Float64), method = :gradient_descent, maxiter = 1000, tol = 100 * tol)
 	res = deepcopy(y)
-
 	new_b = deepcopy(b)
 	scaledloadings = similar(idf.pool)
 	scaledfactors = similar(timef.pool)
@@ -64,29 +62,29 @@ end
 ##
 ##############################################################################
 
-function fit_optimization{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::Vector{Float64}, y::Vector{Float64}, id::PooledDataVector{Tid, Rid}, time::PooledDataVector{Ttime, Rtime}, rank::Integer, sqrtw::AbstractVector{Float64}; method::Symbol = :bfgs, lambda::Real = 0.0, maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_optimization{Rid, Rtime}(X::Matrix{Float64},  b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; method::Symbol = :bfgs, lambda::Real = 0.0, maxiter::Integer = 100_000, tol::Real = 1e-9)
 
 	n_regressors = size(X, 2)
 	invlen = 1 / abs2(norm(sqrtw, 2)) 
-
-	# initialize a factor model. Requires a good differenciation accross dimensions from the start
-	(loadings, factors, iterations, converged) = fit_optimization(y - X*b, id, time, rank, sqrtw, lambda = lambda,  method = method, tol = 100 * tol)
+	rank = size(idf.pool, 2)
 	res = deepcopy(y)
+	N = size(idf.pool, 1)
+	T = size(timef.pool, 1)
 
 	# squeeze (b, loadings and factors) into a vector x0
-	x0 = Array(Float64, n_regressors + rank * length(id.pool) + rank * length(time.pool))
+	x0 = Array(Float64, n_regressors + rank * N + rank * T)
 	x0[1:n_regressors] = b
-	fill!(x0, loadings,  n_regressors)
-	fill!(x0, factors,  n_regressors + length(id.pool) * rank)
+	fill!(x0, idf.pool,  n_regressors)
+	fill!(x0, timef.pool,  n_regressors + N * rank)
 
 	# translate indexes
-	idrefs = similar(id.refs)
-	@inbounds for i in 1:length(id.refs)
-		idrefs[i] = n_regressors + (id.refs[i] - 1) * rank 
+	idrefs = similar(idf.refs)
+	@inbounds for i in 1:length(idf.refs)
+		idrefs[i] = n_regressors + (idf.refs[i] - 1) * rank 
 	end
-	timerefs = similar(time.refs)
-	@inbounds for i in 1:length(time.refs)
-		timerefs[i] = n_regressors + length(id.pool) * rank + (time.refs[i] - 1) * rank 
+	timerefs = similar(timef.refs)
+	@inbounds for i in 1:length(timef.refs)
+		timerefs[i] = n_regressors + N * rank + (timef.refs[i] - 1) * rank 
 	end
 
 	# use Xt rather than X (cache performance)
@@ -105,11 +103,11 @@ function fit_optimization{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64},  b::Vector
 
 	# expand minimumm -> (b, loadings and factors)
     b = minimizer[1:n_regressors]
-    fill!(loadings, minimizer, n_regressors)
-    fill!(factors, minimizer, n_regressors + length(id.pool) * rank)  
+    fill!(idf.pool, minimizer, n_regressors)
+    fill!(timef.pool, minimizer, n_regressors + N * rank)  
 
     # rescale factors and loadings so that factors' * factors = Id
-    (scaledloadings, scaledfactors) = rescale(loadings, factors)
+    (scaledloadings, scaledfactors) = rescale(idf.pool, timef.pool)
     return (b, scaledloadings, scaledfactors, [iterations], [converged])
 end
 
@@ -223,16 +221,19 @@ end
 ##############################################################################
 
 
-function fit_svd{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, id::PooledDataVector{Tid, Rid}, time::PooledDataVector{Ttime, Rtime}, rank::Integer ; maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime} ; maxiter::Integer = 100_000, tol::Real = 1e-9)
 	b = M * y
 	new_b = deepcopy(b)
 	res_vector = Array(Float64, length(y))
+	N = size(idf.pool, 1)
+	T = size(timef.pool, 1)
+	rank = size(idf.pool, 2)
 
 	# initialize at zero for missing values
-	res_matrix = fill(zero(Float64), (length(id.pool), length(time.pool)))
+	res_matrix = fill(zero(Float64), (N, T))
 	predict_matrix = deepcopy(res_matrix)
-	factors = Array(Float64, (length(time.pool), rank))
-	variance = Array(Float64, (length(time.pool), length(time.pool)))
+	factors = Array(Float64, (T, rank))
+	variance = Array(Float64, (T, T))
 	converged = false
 	iterations = maxiter
 
@@ -246,16 +247,16 @@ function fit_svd{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Matrix{Float64},
 		# Given beta, compute the factors
 		subtract_b!(res_vector, y, b, X)
 		# transform vector into matrix 
-		fill!(res_matrix, res_vector, id.refs, time.refs)
+		fill!(res_matrix, res_vector, idf.refs, timef.refs)
 		# svd of res_matrix
 		At_mul_B!(variance, res_matrix, res_matrix)
-		F = eigfact!(Symmetric(variance), (length(time.pool) - rank + 1):length(time.pool))
+		F = eigfact!(Symmetric(variance), (T - rank + 1):T)
 		factors = F[:vectors]
 
 		# Given the factors, compute beta
 		A_mul_Bt!(variance, factors, factors)
 		A_mul_B!(predict_matrix, res_matrix, variance)
-		fill!(res_vector, predict_matrix, id.refs, time.refs)
+		fill!(res_vector, predict_matrix, idf.refs, timef.refs)
 		new_b = M * (y - res_vector)
 
 		# Check convergence
