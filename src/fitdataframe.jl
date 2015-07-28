@@ -114,24 +114,23 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		# initial b
 		crossx = cholfact!(At_mul_B(X, X))
 		coef =  crossx \ At_mul_B(X, y)
-		(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
-
 		# dispatch manually to the right method
 		if method == :svd
 			M = crossx \ X'
 			(coef, loadings, factors, iterations, converged) = fit_svd(X, M, coef, y, idf, timef, maxiter = maxiter, tol = tol) 
 		elseif method == :gs
 			M = crossx \ X'
+			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
 		else
 			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
 		end
 	else
-		(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 		coef = [0.0]
 		if method == :svd
 			(loadings, factors, iterations, converged) = fit_svd(y, idf, timef, maxiter = maxiter, tol = tol)
 		elseif method == :gs
+			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 			(loadings, factors, iterations, converged) = fit_gs(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
 		elseif method == :backpropagation
 			idf = PooledFactor(id.refs, length(id.pool), m.rank)

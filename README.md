@@ -3,12 +3,12 @@
 
 This package estimates linear factor models on sparse datasets (as in the Netflix problem).
 
-For an observation `i`, denote `jλ(i)` its id and `jf(i)` its time.  This package estimates the set of coefficients `beta`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+For an observation `i`, denote `(jλ(i), jf(i))` the associated pair id x time.  This package estimates the set of coefficients `beta`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
 
-When X is a set of id or time dummies, this problem corresponds to a principal component analysis with missing values. When X is a general set of regressors, this problem can be seen as a liner model with interactive fixed effects as described in Bai (2009).
+When X is a set of id or time dummies, this problem corresponds to a principal component analysis with missing values. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
 
 
 ## Syntax
