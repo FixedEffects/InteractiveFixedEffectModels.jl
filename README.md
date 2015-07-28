@@ -3,7 +3,7 @@
 
 This package estimates linear factor models on sparse datasets (as in the Netflix problem).
 
-For an observation `i`, denote `(jλ(i), jf(i))` the associated pair id x time.  This package estimates the set of coefficients `beta`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `beta`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
@@ -46,13 +46,12 @@ fit(pfm::SparseFactorModel,
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 0)
 		```
 
-
 		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
 
 		```julia
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales |> pState, df)
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales |> pYear, df)
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales |> pState + pYear, df)
+		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pState, df)
+		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pYear, df)
+		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pState + pYear, df)
 		```
 
 	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
@@ -81,11 +80,28 @@ Three methods are available
 
 You may find some speed comparisons [here](benchmark/benchmark.md)
 
+
+
 ## weights
 
 The `weights` option allows to minimize the sum of *weighted* residuals. This option is not available for the option `:svd`. 
 
 When weights are not constant within id or time, the optimization problem has local minima that are not global. You may want to use the method `:gs` rather than an optimization method
+
+#### Subset
+
+Estimate a model on a subset of your data with the option `subset` 
+
+```julia
+reg(Sales ~ NDI |> pState, weight = :Pop, subset = df[:pState] .< 30)
+```
+
+#### Errors
+Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
+
+```julia
+fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
+```
 
 ## lambda
 `lambda` adds a Tikhonov regularization term to the sum of squared residuals. This option is only available when using an optimization method.
