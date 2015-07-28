@@ -1,16 +1,14 @@
 
 ## Motivation
 
-This package estimates linear factor models on "long" datasets, where each row represents an outcome for a pair id x time. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
+This package estimates linear factor models on "long" datasets, where each row represents an outcome for a pair id x time.  There may be zero or more than one observed outcome per pair id x time. This allows to fit factor models on severely unbalanced panels (as in the Netflix problem).
 
-For an observation `i`, denotes `j_λ(i)` its id and `j_f(i)` its time.  This package estimates the set of parameters `beta`, `(f1, λ1)`, ...., `(fr, λr)` that solve
+For an observation `i`, denote `jλ(i)` its id and `jf(i)` its time.  This package estimates the set of parameters `beta`, factors `(f1, .., fr)` and loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
 
-
-X can be any set of regressors. In contrast, in a typical factor model, X is null or composed of id/time dummies. Estimation of this general model is described in Bai (2009). In particular, the two problems are not separable: beta, factors and loadings need to be jointly estimated.
-
+When X is a set of id or time dummies, this corresponds to a PCA with missing values. The estimation of the more general model is described in Bai (2009)
 
 
 ## Syntax
