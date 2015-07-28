@@ -89,15 +89,8 @@ The `weights` option allows to minimize the sum of *weighted* residuals. This op
 
 When weights are not constant within id or time, the optimization problem has local minima that are not global. You may want to use the method `:gs` rather than an optimization method
 
-#### Subset
 
-Estimate a model on a subset of your data with the option `subset` 
-
-```julia
-reg(Sales ~ NDI |> pState, weight = :Pop, subset = df[:pState] .< 30)
-```
-
-#### Errors
+#### errors
 Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
 
 ```julia
