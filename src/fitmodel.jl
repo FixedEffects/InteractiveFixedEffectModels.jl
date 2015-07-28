@@ -29,6 +29,7 @@ function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 			copy!(idf.pool, scaledloadings)
 			copy!(timef.pool, scaledfactors)
 		end
+		
 		# Given beta, compute incrementally an approximate factor model
 		subtract_b!(res, y, b, X)
 		for r in 1:rank

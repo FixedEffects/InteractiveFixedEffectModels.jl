@@ -40,8 +40,8 @@ function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vec
 			if current > change
 				change = current
 			end
+			p1.pool[i, r] = result
 		end
-		p1.pool[i, r] = result
 	end
 	return change
 end
