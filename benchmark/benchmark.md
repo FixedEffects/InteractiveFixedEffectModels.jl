@@ -2,7 +2,7 @@
 using DataFrames, SparseFactorModels
 # compared to the Netflix dataset
 # 1/100th of users, 1/100th movies, 1/10000th ratings
-M = 10_000
+M = 20_000
 N = 5_000
 T = 200
 l1 = randn(N)*T
