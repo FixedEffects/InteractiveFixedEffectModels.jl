@@ -166,7 +166,7 @@ function fit(m::PanelFactorModel, f::Formula, df::AbstractDataFrame, vcov_method
 			end
 		end
 		df_residual = size(X, 1) - size(X, 2) - df_absorb 
-
+		df_residual > 0 || error("There are more parameters than degrees of freedom")
 		# return vcovdata object
 		vcov_data = VcovData{1}(inv(crossxm), Xm, residualsm, df_residual)
 		matrix_vcov = vcov!(vcov_method_data, vcov_data)

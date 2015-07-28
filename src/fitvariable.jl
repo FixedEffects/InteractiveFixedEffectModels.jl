@@ -227,6 +227,7 @@ function fit_gs{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, id::PooledDataVector
         while iter < maxiter
             iter += 1
             error = update!(idf, timef, res, sqrtw, r)
+            rescale!(idf, timef, r)
             # relative tolerance (absolute change would depend on learning_rate choice)
             if error == zero(Float64) || abs(error - olderror)/error < tol 
                 iterations[r] = iter
