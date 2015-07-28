@@ -11,7 +11,7 @@ function fit_gs{Tid, Rid, Ttime, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, 
 	idf = PooledFactor(id.refs, length(id.pool), rank)
 	timef = PooledFactor(time.refs, length(time.pool), rank)
 
-	(idf.pool, timef.pool, iterations, converged) = fit_gs(y - X*b, id, time, rank, sqrtw, maxiter = maxiter, tol = 100 * tol)
+	(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X*b, id, time, rank, sqrtw, lambda = zero(Float64), method = :gradient_descent, maxiter = 1000, tol = 100 * tol)
 	res = deepcopy(y)
 
 	new_b = deepcopy(b)

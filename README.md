@@ -74,7 +74,7 @@ Three methods are available
 - `:gs` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
 
 
-- `:svd`. This method fits a factor model through the method described in Bai (2009). In case of an unbalanced panel, missing values are replaced by the values predicted by the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
+- `:svd`. This method fits a factor model by computing the SVD on the matrix N x T, after imputing missing values by values predicted by the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
 
 
 - Optimization methods (such as `:gradient_descent`, `:bgfgs` and `:l_bgfs`). These methods estimate the model by directly minimizing the sum of squared residuals using the Package Optim. 
