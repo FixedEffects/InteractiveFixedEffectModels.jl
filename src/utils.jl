@@ -231,3 +231,13 @@ function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept
 end
 
 
+##############################################################################
+##
+## format scientific
+##
+##############################################################################
+
+
+function format_scientific(pv::Number)
+    return @sprintf("%.3f", pv)
+end

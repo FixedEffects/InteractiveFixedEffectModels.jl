@@ -5,8 +5,21 @@ type SparseFactorModel
     rank::Int64
 end
 
-# object returned by fitting variable
+# type used internally to store idrefs, timerefs, factors, loadings
+type PooledFactor{R}
+    refs::Vector{R}
+    pool::Matrix{Float64}
+    storage1::Vector{Float64}
+    storage2::Vector{Float64}
+end
 
+function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
+    ans = fill(zero(Float64), l)
+    PooledFactor(refs, fill(0.1, l, rank), ans, deepcopy(ans))
+end
+
+
+# object returned when fitting variable
 type SparseFactorResult 
     esample::BitVector
     augmentdf::DataFrame
@@ -15,7 +28,7 @@ type SparseFactorResult
     converged::Vector{Bool}
 end
 
-
+# object returned when fitting linear model
 type RegressionFactorResult <: AbstractRegressionResult
 	coef::Vector{Float64}   # Vector of coefficients
 	vcov::Matrix{Float64}   # Covariance matrix
@@ -37,9 +50,7 @@ type RegressionFactorResult <: AbstractRegressionResult
 	iterations::Int         # Number of iterations        
 	converged::Bool         # Has the demeaning algorithm converged?
 end
-function format_scientific(pv::Number)
-    return @sprintf("%.3f", pv)
-end
+
 predict(x::RegressionFactorResult, df::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
 residuals(x::RegressionFactorResult, df::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
 title(x::RegressionFactorResult) = "Linear Factor Model"
