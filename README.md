@@ -49,7 +49,7 @@ fit(pfm::SparseFactorModel,
 
 		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
 
-		```
+		```julia
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales |> pState, df)
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales |> pYear, df)
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales |> pState + pYear, df)

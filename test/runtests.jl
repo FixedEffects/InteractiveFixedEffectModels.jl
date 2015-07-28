@@ -1,4 +1,4 @@
-using FixedEffectModels
+using SparseFactorModels
 
 tests = ["fitvariable.jl", 
 		 "fitmodel.jl", 

@@ -1,5 +1,5 @@
 ```julia
-using DataFrames, PanelFactorModels
+using DataFrames, SparseFactorModels
 # compared to the Netflix dataset
 # 1/100th of users, 1/100th movies, 1/10000th ratings
 M = 10_000
@@ -20,10 +20,10 @@ end
 df = DataFrame(id = id, time = time, x1 = x1, y = y)
 for method in [:gs, :svd, :gradient_descent, :bfgs, :l_bfgs]
 	println("\n $method : factor model")
-  @time result = fit(PanelFactorModel(:id, :time, 2), x1 ~ 1 |> id + time, df, method = method, maxiter = 1_000_000);
+  @time result = fit(SparseFactorModel(:id, :time, 2), x1 ~ 1 |> id + time, df, method = method, maxiter = 1_000_000);
   @show result.converged  
   println("$method : linear factor model")
-  @time result = fit(PanelFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 1_000_000);
+  @time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 1_000_000);
   @show result
 end
 ```
