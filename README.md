@@ -8,7 +8,7 @@ For an observation `i`, denote `jλ(i)` its id and `jf(i)` its time.  This packa
 ![minimization](img/minimization.png)
 
 
-When X is a set of id or time dummies, this corresponds to a PCA with missing values. When X is a general set of regressors, this corresponds to a model with interactive fixed effects as described in Bai (2009).
+When X is a set of id or time dummies, this corresponds to apPrincipal component analysis with missing values as described in Ilin, Raiko . When X is a general set of regressors, this corresponds to a model with interactive fixed effects as described in Bai (2009).
 
 
 ## Syntax
@@ -103,5 +103,6 @@ Pkg.clone("https://github.com/matthieugomez/PanelFactorModels.jl")
 - Bai, Jushan. *Panel data models with interactive fixed effects.* (2009) Econometrica 
 - Ilin, Alexander, and Tapani Raiko. *Practical approaches to principal component analysis in the presence of missing values.* (2010) The Journal of Machine Learning Research 11 
 -  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* (2008) Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. 
+- Raiko, Tapani, Alexander Ilin, and Juha Karhunen. *Principal component analysis for sparse high-dimensional data.* (2008) Neural Information Processing.
 - Srebro, Nathan, and Tommi Jaakkola. *Weighted low-rank approximations* (2010) The Journal of Machine Learning Research 11 
 
