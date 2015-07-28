@@ -18,10 +18,11 @@ The general syntax is
 fit(pfm::SparseFactorModel,
 	f::Formula, 
     df::AbstractDataFrame, 
-    vcov_method::AbstractVcovMethod = VcovSimple(),
- 	method::Symbol
+    vcov_method::AbstractVcovMethod = VcovSimple();
+ 	method::Symbol = :gs
     weight::Union(Symbol, Nothing) = nothing, 
-    subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
+    subset::Union(AbstractVector{Bool}, Nothing) = nothing,
+    save::Bool = true, 
     maxiter::Int64 = 10000, tol::Float64 = 1e-8
     )
 ```
@@ -67,7 +68,7 @@ fit(pfm::SparseFactorModel,
 		```
 
 
-## method
+#### method
 Three methods are available
 
 - `:gs` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
@@ -82,7 +83,7 @@ You may find some speed comparisons [here](benchmark/benchmark.md)
 
 
 
-## weights
+#### weights
 
 The `weights` option allows to minimize the sum of *weighted* residuals. This option is not available for the option `:svd`. 
 
@@ -103,10 +104,10 @@ Compute robust standard errors by constructing an object of type `AbstractVcovMe
 fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
 ```
 
-## lambda
+#### lambda
 `lambda` adds a Tikhonov regularization term to the sum of squared residuals. This option is only available when using an optimization method.
 
-## save
+#### save
 The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
 ## Install
