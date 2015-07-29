@@ -29,7 +29,6 @@ function fit_optimization{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}
         # optimize
         # xtol corresponds to maxdiff(x, x_previous)
         result = optimize(d, x0, method = method, iterations = maxiter, xtol = -nextfloat(0.0), ftol = tol, grtol = -nextfloat(0.0))
-        
         # develop minimumm -> (loadings and factors)
         idf.pool[:, r] = result.minimum[1:N]
         timef.pool[:, r] = result.minimum[(N+1):end]
@@ -56,7 +55,6 @@ function sum_of_squares{Ttime, Tid}(x::Vector{Float64}, sqrtw::AbstractVector{Fl
         error = y[i] - sqrtwi * loading * factor
         out += abs2(error)
     end
-    out *= invlen
 
     # Tikhonov term
     @inbounds @simd for i in 1:length(x)
@@ -75,8 +73,8 @@ function sum_of_squares_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::Vecto
         factor = x[timei]
         sqrtwi = sqrtw[i]
         error = y[i] - sqrtwi * loading * factor
-        storage[idi] -= 2.0 * error * sqrtwi * factor  * invlen
-        storage[timei] -= 2.0 * error * sqrtwi * loading * invlen
+        storage[idi] -= 2.0 * error * sqrtwi * factor  
+        storage[timei] -= 2.0 * error * sqrtwi * loading 
     end
     
     # Tikhonov term
@@ -99,11 +97,11 @@ function sum_of_squares_and_gradient!{Ttime, Tid}(x::Vector{Float64}, storage::V
         sqrtwi = sqrtw[i]
         error =  y[i] - sqrtwi * loading * factor
         out += abs2(error)
-        storage[idi] -= 2.0 * error * sqrtwi * factor * invlen
-        storage[timei] -= 2.0 * error * sqrtwi * loading * invlen
+        storage[idi] -= 2.0 * error * sqrtwi * factor 
+        storage[timei] -= 2.0 * error * sqrtwi * loading 
     end
     
-    out *= invlen
+
     # Tikhonov term
     @inbounds @simd for i in 1:length(x)
         out += lambda * abs2(x[i])
@@ -116,7 +114,7 @@ end
 
 ##############################################################################
 ##
-## Estimate factor model by EM Method
+## Estimate factor model by SVD Method
 ##
 ##############################################################################
 
@@ -173,44 +171,7 @@ end
 
 ##############################################################################
 ##
-## Estimate factor model by incremental backpropagation (Simon Funk Netflix Algorithm)
-##
-##############################################################################
-
-function fit_backpropagation{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64} ; regularizer::Real = 0.0, learning_rate::Real = 1e-3, maxiter::Integer = 100_000, tol::Real = 1e-9)
-    
-    # initialize
-    rank = size(idf.pool, 2)
-    iterations = fill(maxiter, rank)
-    converged = fill(false, rank)
-
-    res = deepcopy(y)
-    for r in 1:rank
-    	error = zero(Float64)
-        olderror = zero(Float64)
-        iter = 0
-        while iter < maxiter
-            iter += 1
-            (error, olderror) = (olderror, error)
-           	error = update!(idf, timef, res, sqrtw, regularizer, learning_rate / iter, r)
-            # relative tolerance (absolute change would depend on learning_rate choice)
-            if error == zero(Float64) || abs(error - olderror)/error < tol 
-                iterations[r] = iter
-                converged[r] = true
-                break
-            end
-        end
-        rescale!(idf, timef, r)
-        subtract_factor!(res, sqrtw, idf, timef, r)
-    end
-    (loadings, factors) = rescale(idf.pool, timef.pool)
-    return (loadings, factors, iterations, converged)
-end
-
-
-##############################################################################
-##
-## Estimate factor model by gs algorithm
+## Estimate factor model by GS method
 ##
 ##############################################################################
 

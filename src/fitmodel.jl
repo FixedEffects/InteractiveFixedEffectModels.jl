@@ -57,6 +57,66 @@ function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 end
 
 
+
+##############################################################################
+##
+## Estimate linear factor model by original Bai (2009) method: SVD / beta iteration
+##
+##############################################################################
+
+
+function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime} ; maxiter::Integer = 100_000, tol::Real = 1e-9)
+	b = M * y
+	new_b = deepcopy(b)
+	res_vector = Array(Float64, length(y))
+	N = size(idf.pool, 1)
+	T = size(timef.pool, 1)
+	rank = size(idf.pool, 2)
+
+	# initialize at zero for missing values
+	res_matrix = fill(zero(Float64), (N, T))
+	predict_matrix = deepcopy(res_matrix)
+	factors = Array(Float64, (T, rank))
+	variance = Array(Float64, (T, T))
+	converged = false
+	iterations = maxiter
+
+	# starts the loop
+	iter = 0
+	while iter < maxiter
+		iter += 1
+		(new_b, b) = (b, new_b)
+		(predict_matrix, res_matrix) = (res_matrix, predict_matrix)
+
+		# Given beta, compute the factors
+		subtract_b!(res_vector, y, b, X)
+		# transform vector into matrix 
+		fill!(res_matrix, res_vector, idf.refs, timef.refs)
+		# svd of res_matrix
+		At_mul_B!(variance, res_matrix, res_matrix)
+		F = eigfact!(Symmetric(variance), (T - rank + 1):T)
+		factors = F[:vectors]
+
+		# Given the factors, compute beta
+		A_mul_Bt!(variance, factors, factors)
+		A_mul_B!(predict_matrix, res_matrix, variance)
+		fill!(res_vector, predict_matrix, idf.refs, timef.refs)
+		new_b = M * (y - res_vector)
+
+		# Check convergence
+		error = chebyshev(new_b, b)
+		if error < tol 
+			converged = true
+			iterations = iter
+			break
+		end
+	end
+	newfactors = reverse(factors)
+	loadings = predict_matrix * newfactors
+	return (b, loadings, newfactors, [iterations], [converged])
+end
+
+
 ##############################################################################
 ##
 ## Estimate linear factor model by optimization routine
@@ -212,64 +272,3 @@ function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::V
     end
     return out 
 end
-
-
-
-##############################################################################
-##
-## Estimate linear factor model by original Bai (2009) method: SVD / beta iteration
-##
-##############################################################################
-
-
-function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime} ; maxiter::Integer = 100_000, tol::Real = 1e-9)
-	b = M * y
-	new_b = deepcopy(b)
-	res_vector = Array(Float64, length(y))
-	N = size(idf.pool, 1)
-	T = size(timef.pool, 1)
-	rank = size(idf.pool, 2)
-
-	# initialize at zero for missing values
-	res_matrix = fill(zero(Float64), (N, T))
-	predict_matrix = deepcopy(res_matrix)
-	factors = Array(Float64, (T, rank))
-	variance = Array(Float64, (T, T))
-	converged = false
-	iterations = maxiter
-
-	# starts the loop
-	iter = 0
-	while iter < maxiter
-		iter += 1
-		(new_b, b) = (b, new_b)
-		(predict_matrix, res_matrix) = (res_matrix, predict_matrix)
-
-		# Given beta, compute the factors
-		subtract_b!(res_vector, y, b, X)
-		# transform vector into matrix 
-		fill!(res_matrix, res_vector, idf.refs, timef.refs)
-		# svd of res_matrix
-		At_mul_B!(variance, res_matrix, res_matrix)
-		F = eigfact!(Symmetric(variance), (T - rank + 1):T)
-		factors = F[:vectors]
-
-		# Given the factors, compute beta
-		A_mul_Bt!(variance, factors, factors)
-		A_mul_B!(predict_matrix, res_matrix, variance)
-		fill!(res_vector, predict_matrix, idf.refs, timef.refs)
-		new_b = M * (y - res_vector)
-
-		# Check convergence
-		error = chebyshev(new_b, b)
-		if error < tol 
-			converged = true
-			iterations = iter
-			break
-		end
-	end
-	newfactors = reverse(factors)
-	loadings = predict_matrix * newfactors
-	return (b, loadings, newfactors, [iterations], [converged])
-end
-

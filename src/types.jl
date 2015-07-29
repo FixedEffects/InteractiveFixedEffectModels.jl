@@ -11,11 +11,11 @@ type PooledFactor{R}
     pool::Matrix{Float64}
     storage1::Vector{Float64}
     storage2::Vector{Float64}
+    storage3::Vector{Float64}
 end
-
 function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
     ans = fill(zero(Float64), l)
-    PooledFactor(refs, fill(0.1, l, rank), ans, deepcopy(ans))
+    PooledFactor(refs, fill(0.1, l, rank), ans, deepcopy(ans), deepcopy(ans))
 end
 
 
@@ -24,6 +24,7 @@ type SparseFactorResult
     esample::BitVector
     augmentdf::DataFrame
 
+    ess::Float64
     iterations::Vector{Int64}
     converged::Vector{Bool}
 end
@@ -47,8 +48,10 @@ type RegressionFactorResult <: AbstractRegressionResult
 	r2_a::Float64           # R squared adjusted
 	r2_within::Float64      # R within
 
+    ess::Float64
 	iterations::Int         # Number of iterations        
 	converged::Bool         # Has the demeaning algorithm converged?
+
 end
 
 predict(x::RegressionFactorResult, df::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")

@@ -5,7 +5,7 @@
 ##
 ##############################################################################
 
-function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :gs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true)
+function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :default, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true)
 
 	##############################################################################
 	##
@@ -111,6 +111,9 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	timef = PooledFactor(time.refs, length(time.pool), m.rank)
 	## Case regressors
 	if has_regressors
+		if method == :default
+			method = :gs
+		end
 		# initial b
 		crossx = cholfact!(At_mul_B(X, X))
 		coef =  crossx \ At_mul_B(X, y)
@@ -123,23 +126,34 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
 		else
+			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
 		end
 	else
+		if method == :default
+			method = :momentum_gradient_descent
+		end
 		coef = [0.0]
 		if method == :svd
 			(loadings, factors, iterations, converged) = fit_svd(y, idf, timef, maxiter = maxiter, tol = tol)
 		elseif method == :gs
 			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
 			(loadings, factors, iterations, converged) = fit_gs(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
-		elseif method == :backpropagation
-			idf = PooledFactor(id.refs, length(id.pool), m.rank)
-			timef = PooledFactor(time.refs, length(time.pool), m.rank)
-			(loadings, factors, iterations, converged) = fit_backpropagation(y, idf, timef, sqrtw, regularizer = 0.0, learning_rate = 1e-3, maxiter = maxiter, tol = tol)
 		else
 		    (loadings, factors, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, lambda = lambda, method = method, maxiter = maxiter, tol = tol)
 		end
 	end
+
+	# residuals
+	residuals = deepcopy(y)
+	if has_regressors
+		subtract_b!(residuals, y, coef, X)
+	end
+	for r in 1:m.rank
+		subtract_factor!(residuals, sqrtw, id.refs, loadings, time.refs, factors, r)
+	end
+	broadcast!(/, residuals, residuals, sqrtw)
+	ess = abs2(norm(residuals, 2))
 
 	##############################################################################
 	##
@@ -190,20 +204,13 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		augmentdf = DataFrame(id, time, loadings, factors, esample)
 
 		# residuals
-		residuals = deepcopy(y)
-		if has_regressors
-			subtract_b!(residuals, y, coef, X)
-		end
-		for r in 1:m.rank
-			subtract_factor!(residuals, sqrtw, id.refs, loadings, time.refs, factors, r)
-		end
-		broadcast!(/, residuals, residuals, sqrtw)
 		if all(esample)
 			augmentdf[:residuals] = residuals
 		else
 			augmentdf[:residuals] =  DataArray(Float64, size(augmentdf, 1))
 			augmentdf[esample, :residuals] = residuals
 		end
+
 		# fixed effects
 		if has_absorb
 			# residual before demeaning
@@ -237,9 +244,9 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		r2 = 1 - ess / tss 
 		r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
 
-		RegressionFactorResult(coef, matrix_vcov, esample, augmentdf, coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, sum(iterations), any(converged))
+		RegressionFactorResult(coef, matrix_vcov, esample, augmentdf, coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, ess, sum(iterations), all(converged))
 	else
-		SparseFactorResult(esample, augmentdf, iterations, converged)
+		SparseFactorResult(esample, augmentdf, ess, iterations, converged)
 	end
 end
 

@@ -38,14 +38,148 @@ end
 
 ##############################################################################
 ##
-## update! by backpropagation
+## update! by newton for factor model
+##
+##############################################################################
+function update_newton!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, r::Integer, permutation::Vector{Int})
+	fill!(id.storage1, zero(Float64))
+	fill!(id.storage2, zero(Float64))
+	fill!(time.storage1, zero(Float64))
+	fill!(time.storage2, zero(Float64))
+    @inbounds @simd for i in 1:length(y)
+        idi = id.refs[i]
+        timei = time.refs[i]
+        loading = id.pool[idi, r]
+        factor = time.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        error = y[i] - sqrtwi * loading * factor 
+        id.storage1[idi] += 2.0 * (error * sqrtwi * factor - regularizer * loading)
+        id.storage2[idi] += abs2(factor)
+        time.storage1[timei] += 2.0 * (error * sqrtwi * loading - regularizer * factor)
+        time.storage2[timei] += abs2(loading)
+    end
+    for i in 1:size(id.pool, 1)
+    	if id.storage2[i] > zero(Float64)
+    		id.pool[i, r] += learning_rate * id.storage1[i] / (id.storage2[i])^0.5
+    	end
+    end
+    for i in 1:size(time.pool, 1)
+    	if time.storage2[i] > zero(Float64)
+    		time.pool[i, r] += learning_rate * time.storage1[i] / (time.storage2[i])^0.5
+    	end
+    end
+
+    out = zero(Float64)
+    @inbounds @simd for i in 1:length(y)
+        idi = id.refs[i]
+        timei = time.refs[i]
+        loading = id.pool[idi, r]
+        factor = time.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        error = y[i] - sqrtwi * loading * factor 
+        out += abs2(error)
+    end
+
+    return out
+end
+
+##############################################################################
+##
+## update! by newton for factor model for problem with b
 ##
 ##############################################################################
 
 
-function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, r::Integer)
+##############################################################################
+##
+## update! by newton for factor model for problem with b
+##
+##############################################################################
+function update_newton!{R1, R2}(b::Vector, b1::Vector, b2::Vector, loadings1::Matrix{Float64}, loadings2::Matrix{Float64}, factors1::Matrix{Float64}, factors2::Matrix{Float64}, X::Matrix{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, permutation::Vector{Int})
+	fill!(loadings1, zero(Float64))
+	fill!(loadings2, zero(Float64))
+	fill!(factors1, zero(Float64))
+	fill!(factors2, zero(Float64))
+	fill!(b1, zero(Float64))
+	fill!(b2, zero(Float64))
+
+	n_regressors = length(b)
+	rank = size(id.pool, 2)
+    @inbounds @simd for i in 1:length(y)
+        idi = id.refs[i]
+        timei = time.refs[i]
+        sqrtwi = sqrtw[i]
+        prediction = zero(Float64)  
+        for k in  1:n_regressors
+            prediction += b[k] * X[i, k]
+        end
+	    for r in 1:rank
+	    	prediction += sqrtwi * id.pool[idi, r] * time.pool[timei, r]
+	    end
+        error =  y[i] - prediction
+        for k in 1:n_regressors
+        	b1[k] += 2.0 * error * X[i, k] 
+        	b2[k] += abs2(X[i, k]) 
+        end
+        for r in 1:rank
+	        loadings1[idi, r] += 2.0 * (error * sqrtwi * time.pool[timei, r] - regularizer * id.pool[idi, r])
+	        loadings2[idi, r] += abs2(time.pool[timei, r])
+        end
+        for r in 1:rank
+    		factors1[timei, r] += 2.0 * (error * sqrtwi * id.pool[idi, r] - regularizer * time.pool[timei, r])
+    	    factors2[timei, r] += abs2(id.pool[idi, r])
+        end
+    end
+
+    for i in 1:n_regressors
+    	b[i] += learning_rate * b1[i] / (b2[i])^1
+	end
+	for r in 1:rank
+	    @inbounds @simd for i in 1:size(id.pool, 1)
+	    	if loadings2[i, r] > zero(Float64)
+	    		id.pool[i, r] += learning_rate * loadings1[i, r] / (loadings2[i, r])^1
+	    	end
+	    end
+	end
+   	for r in 1:rank
+	    @inbounds @simd for i in 1:size(time.pool, 1)
+	    	if factors2[i, r] > zero(Float64)
+	    		time.pool[i, r] += learning_rate * factors1[i, r] / (factors2[i, r])^1
+	    	end
+	    end
+	end
+	   
+    out = zero(Float64)
+    @inbounds @simd for i in 1:length(y)
+      idi = id.refs[i]
+     timei = time.refs[i]
+     sqrtwi = sqrtw[i]
+     prediction = zero(Float64)  
+     for k in  1:n_regressors
+         prediction += b[k] * X[i, k]
+     end
+	    for r in 1:rank
+	    	prediction += sqrtwi * id.pool[idi, r] * time.pool[timei, r]
+	    end
+     error =  y[i] - prediction
+        out += abs2(error)
+    end
+
+    return out
+end
+
+
+
+
+##############################################################################
+##
+## update! by backpropagation
+##
+##############################################################################
+function update_backpropagation!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, r::Integer, permutation::Vector{Int})
+	rand!(1:length(y), permutation)
 	out = zero(Float64)
-     @inbounds @simd for i in 1:length(y)
+     @inbounds for i in permutation
         idi = id.refs[i]
         timei = time.refs[i]
         loading = id.pool[idi, r]
@@ -56,8 +190,21 @@ function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector
         id.pool[idi, r] += learning_rate * 2.0 * (error * sqrtwi * factor - regularizer * loading)
         time.pool[timei, r] += learning_rate * 2.0 * (error * sqrtwi * loading - regularizer * factor)
     end
+
+    out = zero(Float64)
+    @inbounds @simd for i in 1:length(y)
+        idi = id.refs[i]
+        timei = time.refs[i]
+        loading = id.pool[idi, r]
+        factor = time.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        error = y[i] - sqrtwi * loading * factor 
+        out += abs2(error)
+    end
     return out
 end
+
+
 
 
 
