@@ -71,11 +71,11 @@ fit(pfm::SparseFactorModel,
 #### method
 Three methods are available
 
-- `:gs` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
+- `:gs` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, which is akin to the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
 
-- `:gr`. This method fits a factor model by gradient descent.
+- `:gd`. This method fits a factor model by gradient descent.
 
-- `:svd`. This method fits a factor model by SVD on the matrix N x T, after imputing missing values using the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
+- `:svd`. This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
 
 
 

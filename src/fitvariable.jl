@@ -4,7 +4,7 @@
 ##
 ##############################################################################
 
-function fit_gr{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9, alpha = 0.5)
+function fit_gd{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9, alpha = 0.5)
 
     # initialize
     rank = size(idf.pool, 2)

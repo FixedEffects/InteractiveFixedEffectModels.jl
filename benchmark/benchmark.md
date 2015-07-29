@@ -39,7 +39,7 @@ sparsedf = df[subset, :]
 
 ### balanced panel
 ```julia
-for method in [:gs, :gr, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
+for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, df, method = method, maxiter = 100_000)
 	@show result.ess
@@ -53,7 +53,7 @@ method : gs
 elapsed time: 10.273916892 seconds (2864846148 bytes allocated, 21.97% gc time)
 result.ess => 1.4309734432902223e8
 result.converged => Bool[true]
-method : gr
+method : gd
 elapsed time: 24.828482005 seconds (2819128008 bytes allocated, 8.97% gc time)
 result.ess => 1.4322765621668932e8
 result.converged => Bool[true]
@@ -61,7 +61,7 @@ method : momentum_gradient_descent
 elapsed time: 7.207087971 seconds (2763938764 bytes allocated, 31.20% gc time)
 result.ess => 3.856913687839139e8
 result.converged => Bool[true]
-method : gradient_descent
+method : gdadient_descent
 elapsed time: 7.23555626 seconds (2764864956 bytes allocated, 30.22% gc time)
 result.ess => 3.8569136878281003e8
 result.converged => Bool[true]
@@ -77,7 +77,7 @@ result.converged => Bool[true]
 
 ### unbalanced panel
 ```julia
-for method in [:gs, :gr, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
+for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, unbalanceddf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -91,7 +91,7 @@ method : gs
 elapsed time:  0.757044636 seconds (2265962964 bytes allocated, 27.72% gc time)
 result.ess => 1.1448350015095846e8
 result.converged => Bool[true]
-method : gr
+method : gd
 elapsed time: 22.210733998 seconds (2283018180 bytes allocated, 6.33% gc time)
 result.ess => 1.1448362380288874e8
 result.converged => Bool[true]
@@ -99,7 +99,7 @@ method : momentum_gradient_descent
 elapsed time:  1.442086239 seconds (2293137652 bytes allocated, 24.74% gc time)
 result.ess => 1.1448350012819447e8
 result.converged => Bool[true]
-method : gradient_descent
+method : gdadient_descent
 elapsed time: 1.28273858 seconds (2282798676 bytes allocated, 26.14% gc time)
 result.ess => 1.1448350013191424e8
 result.converged => Bool[true]
@@ -116,7 +116,7 @@ result.converged => Bool[true]
 
 ### severely unbalanced panel
 ```julia
-for method in [:gs, :gr, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
+for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, sparsedf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -130,7 +130,7 @@ method : gs
 elapsed time: 0.227594335 seconds (35178344 bytes allocated, 25.16% gc time)
 result.ess => 2.859276266826541e7
 result.converged => Bool[true]
-method : gr
+method : gd
 elapsed time: 0.41333656 seconds (40195352 bytes allocated, 14.32% gc time)
 result.ess => 2.8592762738720316e7
 result.converged => Bool[true]
@@ -138,7 +138,7 @@ method : momentum_gradient_descent
 elapsed time: 0.332329562 seconds (53835928 bytes allocated, 15.14% gc time)
 result.ess => 2.8592762668812547e7
 result.converged => Bool[true]
-method : gradient_descent
+method : gdadient_descent
 elapsed time: 0.374974405 seconds (50718128 bytes allocated, 13.42% gc time)
 result.ess => 2.8592762678235393e7
 result.converged => Bool[true]
@@ -159,7 +159,7 @@ result.converged => Bool[true]
 ### balanced
 
 ```julia
-for method in [:gs, :gr, :svd]
+for method in [:gs, :gd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 10_000, save = false)
 	@show result.ess
@@ -172,7 +172,7 @@ method : gs
 elapsed time: 10.550448863 seconds (657691568 bytes allocated, 2.34% gc time)
 result.ess => 2.482504231179842e6
 result.converged => true
-method : gr
+method : gd
 elapsed time: 34.361296133 seconds (657729528 bytes allocated, 0.39% gc time)
 result.ess => 2.482504252751984e6
 result.converged => true
@@ -186,7 +186,7 @@ result.converged => true
 
 
 ```julia
-for method in [:gs, :gr, :svd]
+for method in [:gs, :gd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, subdf, method = method, maxiter = 10_000, save = false)
 	@show result.ess
@@ -199,7 +199,7 @@ method : gs
 elapsed time: 11.220120599 seconds (527137368 bytes allocated, 2.19% gc time)
 result.ess => 2.002572287830467e6
 result.converged => true
-method : gr
+method : gd
 elapsed time: 28.092884058 seconds (527165760 bytes allocated)
 result.ess => 2.0025721437885808e6
 result.converged => true
@@ -213,7 +213,7 @@ result.converged => true
 
 
 ```julia
-for method in [:gs, :gr, :svd]
+for method in [:gs, :gd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, sparsedf, method = method, maxiter = 10_000, save = false)
 	@show result.ess
@@ -226,7 +226,7 @@ method : gs
 elapsed time: 0.694661678 seconds (134055392 bytes allocated, 15.28% gc time)
 result.ess => 545282.1325988211
 result.converged => true
-method : gr
+method : gd
 elapsed time: 2.030669054 seconds (134065560 bytes allocated, 5.51% gc time)
 result.ess => 545282.1330403608
 result.converged => true

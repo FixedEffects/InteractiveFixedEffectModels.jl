@@ -1,6 +1,6 @@
 
 ##############################################################################
-##
+#
 ## Starts from a dataframe and returns a dataframe
 ##
 ##############################################################################
@@ -120,9 +120,9 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		elseif method == :gs
 			#(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
 			(loadings, factors, iterations, converged) = fit_gs(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
-		elseif method == :gr
+		elseif method == :gd
 			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
-			(loadings, factors, iterations, converged) = fit_gr(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, alpha = alpha)
+			(loadings, factors, iterations, converged) = fit_gd(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, alpha = alpha)
 		else
 		    (loadings, factors, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, lambda = lambda, method = method, maxiter = maxiter, tol = tol)
 		end
@@ -143,9 +143,9 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		elseif method == :gs
 			M = crossx \ X'
 			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
-		elseif method == :gr
+		elseif method == :gd
 			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_gr(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
+			(coef, loadings, factors, iterations, converged) = fit_gd(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
 		else
 			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
 		end

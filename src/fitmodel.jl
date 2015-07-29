@@ -4,7 +4,7 @@
 ##
 ##############################################################################
 
-function fit_gr{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9, alpha = 0.5)
+function fit_gd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9, alpha = 0.5)
 
 	rank = size(idf.pool, 2)
 	N = size(idf.pool, 1)
