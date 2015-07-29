@@ -118,3 +118,8 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 - Raiko, Tapani, Alexander Ilin, and Juha Karhunen. *Principal component analysis for sparse high-dimensional data.* (2008) Neural Information Processing.
 - Srebro, Nathan, and Tommi Jaakkola. *Weighted low-rank approximations* (2010) The Journal of Machine Learning Research 11 
 
+## Related Packages
+- https://github.com/joidegn/FactorModels.jl : fits and predict factor models on matrices
+- https://github.com/madeleineudell/LowRankModels.jl : fits general low rank approximations on matrices
+- https://github.com/aaw/IncrementalSVD.jl: implementation of the backpropagation algorithm
+
