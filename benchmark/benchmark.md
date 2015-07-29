@@ -37,7 +37,7 @@ sparsedf = df[subset, :]
 
 # factor model 
 
-### balanced panel
+### N x T
 ```julia
 for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
@@ -75,7 +75,7 @@ result.ess => 1.4309734431613243e8
 result.converged => Bool[true]
 ```
 
-### unbalanced panel
+### N x T x 4/5
 ```julia
 for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
@@ -114,7 +114,7 @@ result.converged => Bool[true]
 ```
 
 
-### severely unbalanced panel
+### N x T x 1/5
 ```julia
 for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
@@ -156,7 +156,7 @@ result.converged => Bool[true]
 
 # interactive fixed effect 
 
-### balanced
+### N x T
 
 ```julia
 for method in [:gs, :gd, :svd]
@@ -182,7 +182,7 @@ result.ess => 2.482504221441386e6
 result.converged => true
 ```
 
-### interactive fixed effect x unbalanced
+### N x T x 4/5
 
 
 ```julia
@@ -209,7 +209,7 @@ result.ess => 2.001491168484043e6
 result.converged => true
 ```
 
-### interactive fixed effect x severely unbalanced panel
+### N x T x 1/5
 
 
 ```julia
