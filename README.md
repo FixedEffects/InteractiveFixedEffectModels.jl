@@ -71,7 +71,7 @@ fit(pfm::SparseFactorModel,
 #### method
 Three methods are available
 
-- `:gs` (default for interactive fixed effect models) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
+- `:gs` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy, as in the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
 
 - `:gr`. This method fits a factor model by gradient descent.
 
