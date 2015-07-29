@@ -1,3 +1,88 @@
+##############################################################################
+##
+## Estimate linear factor model by gradient method
+##
+##############################################################################
+
+function fit_gr{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9, alpha = 0.5)
+
+	rank = size(idf.pool, 2)
+	N = size(idf.pool, 1)
+	T = size(timef.pool, 1)
+
+	res = deepcopy(y)
+	new_b = deepcopy(b)
+
+
+	# starts loop
+	converged = false
+	iterations = maxiter
+	iter = 0
+	learning_rate = fill(0.1, rank)
+
+	copy!(idf.old1pool, idf.pool)
+	copy!(timef.old1pool, timef.pool)
+	copy!(idf.old2pool, idf.pool)
+	copy!(timef.old2pool, timef.pool)
+
+
+	Xt = X'
+	error = Inf
+	olderror = Inf
+	while iter < maxiter
+		iter += 1
+		(error, olderror) = (olderror, error)
+
+		# Given beta, compute incrementally an approximate factor model
+		subtract_b!(res, y, b, X)
+		for r in 1:rank
+			steps_in_a_row = 0
+			olderror_inner = ssr(idf, timef, res, sqrtw, r)
+			# recompute error since res has changed in the meantime
+			while steps_in_a_row <= 1
+				update!(idf, timef, res, sqrtw, r, learning_rate[r], alpha)
+				error_inner = ssr(idf, timef, res, sqrtw, r)
+				if error_inner < olderror_inner
+					olderror_inner = error_inner
+				    steps_in_a_row = max(1, steps_in_a_row + 1)
+				    # increase learning rate
+				    learning_rate[r] *= 1.05
+				    copy!(idf.old2pool, idf.old1pool)
+				    copy!(timef.old2pool, timef.old1pool)
+				    # update
+				    copy!(idf.old1pool, idf.pool)
+				    copy!(timef.old1pool, timef.pool)
+				else
+					# decrease learning rate
+				    learning_rate[r] /= max(1.5, -steps_in_a_row)
+				    steps_in_a_row = min(0, steps_in_a_row - 1)
+				    # cancel the update
+				    copy!(idf.old2pool, idf.old1pool)
+				    copy!(timef.old2pool, timef.old1pool)
+				    copy!(idf.pool, idf.old1pool, r)
+				    copy!(timef.pool, timef.old1pool, r)
+				end		
+			end
+			# don't rescale since screw up learning_rate
+			subtract_factor!(res, sqrtw, idf, timef, r)
+		end
+
+		# Given factor model, compute beta
+		subtract_factor!(res, y, sqrtw, idf, timef)
+		b = M * res
+
+		# Check convergence
+		error = ssr(idf, timef, b, Xt, y, sqrtw) 
+		if error == zero(Float64) || abs(error - olderror)/error < tol 
+			converged = true
+			iterations = iter
+			break
+		end
+	end
+
+	rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
+	return (b, idf.old1pool, timef.old1pool, [iterations], [converged])
+end
 
 ##############################################################################
 ##
@@ -13,21 +98,22 @@ function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 
 	res = deepcopy(y)
 	new_b = deepcopy(b)
-	scaledloadings = similar(idf.pool)
-	scaledfactors = similar(timef.pool)
 
 	# starts loop
 	converged = false
 	iterations = maxiter
 	iter = 0
+	Xt = X'
+	error = Inf
+	olderror = Inf
 	while iter < maxiter
 		iter += 1
-		(new_b, b) = (b, new_b)
+		(error, olderror) = (olderror, error)
 
 		if mod(iter, 100) == 0
-			rescale!(scaledloadings, scaledfactors, idf.pool, timef.pool)
-			copy!(idf.pool, scaledloadings)
-			copy!(timef.pool, scaledfactors)
+			rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
+			copy!(idf.pool, idf.old1pool)
+			copy!(timef.pool, timef.old1pool)
 		end
 		
 		# Given beta, compute incrementally an approximate factor model
@@ -35,32 +121,29 @@ function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 		for r in 1:rank
 			update!(idf, timef, res, sqrtw, r)
 			subtract_factor!(res, sqrtw, idf, timef, r)
-			rescale!(idf, timef, r)
 		end
 
 		# Given factor model, compute beta
 		subtract_factor!(res, y, sqrtw, idf, timef)
-		new_b = M * res
+		b = M * res
 
 		# Check convergence
-		error = chebyshev(new_b, b) 
-
-		if error < tol 
+		error = ssr(idf, timef, b, Xt, y, sqrtw) 
+		if error == zero(Float64) || abs(error - olderror)/error < tol 
 			converged = true
 			iterations = iter
 			break
 		end
 	end
 
-	(scaledloadings, scaledfactors) = rescale(idf.pool, timef.pool)
-	return (b, scaledloadings, scaledfactors, [iterations], [converged])
+	rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
+	return (b, idf.old1pool, timef.old1pool, [iterations], [converged])
 end
-
 
 
 ##############################################################################
 ##
-## Estimate linear factor model by original Bai (2009) method: SVD / beta iteration
+## Estimate linear factor model by SVD method
 ##
 ##############################################################################
 
@@ -117,158 +200,3 @@ function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 end
 
 
-##############################################################################
-##
-## Estimate linear factor model by optimization routine
-##
-##############################################################################
-
-function fit_optimization{Rid, Rtime}(X::Matrix{Float64},  b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; method::Symbol = :bfgs, lambda::Real = 0.0, maxiter::Integer = 100_000, tol::Real = 1e-9)
-
-	n_regressors = size(X, 2)
-	invlen = 1 / abs2(norm(sqrtw, 2)) 
-	rank = size(idf.pool, 2)
-	res = deepcopy(y)
-	N = size(idf.pool, 1)
-	T = size(timef.pool, 1)
-
-	# squeeze (b, loadings and factors) into a vector x0
-	x0 = Array(Float64, n_regressors + rank * N + rank * T)
-	x0[1:n_regressors] = b
-	fill!(x0, idf.pool,  n_regressors)
-	fill!(x0, timef.pool,  n_regressors + N * rank)
-
-	# translate indexes
-	idrefs = similar(idf.refs)
-	@inbounds for i in 1:length(idf.refs)
-		idrefs[i] = n_regressors + (idf.refs[i] - 1) * rank 
-	end
-	timerefs = similar(timef.refs)
-	@inbounds for i in 1:length(timef.refs)
-		timerefs[i] = n_regressors + N * rank + (timef.refs[i] - 1) * rank 
-	end
-
-	# use Xt rather than X (cache performance)
-	Xt = X'
-
-	# optimize
-	f = x -> sum_of_squares(x, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, invlen)
-	g! = (x, storage) -> sum_of_squares_gradient!(x, storage, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, invlen)
-	fg! = (x, storage) -> sum_of_squares_and_gradient!(x, storage, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, invlen)
-    d = DifferentiableFunction(f, g!, fg!)
-    # convergence is chebyshev for x
-    result = optimize(d, x0, method = method, iterations = maxiter, xtol = tol, ftol = -nextfloat(0.0), grtol = -nextfloat(0.0))
-    minimizer = result.minimum
-    iterations = result.iterations
-	converged =  result.x_converged || result.f_converged || result.gr_converged
-
-	# expand minimumm -> (b, loadings and factors)
-    b = minimizer[1:n_regressors]
-    fill!(idf.pool, minimizer, n_regressors)
-    fill!(timef.pool, minimizer, n_regressors + N * rank)  
-
-    # rescale factors and loadings so that factors' * factors = Id
-    (scaledloadings, scaledfactors) = rescale(idf.pool, timef.pool)
-    return (b, scaledloadings, scaledfactors, [iterations], [converged])
-end
-
-function sum_of_squares{Tid, Ttime}(x::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, invlen::Real)
-	out = zero(Float64)
-	# residual term
-	@inbounds @simd for i in 1:length(y)
-		prediction = zero(Float64)
-		id = idrefs[i]
-		time = timerefs[i]
-		loading = x[id]
-		factor = x[time]
-		sqrtwi = sqrtw[i]
-		for k in 1:n_regressors
-		    prediction += x[k] * Xt[k, i]
-		end
-		for r in 1:rank
-		  prediction += sqrtwi * x[id + r] * x[time + r]
-		end
-		error = y[i] - prediction
-		out += abs2(error)
-	end
-	out *= invlen
-
-	# Tikhonov term
-	@inbounds @simd for i in (n_regressors+1):length(x)
-	    out += lambda * abs2(x[i])
-	end
-	return out
-end
-
-# gradient
-function sum_of_squares_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, invlen::Real)
-    out = zero(Float64)
-    fill!(storage, zero(Float64))
-    # residual term
-    @inbounds @simd for i in 1:length(y)
-    	prediction = zero(Float64)
-        idi = idrefs[i]
-        timei = timerefs[i]
-        sqrtwi = sqrtw[i]
-        for k in  1:n_regressors
-            prediction += x[k] * Xt[k, i]
-        end
-	    for r in 1:rank
-	    	prediction += sqrtwi * x[id + r] * x[timei + r]
-	    end
-        error =  y[i] - prediction
-        for k in 1:n_regressors
-            storage[k] -= 2.0 * error * Xt[k, i] * invlen
-        end
-        for r in 1:rank
-        	storage[timei + r] -= 2.0 * error * sqrtwi * x[idi + r] * invlen
-        end
-        for r in 1:rank
-        	storage[idi + r] -= 2.0 * error * sqrtwi * x[timei + r] * invlen
-        end
-    end
-
-    # Tikhonov term
-    @inbounds @simd for i in (n_regressors+1):length(x)
-        storage[i] += 2.0 * lambda * x[i]
-    end
-    return storage 
-end
-
-# function + gradient in the same loop
-function sum_of_squares_and_gradient!{Tid, Ttime}(x::Vector{Float64}, storage::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, invlen::Real)
-    fill!(storage, zero(Float64))
-    out = zero(Float64)
-    # residual term
-    @inbounds @simd for i in 1:length(y)
-	    prediction = zero(Float64)
-		idi = idrefs[i]
-		timei = timerefs[i]
-		sqrtwi = sqrtw[i]
-		for k in 1:n_regressors
-		    prediction += x[k] * Xt[k, i]
-		end
-		for r in 1:rank
-			prediction += sqrtwi * x[idi + r] * x[timei + r]
-		end
-		error = y[i] - prediction
-		out += abs2(error)
-		for k in 1:n_regressors
-			storage[k] -= 2.0 * error  * Xt[k, i] * invlen
-		end
-		for r in 1:rank
-			storage[timei + r] -= 2.0 * error * sqrtwi * x[idi + r] * invlen
-		end
-		for r in 1:rank
-			storage[idi + r] -= 2.0 * error * sqrtwi * x[timei + r] * invlen
-		end
-    end
-    out *= invlen
-
-    # Tikhonov term
-    @inbounds @simd for i in (n_regressors+1):length(x)
-        out += lambda * abs2(x[i])
-        storage[i] += 2.0 * lambda * x[i]
-    end
-    return out 
-end

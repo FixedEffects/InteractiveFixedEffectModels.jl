@@ -5,7 +5,7 @@
 ##
 ##############################################################################
 
-function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :default, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true)
+function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :default, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true, alpha = 0.5)
 
 	##############################################################################
 	##
@@ -106,30 +106,11 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	##
 	##############################################################################
 
-	# initialize factor models
+	# initialize factor models at 0.1
 	idf = PooledFactor(id.refs, length(id.pool), m.rank)
 	timef = PooledFactor(time.refs, length(time.pool), m.rank)
-	## Case regressors
-	if has_regressors
-		if method == :default
-			method = :gs
-		end
-		# initial b
-		crossx = cholfact!(At_mul_B(X, X))
-		coef =  crossx \ At_mul_B(X, y)
-		# dispatch manually to the right method
-		if method == :svd
-			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_svd(X, M, coef, y, idf, timef, maxiter = maxiter, tol = tol) 
-		elseif method == :gs
-			M = crossx \ X'
-			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
-			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
-		else
-			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
-			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
-		end
-	else
+	## Case simple factor models
+	if !has_regressors
 		if method == :default
 			method = :momentum_gradient_descent
 		end
@@ -137,10 +118,36 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		if method == :svd
 			(loadings, factors, iterations, converged) = fit_svd(y, idf, timef, maxiter = maxiter, tol = tol)
 		elseif method == :gs
-			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :gradient_descent, maxiter = 1000, tol = 1e-3)
+			#(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
 			(loadings, factors, iterations, converged) = fit_gs(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
+		elseif method == :gr
+			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
+			(loadings, factors, iterations, converged) = fit_gr(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, alpha = alpha)
 		else
 		    (loadings, factors, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, lambda = lambda, method = method, maxiter = maxiter, tol = tol)
+		end
+	else
+		if method == :default
+			method = :gs
+		end
+		# initial b
+		crossx = cholfact!(At_mul_B(X, X))
+		coef =  crossx \ At_mul_B(X, y)
+		# initial loadings
+		(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
+
+		# dispatch manually to the right method
+		if method == :svd
+			M = crossx \ X'
+			(coef, loadings, factors, iterations, converged) = fit_svd(X, M, coef, y, idf, timef, maxiter = maxiter, tol = tol) 
+		elseif method == :gs
+			M = crossx \ X'
+			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
+		elseif method == :gr
+			M = crossx \ X'
+			(coef, loadings, factors, iterations, converged) = fit_gr(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
+		else
+			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
 		end
 	end
 

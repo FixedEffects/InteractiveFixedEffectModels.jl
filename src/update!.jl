@@ -6,9 +6,8 @@
 ##############################################################################
 
 function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
-	changeid = update_half!(id, time, y, sqrtw, r)
-	changetime = update_half!(time, id, y, sqrtw, r)
-	return max(changeid,changetime)
+	update_half!(id, time, y, sqrtw, r)
+	update_half!(time, id, y, sqrtw, r)
 end
 
 function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
@@ -21,152 +20,50 @@ function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vec
 		 p1.storage1[pi] += xi * yi
 		 p1.storage2[pi] += abs2(xi)
 	end
-	change = zero(Float64)
 	 @inbounds @simd for i in 1:size(p1.pool, 1)
 		if p1.storage2[i] > zero(Float64)
-			result = p1.storage1[i] / p1.storage2[i]
-			current = abs(p1.pool[i, r] - result)
-			if current > change
-				change = current
-			end
-			p1.pool[i, r] = result
+			p1.pool[i, r] = p1.storage1[i] / p1.storage2[i]
 		end
 	end
-	return change
 end
 
 
 ##############################################################################
 ##
-## update! by newton for factor model
+## update! by gradient method
 ##
 ##############################################################################
-function update_newton!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, r::Integer, permutation::Vector{Int})
-	fill!(id.storage1, zero(Float64))
-	fill!(id.storage2, zero(Float64))
-	fill!(time.storage1, zero(Float64))
-	fill!(time.storage2, zero(Float64))
+
+function update!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer, learning_rate::Float64, alpha::Float64)
+    update_half!(id, time, y, sqrtw, r, learning_rate, alpha)
+    update_half!(time, id, y, sqrtw, r, learning_rate, alpha)
+end
+
+function update_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer, learning_rate::Float64, alpha::Float64)
+    fill!(p1.storage1, zero(Float64))
+    fill!(p1.storage2, zero(Float64))
     @inbounds @simd for i in 1:length(y)
-        idi = id.refs[i]
-        timei = time.refs[i]
-        loading = id.pool[idi, r]
-        factor = time.pool[timei, r]
+        idi = p1.refs[i]
+        timei = p2.refs[i]
+        loading = p1.pool[idi, r]
+        factor = p2.pool[timei, r]
         sqrtwi = sqrtw[i]
         error = y[i] - sqrtwi * loading * factor 
-        id.storage1[idi] += 2.0 * (error * sqrtwi * factor - regularizer * loading)
-        id.storage2[idi] += abs2(factor)
-        time.storage1[timei] += 2.0 * (error * sqrtwi * loading - regularizer * factor)
-        time.storage2[timei] += abs2(loading)
+        p1.storage1[idi] += 2.0 * (error * sqrtwi * factor)
+        p1.storage2[idi] += abs2(factor)
     end
-    for i in 1:size(id.pool, 1)
-    	if id.storage2[i] > zero(Float64)
-    		id.pool[i, r] += learning_rate * id.storage1[i] / (id.storage2[i])^0.5
-    	end
+    @inbounds @simd for i in 1:size(p1.pool, 1)
+        if p1.storage2[i] > zero(Float64)
+            # gradient term is learning rate * p1.storage2
+            # newton term (diagonal only) is p1.storage2[i]
+            # momentum term is 0.01 * (p1.pool[i, r] - p1.storage3[i])
+            # mu = 0 actually makes things faster for factor model
+            p1.pool[i, r] += learning_rate * p1.storage1[i] / p1.storage2[i]^alpha + 0.00 * (p1.old1pool[i, r] - p1.old2pool[i, r])
+        end
     end
-    for i in 1:size(time.pool, 1)
-    	if time.storage2[i] > zero(Float64)
-    		time.pool[i, r] += learning_rate * time.storage1[i] / (time.storage2[i])^0.5
-    	end
-    end
-
-    out = zero(Float64)
-    @inbounds @simd for i in 1:length(y)
-        idi = id.refs[i]
-        timei = time.refs[i]
-        loading = id.pool[idi, r]
-        factor = time.pool[timei, r]
-        sqrtwi = sqrtw[i]
-        error = y[i] - sqrtwi * loading * factor 
-        out += abs2(error)
-    end
-
-    return out
 end
 
-##############################################################################
-##
-## update! by newton for factor model for problem with b
-##
-##############################################################################
 
-
-##############################################################################
-##
-## update! by newton for factor model for problem with b
-##
-##############################################################################
-function update_newton!{R1, R2}(b::Vector, b1::Vector, b2::Vector, loadings1::Matrix{Float64}, loadings2::Matrix{Float64}, factors1::Matrix{Float64}, factors2::Matrix{Float64}, X::Matrix{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, permutation::Vector{Int})
-	fill!(loadings1, zero(Float64))
-	fill!(loadings2, zero(Float64))
-	fill!(factors1, zero(Float64))
-	fill!(factors2, zero(Float64))
-	fill!(b1, zero(Float64))
-	fill!(b2, zero(Float64))
-
-	n_regressors = length(b)
-	rank = size(id.pool, 2)
-    @inbounds @simd for i in 1:length(y)
-        idi = id.refs[i]
-        timei = time.refs[i]
-        sqrtwi = sqrtw[i]
-        prediction = zero(Float64)  
-        for k in  1:n_regressors
-            prediction += b[k] * X[i, k]
-        end
-	    for r in 1:rank
-	    	prediction += sqrtwi * id.pool[idi, r] * time.pool[timei, r]
-	    end
-        error =  y[i] - prediction
-        for k in 1:n_regressors
-        	b1[k] += 2.0 * error * X[i, k] 
-        	b2[k] += abs2(X[i, k]) 
-        end
-        for r in 1:rank
-	        loadings1[idi, r] += 2.0 * (error * sqrtwi * time.pool[timei, r] - regularizer * id.pool[idi, r])
-	        loadings2[idi, r] += abs2(time.pool[timei, r])
-        end
-        for r in 1:rank
-    		factors1[timei, r] += 2.0 * (error * sqrtwi * id.pool[idi, r] - regularizer * time.pool[timei, r])
-    	    factors2[timei, r] += abs2(id.pool[idi, r])
-        end
-    end
-
-    for i in 1:n_regressors
-    	b[i] += learning_rate * b1[i] / (b2[i])^1
-	end
-	for r in 1:rank
-	    @inbounds @simd for i in 1:size(id.pool, 1)
-	    	if loadings2[i, r] > zero(Float64)
-	    		id.pool[i, r] += learning_rate * loadings1[i, r] / (loadings2[i, r])^1
-	    	end
-	    end
-	end
-   	for r in 1:rank
-	    @inbounds @simd for i in 1:size(time.pool, 1)
-	    	if factors2[i, r] > zero(Float64)
-	    		time.pool[i, r] += learning_rate * factors1[i, r] / (factors2[i, r])^1
-	    	end
-	    end
-	end
-	   
-    out = zero(Float64)
-    @inbounds @simd for i in 1:length(y)
-      idi = id.refs[i]
-     timei = time.refs[i]
-     sqrtwi = sqrtw[i]
-     prediction = zero(Float64)  
-     for k in  1:n_regressors
-         prediction += b[k] * X[i, k]
-     end
-	    for r in 1:rank
-	    	prediction += sqrtwi * id.pool[idi, r] * time.pool[timei, r]
-	    end
-     error =  y[i] - prediction
-        out += abs2(error)
-    end
-
-    return out
-end
 
 
 
@@ -176,6 +73,7 @@ end
 ## update! by backpropagation
 ##
 ##############################################################################
+
 function update_backpropagation!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, regularizer::Real, learning_rate::Real, r::Integer, permutation::Vector{Int})
 	rand!(1:length(y), permutation)
 	out = zero(Float64)
@@ -210,9 +108,75 @@ end
 
 ##############################################################################
 ##
+## compute sum of squared residuals
+##
+##############################################################################
+
+function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+    out = zero(Float64)
+    @inbounds @simd for i in 1:length(y)
+        idi = id.refs[i]
+        timei = time.refs[i]
+        loading = id.pool[idi, r]
+        factor = time.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        out += abs2(y[i] - sqrtwi * loading * factor)
+    end 
+    return out
+end
+
+function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, b::Vector{Float64}, Xt::Matrix{Float64}, y::Vector{Float64}, sqrtw::AbstractVector{Float64})    
+    out = zero(Float64)
+    n_regressors = length(b)
+    rank = size(id.pool, 2)
+    @inbounds @simd for i in 1:length(y)
+        prediction = zero(Float64)
+        idi = id.refs[i]
+        timei = time.refs[i]
+        sqrtwi = sqrtw[i]
+        for k in 1:n_regressors
+            prediction += b[k] * Xt[k, i]
+        end
+        for r in 1:rank
+          prediction += sqrtwi * id.pool[idi, r] * time.pool[timei, r]
+        end
+        error = y[i] - prediction
+        out += abs2(error)
+    end
+    return out
+end
+
+function Base.copy!(pool::Matrix{Float64}, store::Vector{Float64}, r::Int)
+    @inbounds @simd for i in 1:size(pool, 1)
+        pool[i, r] = store[i]
+    end
+end
+
+function Base.copy!(store::Vector{Float64}, pool::Matrix{Float64}, r::Int)
+    @inbounds @simd for i in 1:size(pool, 1)
+        store[i] = pool[i, r]
+    end
+end
+
+function Base.copy!(pool::Matrix{Float64}, store::Matrix{Float64}, r::Int)
+    @inbounds @simd for i in 1:size(pool, 1)
+        pool[i, r] = store[i, r]
+    end
+end
+
+function Base.copy!(store::Matrix{Float64}, pool::Matrix{Float64}, r::Int)
+    @inbounds @simd for i in 1:size(pool, 1)
+        store[i, r] = pool[i, r]
+    end
+end
+
+
+##############################################################################
+##
 ## rescale! a factor model
 ##
 ##############################################################################
+
 
 function rescale!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
 	out = zero(Float64)

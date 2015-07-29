@@ -9,13 +9,14 @@ end
 type PooledFactor{R}
     refs::Vector{R}
     pool::Matrix{Float64}
+    old1pool::Matrix{Float64}
+    old2pool::Matrix{Float64}
     storage1::Vector{Float64}
     storage2::Vector{Float64}
-    storage3::Vector{Float64}
 end
 function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
     ans = fill(zero(Float64), l)
-    PooledFactor(refs, fill(0.1, l, rank), ans, deepcopy(ans), deepcopy(ans))
+    PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank), ans, deepcopy(ans))
 end
 
 
