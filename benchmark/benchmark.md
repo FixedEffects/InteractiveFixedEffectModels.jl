@@ -1,4 +1,3 @@
-# full panel
 ```julia
 using DataFrames, SparseFactorModels
 N = 5000
@@ -36,7 +35,9 @@ sparsedf = df[subset, :]
 ```
 
 
-# factor model x balanced panel
+# factor model 
+
+### balanced panel
 ```julia
 for method in [:gs, :gr, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
@@ -74,7 +75,7 @@ result.ess => 1.4309734431613243e8
 result.converged => Bool[true]
 ```
 
-# factor model x unbalanced panel
+### unbalanced panel
 ```julia
 for method in [:gs, :gr, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
@@ -113,7 +114,7 @@ result.converged => Bool[true]
 ```
 
 
-# factor model x sparse panel
+### parse panel
 ```julia
 for method in [:gs, :gr, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
 	println("method : $(method)")
@@ -153,7 +154,9 @@ result.converged => Bool[true]
 
 
 
-# interactive fixed effect x balanced
+# interactive fixed effect 
+
+### balanced
 
 ```julia
 for method in [:gs, :gr, :svd]
@@ -179,7 +182,7 @@ result.ess => 2.482504221441386e6
 result.converged => true
 ```
 
-# interactive fixed effect x unbalanced
+### interactive fixed effect x unbalanced
 
 
 ```julia
@@ -206,7 +209,7 @@ result.ess => 2.001491168484043e6
 result.converged => true
 ```
 
-# interactive fixed effect x sparse
+### interactive fixed effect x sparse
 
 
 ```julia
