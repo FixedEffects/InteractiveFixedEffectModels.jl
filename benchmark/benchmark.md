@@ -1,5 +1,6 @@
 ```julia
 using DataFrames, SparseFactorModels
+srand(1234)
 N = 5000
 T = 500
 l1 = randn(N)
@@ -39,7 +40,7 @@ sparsedf = df[subset, :]
 
 ### N x T
 ```julia
-for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
+for method in [:ar, :gd, :sgd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, df, method = method, maxiter = 100_000)
 	@show result.ess
@@ -77,7 +78,7 @@ result.converged => Bool[true]
 
 ### N x T x 4/5
 ```julia
-for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
+for method in [:ar, :gd, :sgd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, unbalanceddf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -116,7 +117,7 @@ result.converged => Bool[true]
 
 ### N x T x 1/5
 ```julia
-for method in [:gs, :gd, :momentum_gradient_descent, :gradient_descent, :cg, :svd]
+for method in [:ar, :gd, :sgd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, sparsedf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -159,7 +160,7 @@ result.converged => Bool[true]
 ### N x T
 
 ```julia
-for method in [:gs, :gd, :svd]
+for method in [:ar, :gd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 10_000, save = false)
 	@show result.ess
@@ -186,7 +187,7 @@ result.converged => true
 
 
 ```julia
-for method in [:gs, :gd, :svd]
+for method in [:ar, :gd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, subdf, method = method, maxiter = 10_000, save = false)
 	@show result.ess
@@ -213,7 +214,7 @@ result.converged => true
 
 
 ```julia
-for method in [:gs, :gd, :svd]
+for method in [:ar, :gd, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, sparsedf, method = method, maxiter = 10_000, save = false)
 	@show result.ess

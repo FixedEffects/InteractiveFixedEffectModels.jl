@@ -24,8 +24,11 @@ SparseFactorResult
 ## Load files
 ##
 ##############################################################################
-include("utils.jl")
 include("types.jl")
+include("utils/others.jl")
+include("utils/factors.jl")
+include("utils/models.jl")
+
 include("update!.jl")
 include("fitvariable.jl")
 include("fitmodel.jl")

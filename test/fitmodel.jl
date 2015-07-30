@@ -7,7 +7,7 @@ method = :svd
 precision = 1e-1
 
 
-for method in [:svd, :gs, :bfgs]
+for method in [:svd, :gs, :gd]
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method)
 	@test_approx_eq_eps result.coef [328.1653237715761, -1.0415042260420706]  precision

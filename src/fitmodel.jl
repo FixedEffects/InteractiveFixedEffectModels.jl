@@ -4,7 +4,7 @@
 ##
 ##############################################################################
 
-function fit_gd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9, alpha = 0.5)
+function fit_gd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9, lambda::Real = 0.0)
 
 	rank = size(idf.pool, 2)
 	N = size(idf.pool, 1)
@@ -39,26 +39,25 @@ function fit_gd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 			steps_in_a_row = 0
 			olderror_inner = ssr(idf, timef, res, sqrtw, r)
 			# recompute error since res has changed in the meantime
-			while steps_in_a_row <= 1
-				update!(idf, timef, res, sqrtw, r, learning_rate[r], alpha)
+			while steps_in_a_row <= 4
+				update_gd!(idf, timef, res, sqrtw, r, learning_rate[r], lambda)
 				error_inner = ssr(idf, timef, res, sqrtw, r)
 				if error_inner < olderror_inner
 					olderror_inner = error_inner
 				    steps_in_a_row = max(1, steps_in_a_row + 1)
 				    # increase learning rate
-				    learning_rate[r] *= 1.05
-				    copy!(idf.old2pool, idf.old1pool)
-				    copy!(timef.old2pool, timef.old1pool)
-				    # update
-				    copy!(idf.old1pool, idf.pool)
-				    copy!(timef.old1pool, timef.pool)
+				    learning_rate[r] *= 1.1
+				   # update old2pool
+				   (idf.old1pool, idf.old2pool) = (idf.old2pool, idf.old1pool)
+				   (timef.old1pool, timef.old2pool) = (timef.old2pool, timef.old1pool)
+				   # update old1pool
+				   copy!(idf.old1pool, idf.pool)
+				   copy!(timef.old1pool, timef.pool)
 				else
 					# decrease learning rate
 				    learning_rate[r] /= max(1.5, -steps_in_a_row)
 				    steps_in_a_row = min(0, steps_in_a_row - 1)
 				    # cancel the update
-				    copy!(idf.old2pool, idf.old1pool)
-				    copy!(timef.old2pool, timef.old1pool)
 				    copy!(idf.pool, idf.old1pool, r)
 				    copy!(timef.pool, timef.old1pool, r)
 				end		
@@ -68,7 +67,8 @@ function fit_gd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 		end
 
 		# Given factor model, compute beta
-		subtract_factor!(res, y, sqrtw, idf, timef)
+		copy!(res, y)
+		subtract_factor!(res, sqrtw, idf, timef)
 		b = M * res
 
 		# Check convergence
@@ -81,7 +81,9 @@ function fit_gd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 	end
 
 	rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
-	return (b, idf.old1pool, timef.old1pool, [iterations], [converged])
+	(idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
+	(timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
+	return (b, [iterations], [converged])
 end
 
 ##############################################################################
@@ -90,7 +92,7 @@ end
 ##
 ##############################################################################
 
-function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_gs!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9)
 
 	rank = size(idf.pool, 2)
 	N = size(idf.pool, 1)
@@ -119,12 +121,13 @@ function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 		# Given beta, compute incrementally an approximate factor model
 		subtract_b!(res, y, b, X)
 		for r in 1:rank
-			update!(idf, timef, res, sqrtw, r)
+			update_gs!(idf, timef, res, sqrtw, r)
 			subtract_factor!(res, sqrtw, idf, timef, r)
 		end
 
 		# Given factor model, compute beta
-		subtract_factor!(res, y, sqrtw, idf, timef)
+		copy!(res, y)
+		subtract_factor!(res, sqrtw, idf, timef)
 		b = M * res
 
 		# Check convergence
@@ -137,7 +140,9 @@ function fit_gs{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Fl
 	end
 
 	rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
-	return (b, idf.old1pool, timef.old1pool, [iterations], [converged])
+	(idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
+	(timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
+	return (b, [iterations], [converged])
 end
 
 
@@ -148,7 +153,7 @@ end
 ##############################################################################
 
 
-function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime} ; maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_svd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime} ; maxiter::Integer = 100_000, tol::Real = 1e-9)
 	b = M * y
 	new_b = deepcopy(b)
 	res_vector = Array(Float64, length(y))
@@ -163,6 +168,8 @@ function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 	variance = Array(Float64, (T, T))
 	converged = false
 	iterations = maxiter
+	error = Inf
+	olderror = Inf
 
 	# starts the loop
 	iter = 0
@@ -185,18 +192,18 @@ function fit_svd{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 		A_mul_B!(predict_matrix, res_matrix, variance)
 		fill!(res_vector, predict_matrix, idf.refs, timef.refs)
 		new_b = M * (y - res_vector)
-
 		# Check convergence
-		error = chebyshev(new_b, b)
+		error = chebyshev(b, new_b)
 		if error < tol 
 			converged = true
 			iterations = iter
 			break
 		end
 	end
-	newfactors = reverse(factors)
-	loadings = predict_matrix * newfactors
-	return (b, loadings, newfactors, [iterations], [converged])
+
+	timef.pool = reverse(factors)
+	idf.pool = predict_matrix * timef.pool
+	return (b, [iterations], [converged])
 end
 
 

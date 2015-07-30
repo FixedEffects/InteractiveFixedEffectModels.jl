@@ -64,5 +64,29 @@ top(x::RegressionFactorResult) = [
             "R2" format_scientific(x.r2);
             "R2 within" format_scientific(x.r2_within);
             "Iterations" sprint(showcompact, x.iterations);
-            "Converged" sprint(showcompact, x.converged)
-            ]
+            "Converged" sprint(showcompact, x.converged)]
+            
+
+
+##############################################################################
+##
+## light weight type
+## 
+##############################################################################
+
+# http://stackoverflow.com/a/30968709/3662288
+type Ones <: AbstractVector{Float64}
+    length::Int
+end
+Base.size(O::Ones) = O.length
+Base.getindex(O::Ones, I::Int...) = one(Float64)
+Base.broadcast!(op::Function, X::Matrix{Float64}, Y::Matrix{Float64}, O::Ones) = nothing
+Base.broadcast!(op::Function, X::Vector{Float64}, Y::Vector{Float64}, O::Ones) = nothing
+Base.scale!(X::Vector{Float64}, O::Ones) = nothing
+
+
+function get_weight(df::AbstractDataFrame, weight::Symbol)
+    w = convert(Vector{Float64}, df[weight])
+    sqrtw = sqrt(w)
+end
+get_weight(df::AbstractDataFrame, weight::Nothing) = Ones(size(df, 1))

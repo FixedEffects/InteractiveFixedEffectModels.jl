@@ -5,7 +5,7 @@
 ##
 ##############################################################################
 
-function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :default, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-9, save = true, alpha = 0.5)
+function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :ar, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-20, save = true)
 
 	##############################################################################
 	##
@@ -17,7 +17,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	if method == :svd
 		weight == nothing || error("The svd methods does not work with weights")
 		lambda == 0.0 || error("The svd method only works with lambda = 0.0")
-	elseif method == :gs
+	elseif method == :ar
 		lambda == 0.0 || error("The Gauss-Seidel method only works with lambda = 0.0")
 	end
 
@@ -111,43 +111,32 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	timef = PooledFactor(time.refs, length(time.pool), m.rank)
 	## Case simple factor models
 	if !has_regressors
-		if method == :default
-			method = :momentum_gradient_descent
-		end
 		coef = [0.0]
 		if method == :svd
-			(loadings, factors, iterations, converged) = fit_svd(y, idf, timef, maxiter = maxiter, tol = tol)
-		elseif method == :gs
-			#(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
-			(loadings, factors, iterations, converged) = fit_gs(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
+			(iterations, converged) = fit_svd!(y, idf, timef, maxiter = maxiter, tol = tol)
+		elseif method == :ar
+			(iterations, converged) = fit_ar!(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol)
 		elseif method == :gd
-			(idf.pool, timef.pool, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
-			(loadings, factors, iterations, converged) = fit_gd(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, alpha = alpha)
-		else
-		    (loadings, factors, iterations, converged) = fit_optimization(y, idf, timef, sqrtw, lambda = lambda, method = method, maxiter = maxiter, tol = tol)
+			(iterations, converged) = fit_gd!(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
+		elseif method == :sgd
+			(iterations, converged) = fit_sgd!(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
 		end
 	else
-		if method == :default
-			method = :gs
-		end
 		# initial b
 		crossx = cholfact!(At_mul_B(X, X))
 		coef =  crossx \ At_mul_B(X, y)
 		# initial loadings
-		(idf.pool, timef.pool, iterations, converged) = fit_optimization(y - X * coef, idf, timef, sqrtw, method = :momentum_gradient_descent, maxiter = 1000, tol = 1e-3)
-
+		fit_ar!(y - X * coef, idf, timef, sqrtw, maxiter = 1000, tol = 1e-3)
 		# dispatch manually to the right method
 		if method == :svd
 			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_svd(X, M, coef, y, idf, timef, maxiter = maxiter, tol = tol) 
-		elseif method == :gs
+			(coef, iterations, converged) = fit_svd!(X, M, coef, y, idf, timef, maxiter = maxiter, tol = tol) 
+		elseif method == :ar
 			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_gs(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
+			(coef, iterations, converged) = fit_ar!(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
 		elseif method == :gd
 			M = crossx \ X'
-			(coef, loadings, factors, iterations, converged) = fit_gd(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol) 
-		else
-			(coef, loadings, factors, iterations, converged) = fit_optimization(X, coef, y, idf, timef,  sqrtw, method = method, lambda = lambda, maxiter = maxiter, tol = tol) 
+			(coef, iterations, converged) = fit_gd!(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda) 
 		end
 	end
 
@@ -157,10 +146,11 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		subtract_b!(residuals, y, coef, X)
 	end
 	for r in 1:m.rank
-		subtract_factor!(residuals, sqrtw, id.refs, loadings, time.refs, factors, r)
+		subtract_factor!(residuals, sqrtw, idf, timef, r)
 	end
 	broadcast!(/, residuals, residuals, sqrtw)
 	ess = abs2(norm(residuals, 2))
+
 
 	##############################################################################
 	##
@@ -169,7 +159,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	##############################################################################
 	if has_regressors
 		# compute errors by partialing out Y on X over dummy_time x loadio
-		newfes = getfactors(y, X, coef, id, time, m.rank, sqrtw, factors, loadings)
+		newfes = getfactors(y, X, coef, idf, timef, sqrtw)
 		ym = deepcopy(y)
 		Xm = deepcopy(X)
 		iterationsv = Int[]
@@ -208,7 +198,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 
 	if save 
 		# factors and loadings
-		augmentdf = DataFrame(id, time, loadings, factors, esample)
+		augmentdf = DataFrame(idf, timef, esample)
 
 		# residuals
 		if all(esample)
@@ -231,7 +221,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 				oldresiduals = oldy
 			end
 			for r in 1:m.rank
-				subtract_factor!(oldresiduals, fill(one(Float64), length(residuals)), id.refs, loadings, time.refs, factors, r)
+				subtract_factor!(oldresiduals, fill(one(Float64), length(residuals)), idf, timef, r)
 			end
 			b = oldresiduals - residuals
 			# get fixed effect
@@ -259,9 +249,9 @@ end
 
 
 # Symbol to formul Symbol ~ 0
-function fit(m::SparseFactorModel, variable::Symbol, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :gs, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-8, save = true)
-    formula = Formula(variable, 0)
-    fit(m, formula, df, method = method, lambda = lambda, subset = subset, weight = weight, subset = subset, maxiter = maxiter, tol = tol, save = true)
+function fit(m::SparseFactorModel, variable::Symbol, df::AbstractDataFrame, vcov_method::AbstractVcovMethod = VcovSimple(); method::Symbol = :ar, lambda::Real = 0.0, subset::Union(AbstractVector{Bool}, Nothing) = nothing, weight::Union(Symbol, Nothing) = nothing, maxiter::Integer = 10000, tol::Real = 1e-8, save = true)
+	formula = Formula(variable, 0)
+	fit(m, formula, df, method = method, lambda = lambda, subset = subset, weight = weight, subset = subset, maxiter = maxiter, tol = tol, save = true)
 end
 
 ##############################################################################
@@ -270,39 +260,26 @@ end
 ##
 ##############################################################################
 
-function getfactors{Tid, Rid, Ttime, Rtime}(y::Vector{Float64}, X::Matrix{Float64}, coef::Vector{Float64}, id::PooledDataVector{Tid, Rid}, time::PooledDataVector{Ttime, Rtime}, rank::Integer, sqrtw::AbstractVector{Float64}, factors::Matrix{Float64}, loadings::Matrix{Float64})
+function getfactors{Rid, Rtime}(y::Vector{Float64}, X::Matrix{Float64}, coef::Vector{Float64}, id::PooledFactor{Rid}, time::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64})
 
 	# partial out Y and X with respect to i.id x factors and i.time x loadings
 	newfes = AbstractFixedEffect[]
 	ans = Array(Float64, length(y))
-	 for j in 1:rank
+	for j in 1:size(id.pool, 2)
 		for i in 1:length(y)
-			ans[i] = factors[time.refs[i], j]
+			ans[i] = time.pool[time.refs[i], j]
 		end
-		push!(newfes, FixedEffectSlope(id, sqrtw, ans[:], :id, :time, :(idxtime)))
+		push!(newfes, FixedEffectSlope(id.refs, size(id.pool, 1), sqrtw, ans[:], :id, :time, :(idxtime)))
 		for i in 1:length(y)
-			ans[i] = loadings[id.refs[i], j]
+			ans[i] = id.pool[id.refs[i], j]
 		end
-		push!(newfes, FixedEffectSlope(time, sqrtw, ans[:], :time, :id, :(timexid)))
+		push!(newfes, FixedEffectSlope(time.refs, size(time.pool, 1), sqrtw, ans[:], :time, :id, :(timexid)))
 	end
-
-
 	# obtain the residuals and cross 
-	return (newfes)
+	return newfes
 end
 
 
 
-
-function DataFrame(id::PooledDataVector, time::PooledDataVector, loadings::Matrix{Float64}, factors::Matrix{Float64}, esample::BitVector)
-	df = DataFrame()
-	anyNA = all(esample)
-	for r in 1:size(loadings, 2)
-		# loadings
-		df[convert(Symbol, "loadings$r")] = build_column(id, loadings, r, esample)
-		df[convert(Symbol, "factors$r")] = build_column(time, factors, r, esample)
-	end
-	return df
-end
 
 

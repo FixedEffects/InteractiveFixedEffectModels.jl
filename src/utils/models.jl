@@ -1,0 +1,107 @@
+
+##############################################################################
+##
+## build model
+##
+##############################################################################
+
+function reftype(sz) 
+    sz <= typemax(Uint8)  ? Uint8 :
+    sz <= typemax(Uint16) ? Uint16 :
+    sz <= typemax(Uint32) ? Uint32 :
+    Uint64
+end
+function simpleModelFrame(df, t, esample)
+    df1 = DataFrame(map(x -> df[x], t.eterms))
+    names!(df1, convert(Vector{Symbol}, map(string, t.eterms)))
+    mf = ModelFrame(df1, t, esample)
+end
+
+
+#  remove observations with negative weights
+function isnaorneg{T <: Real}(a::Vector{T}) 
+    bitpack(a .> zero(eltype(a)))
+end
+function isnaorneg{T <: Real}(a::DataVector{T}) 
+    out = !a.na
+    @inbounds @simd for i in 1:length(a)
+        if out[i]
+            out[i] = a[i] > zero(Float64)
+        end
+    end
+    bitpack(out)
+end
+
+
+# Directly from DataFrames.jl
+function remove_response(t::Terms)
+    # shallow copy original terms
+    t = Terms(t.terms, t.eterms, t.factors, t.order, t.response, t.intercept)
+    if t.response
+        t.order = t.order[2:end]
+        t.eterms = t.eterms[2:end]
+        t.factors = t.factors[2:end, 2:end]
+        t.response = false
+    end
+    return t
+end
+
+
+# used when removing certain rows in a dataset
+# NA always removed
+function dropUnusedLevels!(f::PooledDataVector)
+    uu = unique(f.refs)
+    length(uu) == length(f.pool) && return f
+    sort!(uu)
+    T = reftype(length(uu))
+    dict = Dict(uu, 1:convert(T, length(uu)))
+    @inbounds @simd for i in 1:length(f.refs)
+         f.refs[i] = dict[f.refs[i]]
+    end
+    f.pool = f.pool[uu]
+    f
+end
+
+dropUnusedLevels!(f::DataVector) = f
+
+
+
+
+
+
+
+##############################################################################
+##
+## sum of squares
+##
+##############################################################################
+
+
+
+function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept::Bool, sqrtw::Ones)
+    ess = abs2(norm(residuals))
+    if hasintercept
+        tss = zero(Float64)
+        m = mean(y)::Float64
+        @inbounds @simd  for i in 1:length(y)
+            tss += abs2((y[i] - m))
+        end
+    else
+        tss = abs2(norm(y))
+    end
+    return (ess, tss)
+end
+function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept::Bool, sqrtw::Vector{Float64})
+    ess = abs2(norm(residuals))
+    if hasintercept
+        m = (mean(y) / sum(sqrtw) * length(residuals))::Float64
+        tss = zero(Float64)
+        @inbounds @simd  for i in 1:length(y)
+         tss += abs2(y[i] - sqrtw[i] * m)
+        end
+    else
+        tss = abs2(norm(y))
+    end
+    return (ess, tss)
+end
+
