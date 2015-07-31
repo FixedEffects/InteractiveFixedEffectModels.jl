@@ -92,7 +92,7 @@ end
 ##
 ##############################################################################
 
-function fit_gs!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_ar!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer = 100_000, tol::Real = 1e-9)
 
 	rank = size(idf.pool, 2)
 	N = size(idf.pool, 1)
@@ -121,7 +121,7 @@ function fit_gs!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 		# Given beta, compute incrementally an approximate factor model
 		subtract_b!(res, y, b, X)
 		for r in 1:rank
-			update_gs!(idf, timef, res, sqrtw, r)
+			update_ar!(idf, timef, res, sqrtw, r)
 			subtract_factor!(res, sqrtw, idf, timef, r)
 		end
 

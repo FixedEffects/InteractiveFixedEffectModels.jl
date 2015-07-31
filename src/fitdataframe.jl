@@ -126,7 +126,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		crossx = cholfact!(At_mul_B(X, X))
 		coef =  crossx \ At_mul_B(X, y)
 		# initial loadings
-		fit_ar!(y - X * coef, idf, timef, sqrtw, maxiter = 1000, tol = 1e-3)
+		fit_gd!(y - X * coef, idf, timef, sqrtw, maxiter = 100, tol = 1e-3)
 		# dispatch manually to the right method
 		if method == :svd
 			M = crossx \ X'
