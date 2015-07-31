@@ -26,11 +26,11 @@ SparseFactorResult
 ##############################################################################
 include("types.jl")
 include("utils/others.jl")
-include("utils/factors.jl")
 include("utils/models.jl")
+include("utils/factors.jl")
 
 include("update!.jl")
-include("fitvariable.jl")
-include("fitmodel.jl")
+include("fitfactors.jl")
+include("fitolsfactors.jl")
 include("fitdataframe.jl")
 end

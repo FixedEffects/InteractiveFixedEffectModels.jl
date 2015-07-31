@@ -1,6 +1,6 @@
 ##############################################################################
 ##
-## Estimate linear factor model by gradient method
+## Estimate ols models with interactive fixed effects by gradient descent
 ##
 ##############################################################################
 
@@ -34,14 +34,15 @@ function fit_gd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 		(error, olderror) = (olderror, error)
 
 		# Given beta, compute incrementally an approximate factor model
-		subtract_b!(res, y, b, X)
+		copy!(res, y)
+		subtract_b!(res, b, X)
 		for r in 1:rank
 			steps_in_a_row = 0
-			olderror_inner = ssr(idf, timef, res, sqrtw, r)
+			olderror_inner = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
 			# recompute error since res has changed in the meantime
 			while steps_in_a_row <= 4
 				update_gd!(idf, timef, res, sqrtw, r, learning_rate[r], lambda)
-				error_inner = ssr(idf, timef, res, sqrtw, r)
+				error_inner = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
 				if error_inner < olderror_inner
 					olderror_inner = error_inner
 				    steps_in_a_row = max(1, steps_in_a_row + 1)
@@ -69,10 +70,11 @@ function fit_gd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 		# Given factor model, compute beta
 		copy!(res, y)
 		subtract_factor!(res, sqrtw, idf, timef)
-		b = M * res
+		b = M * res 
 
 		# Check convergence
-		error = ssr(idf, timef, b, Xt, y, sqrtw) 
+		subtract_b!(res, b, X)
+		error = sumabs2(res) + ssr_penalty(idf, timef, lambda)
 		if error == zero(Float64) || abs(error - olderror)/error < tol 
 			converged = true
 			iterations = iter
@@ -88,7 +90,7 @@ end
 
 ##############################################################################
 ##
-## Estimate linear factor model by gauss-seidel method
+## Estimate ols models with interactive fixed effects by alternative regression
 ##
 ##############################################################################
 
@@ -114,12 +116,13 @@ function fit_ar!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 
 		if mod(iter, 100) == 0
 			rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
-			copy!(idf.pool, idf.old1pool)
-			copy!(timef.pool, timef.old1pool)
+			(idf.pool, idf.old1pool) = (idf.old1pool, idf.pool)
+			(timef.pool, timef.old1pool) = (timef.old1pool, timef.pool)
 		end
 		
 		# Given beta, compute incrementally an approximate factor model
-		subtract_b!(res, y, b, X)
+		copy!(res, y)
+		subtract_b!(res, b, X)
 		for r in 1:rank
 			update_ar!(idf, timef, res, sqrtw, r)
 			subtract_factor!(res, sqrtw, idf, timef, r)
@@ -131,7 +134,8 @@ function fit_ar!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{F
 		b = M * res
 
 		# Check convergence
-		error = ssr(idf, timef, b, Xt, y, sqrtw) 
+		subtract_b!(res, b, X)
+		error = sumabs2(res)
 		if error == zero(Float64) || abs(error - olderror)/error < tol 
 			converged = true
 			iterations = iter
@@ -148,7 +152,7 @@ end
 
 ##############################################################################
 ##
-## Estimate linear factor model by SVD method
+## Estimate ols models with interactive fixed effects by SVD method
 ##
 ##############################################################################
 
@@ -156,7 +160,7 @@ end
 function fit_svd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{Float64}, y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime} ; maxiter::Integer = 100_000, tol::Real = 1e-9)
 	b = M * y
 	new_b = deepcopy(b)
-	res_vector = Array(Float64, length(y))
+	res = Array(Float64, length(y))
 	N = size(idf.pool, 1)
 	T = size(timef.pool, 1)
 	rank = size(idf.pool, 2)
@@ -179,9 +183,10 @@ function fit_svd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{
 		(predict_matrix, res_matrix) = (res_matrix, predict_matrix)
 
 		# Given beta, compute the factors
-		subtract_b!(res_vector, y, b, X)
+		copy!(res, y)
+		subtract_b!(res, b, X)
 		# transform vector into matrix 
-		fill!(res_matrix, res_vector, idf.refs, timef.refs)
+		copy!(res_matrix, res, idf.refs, timef.refs)
 		# svd of res_matrix
 		At_mul_B!(variance, res_matrix, res_matrix)
 		F = eigfact!(Symmetric(variance), (T - rank + 1):T)
@@ -190,8 +195,9 @@ function fit_svd!{Rid, Rtime}(X::Matrix{Float64}, M::Matrix{Float64}, b::Vector{
 		# Given the factors, compute beta
 		A_mul_Bt!(variance, factors, factors)
 		A_mul_B!(predict_matrix, res_matrix, variance)
-		fill!(res_vector, predict_matrix, idf.refs, timef.refs)
-		new_b = M * (y - res_vector)
+		copy!(res, predict_matrix, idf.refs, timef.refs)
+		BLAS.axpy!(-1.0, y, res)
+		new_b = - M * res
 		# Check convergence
 		error = chebyshev(b, new_b)
 		if error < tol 

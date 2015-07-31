@@ -4,7 +4,7 @@ df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
 
 
-for method in [:svd, :gs, :gd]
+for method in [:svd, :ar, :gd]
 	precision = 1e-1
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), :Sales, df , method =  method) ;

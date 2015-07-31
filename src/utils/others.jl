@@ -34,8 +34,6 @@ function chebyshev{T, N}(x::Array{T, N})
     return distance
 end
 
-
-
 function chebyshev{T, N}(x::Array{T, N}, y::Array{T, N})
     distance = zero(Float64)
     @inbounds @simd for i in eachindex(x)
@@ -46,7 +44,6 @@ function chebyshev{T, N}(x::Array{T, N}, y::Array{T, N})
     end
     return distance
 end
-
 
 
 function sqeuclidean{T, N}(x::Array{T, N}, y::Array{T, N})
@@ -61,11 +58,11 @@ end
 
 ##############################################################################
 ##
-## fill matrix into a vector and conversely
+## some methods to copy! bjects
 ##
 ##############################################################################
 
-function Base.fill!(M::Matrix{Float64}, x::Vector{Float64}, start::Integer)
+function Base.copy!(M::Matrix{Float64}, x::Vector{Float64}, start::Integer)
     idx = start
     for i in 1:size(M, 1), j in 1:size(M, 2)
         idx += 1
@@ -73,7 +70,7 @@ function Base.fill!(M::Matrix{Float64}, x::Vector{Float64}, start::Integer)
     end
 end
 
-function Base.fill!(x::Vector{Float64}, M::Matrix{Float64}, start::Integer)
+function Base.copy!(x::Vector{Float64}, M::Matrix{Float64}, start::Integer)
     idx = start
     for i in 1:size(M, 1), j in 1:size(M, 2)
         idx += 1
@@ -82,13 +79,13 @@ function Base.fill!(x::Vector{Float64}, M::Matrix{Float64}, start::Integer)
 end
 
 
-function Base.fill!{Tid, Ttime}(ymatrix::Matrix{Float64}, yvector::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+function Base.copy!{Tid, Ttime}(ymatrix::Matrix{Float64}, yvector::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
     @inbounds @simd for i in 1:length(yvector)
         ymatrix[idsrefs[i], timesrefs[i]] = yvector[i]
     end
 end
 
-function Base.fill!{Tid, Ttime}(yvector::Vector{Float64}, ymatrix::Matrix{Float64},  idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+function Base.copy!{Tid, Ttime}(yvector::Vector{Float64}, ymatrix::Matrix{Float64},  idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
     @inbounds @simd for i in 1:length(yvector)
         yvector[i] = ymatrix[idsrefs[i], timesrefs[i]]
     end
@@ -118,17 +115,6 @@ function Base.copy!(store::Matrix{Float64}, pool::Matrix{Float64}, r::Int)
     end
 end
 
-
-##############################################################################
-##
-## format scientific
-##
-##############################################################################
-
-
-function format_scientific(pv::Number)
-    return @sprintf("%.3f", pv)
-end
 
 
 

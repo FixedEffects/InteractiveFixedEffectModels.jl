@@ -5,21 +5,6 @@ type SparseFactorModel
     rank::Int64
 end
 
-# type used internally to store idrefs, timerefs, factors, loadings
-type PooledFactor{R}
-    refs::Vector{R}
-    pool::Matrix{Float64}
-    old1pool::Matrix{Float64}
-    old2pool::Matrix{Float64}
-    storage1::Vector{Float64}
-    storage2::Vector{Float64}
-end
-function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
-    ans = fill(zero(Float64), l)
-    PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank), ans, deepcopy(ans))
-end
-
-
 # object returned when fitting variable
 type SparseFactorResult 
     esample::BitVector
@@ -61,32 +46,11 @@ title(x::RegressionFactorResult) = "Linear Factor Model"
 top(x::RegressionFactorResult) = [
             "Number of obs" sprint(showcompact, nobs(x));
             "Degree of freedom" sprint(showcompact, nobs(x) - df_residual(x));
-            "R2" format_scientific(x.r2);
-            "R2 within" format_scientific(x.r2_within);
+            "R2"  @sprintf("%.3f", x.r2);
+            "R2 within"  @sprintf("%.3f", x.r2_within);
             "Iterations" sprint(showcompact, x.iterations);
-            "Converged" sprint(showcompact, x.converged)]
-            
+            "Converged" sprint(showcompact, x.converged)
+            ]
 
 
-##############################################################################
-##
-## light weight type
-## 
-##############################################################################
 
-# http://stackoverflow.com/a/30968709/3662288
-type Ones <: AbstractVector{Float64}
-    length::Int
-end
-Base.size(O::Ones) = O.length
-Base.getindex(O::Ones, I::Int...) = one(Float64)
-Base.broadcast!(op::Function, X::Matrix{Float64}, Y::Matrix{Float64}, O::Ones) = nothing
-Base.broadcast!(op::Function, X::Vector{Float64}, Y::Vector{Float64}, O::Ones) = nothing
-Base.scale!(X::Vector{Float64}, O::Ones) = nothing
-
-
-function get_weight(df::AbstractDataFrame, weight::Symbol)
-    w = convert(Vector{Float64}, df[weight])
-    sqrtw = sqrt(w)
-end
-get_weight(df::AbstractDataFrame, weight::Nothing) = Ones(size(df, 1))

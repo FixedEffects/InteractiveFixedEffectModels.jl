@@ -9,7 +9,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 
 	##############################################################################
 	##
-	## Prepare DataFrame
+	## Transform DataFrame into a set of Matrix and Vectors
 	##
 	##############################################################################
 
@@ -20,8 +20,6 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	elseif method == :ar
 		lambda == 0.0 || error("The Gauss-Seidel method only works with lambda = 0.0")
 	end
-
-
 
 	rf = deepcopy(f)
 	## decompose formula into normal  vs absorbpart
@@ -120,6 +118,8 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 			(iterations, converged) = fit_gd!(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
 		elseif method == :sgd
 			(iterations, converged) = fit_sgd!(y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
+		else
+			error("method not found")
 		end
 	else
 		# initial b
@@ -137,13 +137,23 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		elseif method == :gd
 			M = crossx \ X'
 			(coef, iterations, converged) = fit_gd!(X, M, coef, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda) 
+		else
+			error("method not found")
 		end
 	end
 
-	# residuals
+
+
+	##############################################################################
+	##
+	## Return result
+	##
+	##############################################################################
+
+	# compute sum of squared residuals
 	residuals = deepcopy(y)
 	if has_regressors
-		subtract_b!(residuals, y, coef, X)
+		subtract_b!(residuals, coef, X)
 	end
 	for r in 1:m.rank
 		subtract_factor!(residuals, sqrtw, idf, timef, r)
@@ -152,13 +162,45 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 	ess = abs2(norm(residuals, 2))
 
 
-	##############################################################################
-	##
-	## Return result
-	##
-	##############################################################################
-	if has_regressors
-		# compute errors by partialing out Y on X over dummy_time x loadio
+	# save factors and loadings in a dataframe
+	if !save 
+		augmentdf = DataFrame()
+	else
+		augmentdf = DataFrame(idf, timef, esample)
+
+		# save residuals in a dataframe
+		if all(esample)
+			augmentdf[:residuals] = residuals
+		else
+			augmentdf[:residuals] =  DataArray(Float64, size(augmentdf, 1))
+			augmentdf[esample, :residuals] = residuals
+		end
+
+		# save fixed effects in a dataframe
+		if has_absorb
+			# residual before demeaning
+			mf = simpleModelFrame(subdf, rt, esample)
+			oldresiduals = model_response(mf)[:]
+			if has_regressors
+				oldX = ModelMatrix(mf).m
+				subtract_b!(oldresiduals, coef, oldX)
+			end
+			for r in 1:m.rank
+				subtract_factor!(oldresiduals, fill(one(Float64), length(residuals)), idf, timef, r)
+			end
+			b = oldresiduals - residuals
+			# get fixed effect
+			augmentdf = hcat(augmentdf, getfe(fes, b, esample))
+		end
+	end
+
+
+
+	if !has_regressors
+		SparseFactorResult(esample, augmentdf, ess, iterations, converged)
+	else
+		# compute errors for beta coefficients 
+		## partial out Y on X over dummy_time x loadio
 		newfes = getfactors(y, X, coef, idf, timef, sqrtw)
 		ym = deepcopy(y)
 		Xm = deepcopy(X)
@@ -170,7 +212,7 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		residualsm = ym - Xm * coef
 		crossxm = cholfact!(At_mul_B(Xm, Xm))
 
-		# compute the right degree of freedom
+		## compute the right degree of freedom
 		df_absorb_fe = 0
 		if has_absorb 
 			df_absorb_fe = 0
@@ -190,49 +232,12 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 			df_residual = size(X, 1) - size(X, 2) - df_absorb_fe 
 		end
 
-		# return vcovdata object
+		## estimate vcov matrix
 		vcov_data = VcovData{1}(inv(crossxm), Xm, residualsm, df_residual)
 		matrix_vcov = vcov!(vcov_method_data, vcov_data)
 
-	end
 
-	if save 
-		# factors and loadings
-		augmentdf = DataFrame(idf, timef, esample)
-
-		# residuals
-		if all(esample)
-			augmentdf[:residuals] = residuals
-		else
-			augmentdf[:residuals] =  DataArray(Float64, size(augmentdf, 1))
-			augmentdf[esample, :residuals] = residuals
-		end
-
-		# fixed effects
-		if has_absorb
-			# residual before demeaning
-			mf = simpleModelFrame(subdf, rt, esample)
-			oldy = model_response(mf)[:]
-			if has_regressors
-				oldresiduals = similar(oldy)
-				oldX = ModelMatrix(mf).m
-				subtract_b!(oldresiduals, oldy, coef, oldX)
-			else
-				oldresiduals = oldy
-			end
-			for r in 1:m.rank
-				subtract_factor!(oldresiduals, fill(one(Float64), length(residuals)), idf, timef, r)
-			end
-			b = oldresiduals - residuals
-			# get fixed effect
-			augmentdf = hcat(augmentdf, getfe(fes, b, esample))
-		end
-	else
-		augmentdf = DataFrame()
-	end
-
-
-	if has_regressors
+		# compute various r2
 		nobs = size(subdf, 1)
 		(ess, tss) = compute_ss(residualsm, ym, rt.intercept, sqrtw)
 		r2_within = 1 - ess / tss 
@@ -242,8 +247,6 @@ function fit(m::SparseFactorModel, f::Formula, df::AbstractDataFrame, vcov_metho
 		r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
 
 		RegressionFactorResult(coef, matrix_vcov, esample, augmentdf, coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, ess, sum(iterations), all(converged))
-	else
-		SparseFactorResult(esample, augmentdf, ess, iterations, converged)
 	end
 end
 

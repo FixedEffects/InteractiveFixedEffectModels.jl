@@ -57,9 +57,8 @@ function update_gd_half!{R1, R2}(p1::PooledFactor{R1}, p2::PooledFactor{R2}, y::
         p1.pool[i, r] -= 2.0 * lambda * p1.pool[i, r]
         if p1.storage2[i] > zero(Float64)
             # gradient term is learning rate * p1.storage2
-            # newton term (diagonal only) is p1.storage2[i]
-            # momentum term is 0.01 * (p1.pool[i, r] - p1.storage3[i])
-            # mu = 0 actually makes things faster for factor model
+            # newton term (diagonal only) is p1.storage2[i].
+            # momentum term. mu = 0 actually makes things faster for factor model
             p1.pool[i, r] += learning_rate * p1.storage1[i] / p1.storage2[i]^0.5 + 0.00 * (p1.old1pool[i, r] - p1.old2pool[i, r])
         end
     end
@@ -72,9 +71,7 @@ end
 ##
 ##############################################################################
 
-function update_sgd!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Int, learning_rate::Real, lambda::Real)
-	#rand!(1:length(y), permutation)
-    range = 1:length(y)
+function update_sgd!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Int, learning_rate::Real, lambda::Real, range::UnitRange{Int})
      @inbounds for j in 1:length(y)
         i = rand(range)
         idi = id.refs[i]

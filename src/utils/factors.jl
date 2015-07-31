@@ -1,3 +1,40 @@
+# type used internally to store idrefs, timerefs, factors, loadings
+type PooledFactor{R}
+    refs::Vector{R}
+    pool::Matrix{Float64}
+    old1pool::Matrix{Float64}
+    old2pool::Matrix{Float64}
+    storage1::Vector{Float64}
+    storage2::Vector{Float64}
+end
+function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
+    ans = fill(zero(Float64), l)
+    PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank), ans, deepcopy(ans))
+end
+
+##############################################################################
+##
+## subtract_factor! and subtract_b!
+##
+##############################################################################
+
+function subtract_b!(y::Vector{Float64}, b::Vector{Float64}, X::Matrix{Float64})
+    BLAS.gemm!('N', 'N', -1.0, X, b, 1.0, y)
+end
+
+
+function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2})
+    for r in 1:size(id.pool, 2)
+        subtract_factor!(y, sqrtw, id, time, r)
+    end
+end
+
+function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
+     @inbounds @simd for i in 1:length(y)
+        y[i] -= sqrtw[i] * id.pool[id.refs[i], r] * time.pool[time.refs[i], r]
+    end
+end
+
 
 
 ##############################################################################
@@ -16,77 +53,36 @@ function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Flo
         sqrtwi = sqrtw[i]
         out += abs2(y[i] - sqrtwi * loading * factor)
     end 
+   return out
+end
+
+
+function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real, r::Int)    
+    penalty = zero(Float64)
     if lambda > 0.0
         @inbounds @simd for i in 1:size(id.pool, 1)
-            out += lambda * abs2(id.pool[i, r])
+            penalty += abs2(id.pool[i, r])
         end
         @inbounds @simd for i in 1:size(time.pool, 1)
-            out += lambda * abs2(time.pool[i, r])
+            penalty += abs2(time.pool[i, r])
         end
     end
-    return out
+    return lambda * penalty
 end
 
 
-
-function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, b::Vector{Float64}, Xt::Matrix{Float64}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, lambda::Real = 0.0)    
-    out = zero(Float64)
-    n_regressors = length(b)
-    rank = size(id.pool, 2)
-    @inbounds @simd for i in 1:length(y)
-        prediction = zero(Float64)
-        idi = id.refs[i]
-        timei = time.refs[i]
-        sqrtwi = sqrtw[i]
-        for k in 1:n_regressors
-            prediction += b[k] * Xt[k, i]
-        end
-        for r in 1:rank
-          prediction += sqrtwi * id.pool[idi, r] * time.pool[timei, r]
-        end
-        error = y[i] - prediction
-        out += abs2(error)
-    end
+function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real)    
+    penalty = zero(Float64)
     if lambda > 0.0
         for r in 1:rank
-            @inbounds @simd for i in 1:size(id.pool, 1)
-                out += lambda * abs2(id.pool[i, r])
-            end
-            @inbounds @simd for i in 1:size(time.pool, 1)
-                out += lambda * abs2(time.pool[i, r])
-            end
+            penalty += ssr_penalty(id, time, lambda, r)
         end
     end
-    return out
+    return penalty
 end
 
 
 
-##############################################################################
-##
-## subtract_factor! and subtract_b!
-##
-##############################################################################
-
-function subtract_b!(res::Vector{Float64}, y::Vector{Float64}, b::Vector{Float64}, X::Matrix{Float64})
-    A_mul_B!(res, X, -b)
-     @inbounds @simd for i in 1:length(res)
-        res[i] += y[i] 
-    end
-end
-
-
-function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2})
-    for r in 1:size(id.pool, 2)
-        subtract_factor!(y, sqrtw, id, time, r)
-    end
-end
-
-function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
-     @inbounds @simd for i in 1:length(y)
-        y[i] -= sqrtw[i] * id.pool[id.refs[i], r] * time.pool[time.refs[i], r]
-    end
-end
 
 
 

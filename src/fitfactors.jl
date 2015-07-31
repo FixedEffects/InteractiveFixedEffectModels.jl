@@ -37,7 +37,7 @@ function fit_ar!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
 
-    return ([iterations], [converged])
+    return (iterations, converged)
 end
 
 ##############################################################################
@@ -61,14 +61,14 @@ function fit_gd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::
     copy!(timef.old2pool, timef.pool)
 
     for r in 1:rank
-        olderror = ssr(idf, timef, y, sqrtw, r)
+        olderror = ssr(idf, timef, y, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
         learning_rate = 0.1
         iter = 0
         steps_in_a_row  = 0
         while iter < maxiter
             iter += 1
             update_gd!(idf, timef, res, sqrtw, r, learning_rate, lambda)
-            error = ssr(idf, timef, res, sqrtw, r)
+            error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
             if error < olderror
                 if error == zero(Float64) || (abs(error - olderror)/error < tol  && steps_in_a_row > 3)
                     iterations[r] = iter
@@ -102,13 +102,14 @@ function fit_gd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::
     rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
-    return ([iterations], [converged])
+    return (iterations, converged)
 end
 
 ##############################################################################
 ##
 ## Estimate factor model by stochastic gradient method
-## issue because thinks converged but did not
+## It seems there is some issue because thinks converged but did not
+## 
 ##############################################################################
 
 function fit_sgd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9, lambda::Real = 0.0)
@@ -117,27 +118,24 @@ function fit_sgd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef:
     rank = size(idf.pool, 2)
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
-
-
-    iter = 0
     res = deepcopy(y)
     copy!(idf.old1pool, idf.pool)
     copy!(timef.old1pool, timef.pool)
     copy!(idf.old2pool, idf.pool)
     copy!(timef.old2pool, timef.pool)
-    learning_rate = 0.1
+    range = 1:length(y)
 
+    iter = 0
     for r in 1:rank
-        olderror = ssr(idf, timef, y, sqrtw, r)
-        # learning_rate = 1.0
+        olderror = ssr(idf, timef, y, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
         learning_rate = 0.01
         iter = 0
         steps_in_a_row  = 0
 
         while iter < maxiter
             iter += 1
-            update_sgd!(idf, timef, res, sqrtw, r, learning_rate, lambda)
-            error = ssr(idf, timef, res, sqrtw, r)
+            update_sgd!(idf, timef, res, sqrtw, r, learning_rate, lambda, range)
+            error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
             if error < olderror
                 if error == zero(Float64) || (abs(error - olderror)/error < tol  && steps_in_a_row > 3)
                     iterations[r] = iter
@@ -161,7 +159,7 @@ function fit_sgd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef:
             end
 
         end
-        # don't rescal eduring algorithm due to learning rate
+        # don't rescale during algorithm due to learning rate
         if r < rank
             rescale!(idf, timef, r)
             subtract_factor!(res, sqrtw, idf, timef, r)
@@ -172,7 +170,7 @@ function fit_sgd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef:
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
 
-    return ([iterations], [converged])
+    return (iterations, converged)
 end
 
 ##############################################################################
@@ -192,8 +190,8 @@ function fit_svd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef:
     predict_matrix = deepcopy(res_matrix)
     factors = timef.pool
     variance = Array(Float64, (T, T))
-    converged = Bool[false]
-    iterations = Int[maxiter]
+    converged = false
+    iterations = maxiter
     error = zero(Float64)
     olderror = zero(Float64)
 
@@ -205,7 +203,7 @@ function fit_svd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef:
         (predict_matrix, res_matrix) = (res_matrix, predict_matrix)
         (error, olderror) = (olderror, error)
         # transform vector into matrix
-        fill!(res_matrix, y, idf.refs, timef.refs)
+        copy!(res_matrix, y, idf.refs, timef.refs)
 
         # principal components
         At_mul_B!(variance, res_matrix, res_matrix)
@@ -219,15 +217,15 @@ function fit_svd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef:
         # check convergence
         error = sqeuclidean(predict_matrix, res_matrix)
         if error == zero(Float64) || abs(error - olderror)/error < tol 
-            converged[1] = true
-            iterations[1] = iter
+            converged = true
+            iterations = iter
             break
         end
     end
     timef.pool = reverse(factors)
     idf.pool = res_matrix * timef.pool
 
-    return (iterations, converged)
+    return ([iterations], [converged])
 
 end
 
