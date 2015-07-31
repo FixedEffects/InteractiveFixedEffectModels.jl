@@ -4,7 +4,13 @@
 ##
 ##############################################################################
 
-function fit_ar!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9)
+function fit_ar!{Rid, Rtime}(y::Vector{Float64}, 
+                             idf::PooledFactor{Rid},
+                             timef::PooledFactor{Rtime},
+                             sqrtw::AbstractVector{Float64};
+                             maxiter::Integer  = 100_000,
+                             tol::Real = 1e-9
+                             )
 
     # initialize
     rank = size(idf.pool, 2)
@@ -46,7 +52,13 @@ end
 ##
 ##############################################################################
 
-function fit_gd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9, lambda::Real = 0.0)
+function fit_gd!{Rid, Rtime}(y::Vector{Float64}, 
+                             idf::PooledFactor{Rid}, 
+                             timef::PooledFactor{Rtime}, 
+                             sqrtw::AbstractVector{Float64}; 
+                             maxiter::Integer  = 100_000, 
+                             tol::Real = 1e-9, 
+                             lambda::Real = 0.0)
 
     # initialize
     rank = size(idf.pool, 2)
@@ -112,7 +124,13 @@ end
 ## 
 ##############################################################################
 
-function fit_sgd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}, sqrtw::AbstractVector{Float64}; maxiter::Integer  = 100_000, tol::Real = 1e-9, lambda::Real = 0.0)
+function fit_sgd!{Rid, Rtime}(y::Vector{Float64}, 
+                              idf::PooledFactor{Rid}, 
+                              timef::PooledFactor{Rtime}, 
+                              sqrtw::AbstractVector{Float64}; 
+                              maxiter::Integer  = 100_000, 
+                              tol::Real = 1e-9, 
+                              lambda::Real = 0.0)
 
     # initialize
     rank = size(idf.pool, 2)
@@ -179,7 +197,11 @@ end
 ##
 ##############################################################################
 
-function fit_svd!{Rid, Rtime}(y::Vector{Float64}, idf::PooledFactor{Rid}, timef::PooledFactor{Rtime}; maxiter::Integer = 100_000, tol::Real = 1e-9)
+function fit_svd!{Rid, Rtime}(y::Vector{Float64}, 
+                              idf::PooledFactor{Rid}, 
+                              timef::PooledFactor{Rtime}; 
+                              maxiter::Integer = 100_000, 
+                              tol::Real = 1e-9)
  
 
     N = size(idf.pool, 1)

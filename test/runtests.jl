@@ -1,7 +1,7 @@
 using SparseFactorModels
 
-tests = ["fitvariable.jl", 
-		 "fitmodel.jl", 
+tests = ["fitfactors.jl", 
+		 "fitolsfactors.jl", 
 		 ]
 
 println("Running tests:")
