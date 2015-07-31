@@ -71,7 +71,7 @@ fit(pfm::SparseFactorModel,
 #### method
 Three methods are available
 
-- `:ar` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy. This is akin to the [Gauss-Seidel method](https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method). 
+- `:ar` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy. Because the factor model is one dimension at a time, new coefficients are simply obtained by `\sum x y / \sum x^2`.
 
 - `:gd`. This method fits a factor model by gradient descent.
 - `:sgd`. This method fits a factor model by stochastic gradient descent.
