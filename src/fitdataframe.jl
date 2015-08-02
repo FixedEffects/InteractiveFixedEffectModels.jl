@@ -297,7 +297,7 @@ function fit(m::SparseFactorModel,
         end
 
         ## estimate vcov matrix
-        vcov_data = VcovData{1}(inv(crossxm), Xm, residualsm, df_residual)
+        vcov_data = VcovData(Xm, crossxm, residualsm, df_residual)
         matrix_vcov = vcov!(vcov_method_data, vcov_data)
 
 

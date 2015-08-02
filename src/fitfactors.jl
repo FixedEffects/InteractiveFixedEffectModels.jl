@@ -16,7 +16,7 @@ function fit_ar!{Rid, Rtime}(y::Vector{Float64},
     rank = size(idf.pool, 2)
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
-
+    history = Float64[]
     iter = 0
     res = deepcopy(y)
     for r in 1:rank
@@ -26,6 +26,7 @@ function fit_ar!{Rid, Rtime}(y::Vector{Float64},
             iter += 1
             update_ar!(idf, timef, res, sqrtw, r)
             error = ssr(idf, timef, res, sqrtw, r)
+            push!(history, error)
             if error == zero(Float64) || abs(error - olderror)/error < tol 
                 iterations[r] = iter
                 converged[r] = true
@@ -39,6 +40,7 @@ function fit_ar!{Rid, Rtime}(y::Vector{Float64},
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
     end
+    @show history
     rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
@@ -64,6 +66,7 @@ function fit_gd!{Rid, Rtime}(y::Vector{Float64},
     rank = size(idf.pool, 2)
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
+    history = Float64[]
 
     iter = 0
     res = deepcopy(y)
@@ -81,6 +84,7 @@ function fit_gd!{Rid, Rtime}(y::Vector{Float64},
             iter += 1
             update_gd!(idf, timef, res, sqrtw, r, learning_rate, lambda)
             error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
+            push!(history, error)
             if error < olderror
                 if error == zero(Float64) || (abs(error - olderror)/error < tol  && steps_in_a_row > 3)
                     iterations[r] = iter
@@ -111,6 +115,7 @@ function fit_gd!{Rid, Rtime}(y::Vector{Float64},
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
     end
+    @show history
     rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
@@ -142,6 +147,7 @@ function fit_sgd!{Rid, Rtime}(y::Vector{Float64},
     copy!(idf.old2pool, idf.pool)
     copy!(timef.old2pool, timef.pool)
     range = 1:length(y)
+    history = Float64[]
 
     iter = 0
     for r in 1:rank
@@ -154,6 +160,7 @@ function fit_sgd!{Rid, Rtime}(y::Vector{Float64},
             iter += 1
             update_sgd!(idf, timef, res, sqrtw, r, learning_rate, lambda, range)
             error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
+            push!(history, error)
             if error < olderror
                 if error == zero(Float64) || (abs(error - olderror)/error < tol  && steps_in_a_row > 3)
                     iterations[r] = iter
@@ -187,7 +194,7 @@ function fit_sgd!{Rid, Rtime}(y::Vector{Float64},
     rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
-
+    @show history
     return (iterations, converged)
 end
 
