@@ -142,7 +142,7 @@ For models with fixed effect, an equivalent way to obtain β is to first demean 
 In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
 #### Can I have multiple observations per (id x time) ?
-Yes, as long as you don't use the method `svd`
+Yes, as long as you don't use the method `svd`. That being said, be aware of local minima by checking different methods give the same results.
 
 
 

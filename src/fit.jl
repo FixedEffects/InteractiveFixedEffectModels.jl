@@ -6,8 +6,8 @@ function fit(m::SparseFactorModel,
              lambda::Real = 0.0, 
              subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
              weight::Union(Symbol, Nothing) = nothing, 
-             maxiter::Integer = 10000, 
-             tol::Real = 1e-20, 
+             maxiter::Integer = 100000, 
+             tol::Real = 1e-15, 
              save = true)
 
     ##############################################################################
@@ -15,7 +15,9 @@ function fit(m::SparseFactorModel,
     ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
-
+    if method == :svd
+        weight == nothing || error("The svd method does not handle weights")
+    end
 
     ## parse formula 
     rf = deepcopy(f)

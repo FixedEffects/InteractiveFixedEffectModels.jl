@@ -59,6 +59,8 @@ end
 
 
 #TODO: weight, subset, gradientdescent
-
+result = fit(SparseFactorModel(:pState, :pYear, 1), :Sales, df, method =  :cg, maxiter = 10_000)
+result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  :cg, maxiter = 10_000)
+result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  :cg, maxiter = 10_000, weight = :Pop)
 
 

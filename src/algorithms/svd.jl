@@ -10,7 +10,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           idf::PooledFactor{Rid}, 
                           timef::PooledFactor{Rtime},
                           sqrtw::Ones; 
-                          maxiter::Integer = 100_000, 
+                          maxiter::Integer = 1e7, 
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
     lambda == 0.0 || error("The svd method only works with lambda = 0.0")
