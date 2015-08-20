@@ -150,7 +150,7 @@ function build_column{R}(refs::Vector{R}, loadings::Matrix{Float64}, r::Int, esa
     T = eltype(refs)
     newrefs = fill(zero(T), length(esample))
     newrefs[esample] = refs
-    return PooledDataArray(RefArray(newrefs), loadings[:, r])
+    return convert(DataArray{Float64}, PooledDataArray(RefArray(newrefs), loadings[:, r]))
 end
 
 
