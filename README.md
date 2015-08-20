@@ -89,7 +89,7 @@ You may find some speed comparisons [here](benchmark/benchmark.md)
 
 The `weights` option allows to minimize the sum of *weighted* residuals. This option is not available for the option `:svd`. 
 
-When weights are not constant within id or time, the optimization problem has local minima that are not global. You may want to use the method `:gs` rather than an optimization method
+When weights are not constant within id or time, the optimization problem has local minima that are not global - all methods may end up on such local minimum. You should therefore use weights that are constant within id or time.
 
 
 #### errors
@@ -111,6 +111,42 @@ The option `save = true` saves a new dataframe storing residuals, factors, loadi
 Pkg.clone("https://github.com/matthieugomez/FixedEffectModels.jl")
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
+
+
+
+## FAQ
+#### When should I use interactive fixed effects?
+Time fixed effects assume aggregate shocks impact each individual in the same way. In contrast, interactive fixed effects allow individuals to have different exposure to aggregate shocks. 
+
+You can find such models in the following articles:
+
+- Eberhardt, Helmers, Strauss (2013) *Do spillovers matter when estimating private returns to R&D?*
+- Hagedorn, Karahan, Movskii (2015) *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
+- Hagedorn, Karahan, Movskii (2015) *The impact of unemployment benefit extensions on employment: the 2014 employment miracle?* 
+- Totty (2015) *The Effect of Minimum Wages on Employment: A Factor Model Approach*
+
+#### How are standard errors computed?
+The `cov` option is passed to a regression of y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
+
+
+
+#### What if I don't know the number of factors?
+As proven in Moon Weidner (2015), overestimating the number of factors still returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. A rule of thumb is to check that your estimate stays constant when you add more factors.
+
+#### Does this command implement the bias correction term in Bai (2009)?
+In presence of cross or time correlation beyond the factor structure, the estimate for beta is biased (but still consistent): see Theorem 3 in Bai 2009, which derives the correction term in special cases. However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
+
+
+#### Can't `β` be simply estimated by replacing X with the residuals of X on a factor model?
+For models with fixed effect, an equivalent way to obtain β is to first demean regressors within groups and then regress `y` on these residuals instead of the original regressors.
+In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
+
+#### Can I have multiple observations per (id x time) ?
+Yes, as long as you don't use the method `svd`
+
+
+
+
 
 ## References
 - Bai, Jushan. *Panel data models with interactive fixed effects.* (2009) Econometrica 
