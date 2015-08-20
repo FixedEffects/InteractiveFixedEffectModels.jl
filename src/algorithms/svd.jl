@@ -14,6 +14,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
     lambda == 0.0 || error("The svd method only works with lambda = 0.0")
+    length(unique(zip(idf.refs, timef.refs))) == length(y) || error("The svd method only works with unique observation per (id, time)")
     N = size(idf.pool, 1)
     T = size(timef.pool, 1)
     rank = size(idf.pool, 2)
@@ -81,6 +82,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
     lambda == 0.0 || error("The svd method only works with lambda = 0.0")
+    length(unique(zip(idf.refs, timef.refs))) == length(y) || error("The svd method only works with unique observation per (id, time)")
     b = M * y
     new_b = deepcopy(b)
     res = Array(Float64, length(y))
