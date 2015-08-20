@@ -1,5 +1,5 @@
 julia 0.3
-FixedEffectModels 0.0.2
+FixedEffectModels 0.0.3
 Optim 0.4
 Distances 0.1.1
 StatsBase 0.3
