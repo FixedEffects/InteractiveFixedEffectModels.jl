@@ -153,3 +153,35 @@ function build_column{R}(refs::Vector{R}, loadings::Matrix{Float64}, r::Int, esa
     return PooledDataArray(RefArray(newrefs), loadings[:, r])
 end
 
+
+##############################################################################
+##
+## DataFrame from factors loadings
+##
+##############################################################################
+
+function getfactors{Rid, Rtime}(y::Vector{Float64},
+                                X::Matrix{Float64},
+                                coef::Vector{Float64},
+                                id::PooledFactor{Rid},
+                                time::PooledFactor{Rtime},
+                                sqrtw::AbstractVector{Float64})
+
+    # partial out Y and X with respect to i.id x factors and i.time x loadings
+    newfes = AbstractFixedEffect[]
+    ans = Array(Float64, length(y))
+    for j in 1:size(id.pool, 2)
+        for i in 1:length(y)
+            ans[i] = time.pool[time.refs[i], j]
+        end
+        currentid = FixedEffectSlope(id.refs, size(id.pool, 1), sqrtw, ans[:], :id, :time, :(idxtime))
+        push!(newfes, currentid)
+        for i in 1:length(y)
+            ans[i] = id.pool[id.refs[i], j]
+        end
+        currenttime = FixedEffectSlope(time.refs, size(time.pool, 1), sqrtw, ans[:], :time, :id, :(timexid))
+        push!(newfes, currenttime)
+    end
+    # obtain the residuals and cross 
+    return newfes
+end

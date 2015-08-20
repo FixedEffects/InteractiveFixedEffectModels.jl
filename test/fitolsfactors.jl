@@ -1,57 +1,58 @@
-using RDatasets, DataFrames, SparseFactorModels, Base.Test
+using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 
 df = dataset("plm", "Cigar")
 df[:pState] = pool(df[:State])
 df[:pYear] = pool(df[:Year])
 method = :svd
-precision = 1e-1
+precision = 2e-1
 
 
 for method in [:svd, :ar, :gd]
 	println(method)
-	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 100_000)
-	@test_approx_eq_eps result.coef [328.1653237715761, -1.0415042260420706]  precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :factors1]) 0.228 precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :loadings1]) 851.514 precision
-	@test_approx_eq_eps result.augmentdf[1, :residuals] -9.7870 precision
+	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000)
+	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
+	@test norm(abs(result.augmentdf[1, :factors1]) / 0.228 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 851.514 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals] / -9.7870 - 1) < precision
 
-	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method =  method, maxiter = 100_000)
-	@test_approx_eq_eps result.coef [163.01350, -0.40610] 1e-2
-	@test_approx_eq_eps abs(result.augmentdf[1, :factors1]) 0.227 precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :loadings1]) 184.1897 precision
-	@test_approx_eq_eps result.augmentdf[1, :residuals]  -1.774 precision
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method =  method, maxiter = 10_000)
+	@test norm(result.coef ./ [163.01350, -0.40610] - 1) < precision
+	@test norm(abs(result.augmentdf[1, :factors1]) / 0.227 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 184.1897 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals]  / -1.774 - 1) < precision
 
-	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method =  method, maxiter = 100_000)
-	@test_approx_eq_eps result.coef -0.425389 1e-2
-	@test_approx_eq_eps abs(result.augmentdf[1, :factors1])  0.2474 precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :loadings1]) 123.460 precision
-	@test_approx_eq_eps result.augmentdf[1, :residuals] -5.222 precision
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method =  method, maxiter = 1000)
+	@test norm(result.coef / -0.425389 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :factors1])  / 0.2474 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 123.460 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals] / -5.222 - 1) < precision
 
-	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df, method =  method, maxiter = 100_000)
-	@test_approx_eq_eps result.coef -0.3744296120563005 1e-2
-	@test_approx_eq_eps abs(result.augmentdf[1, :factors1])  0.1918 precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :loadings1]) 102.336 precision
-	@test_approx_eq_eps result.augmentdf[1, :residuals] -2.2153 precision
+	if method != :gd
+		result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df, method =  method, maxiter = 1000)
+		@test norm(result.coef / -0.3744296120563005 -1 ) < precision
+		@test norm(abs(result.augmentdf[1, :factors1])  / 0.1918 - 1) < precision
+		@test norm(abs(result.augmentdf[1, :loadings1]) / 102.336 - 1) < precision
+		@test norm(result.augmentdf[1, :residuals] / -2.2153 - 1) < precision
+	end
 
-	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df, method =  method, maxiter = 100_000)
-	@test_approx_eq_eps result.coef -0.524157 precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :factors1]) 0.256 precision
-	@test_approx_eq_eps abs(result.augmentdf[1, :loadings1]) 60.0481 precision
-	@test_approx_eq_eps result.augmentdf[1, :residuals] -5.614 precision
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df, method =  method, maxiter = 1000)
+	@test norm(result.coef / -0.524157 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :factors1]) / 0.256 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 60.0481 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals] / -5.614 - 1) < precision
 
 	# subset
-	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method =  method, subset = (df[:State] .<= 30), maxiter = 100_000)
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method =  method, subset = (df[:State] .<= 30), maxiter = 1000)
 	@test size(result.augmentdf, 1) == size(df, 1)
-	@test_approx_eq_eps abs(result.augmentdf[:factors1][1]) 0.25965 precision
-	@test_approx_eq_eps abs(result.augmentdf[:loadings1][1]) 107.832 precision
-	@test_approx_eq_eps abs(result.augmentdf[:factors2][1])  0.2655  precision
-	@test_approx_eq_eps abs(result.augmentdf[:loadings2][1])    15.551 precision
-	@test_approx_eq_eps result.augmentdf[:residuals][1] -3.8624  precision
-	@test_approx_eq_eps result.augmentdf[:pState][1] 131.6162 precision
+	@test norm(abs(result.augmentdf[:factors1][1]) /0.25965 - 1) < precision
+	@test norm(abs(result.augmentdf[:loadings1][1]) /107.832 - 1) < precision
+	@test norm(abs(result.augmentdf[:factors2][1])  /0.2655  - 1) < precision
+	@test norm(abs(result.augmentdf[:loadings2][1])    /15.551 - 1) < precision
+	@test norm(result.augmentdf[:residuals][1] /-3.8624  - 1) < precision
+	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
 
-
-	# test printing
-	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 100_000)
+	# show method
+	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 1000)
 	show(result)
 end
 

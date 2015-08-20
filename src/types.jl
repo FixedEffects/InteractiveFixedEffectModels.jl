@@ -17,26 +17,26 @@ end
 
 # object returned when fitting linear model
 type RegressionFactorResult <: AbstractRegressionResult
-	coef::Vector{Float64}   # Vector of coefficients
-	vcov::Matrix{Float64}   # Covariance matrix
+    coef::Vector{Float64}   # Vector of coefficients
+    vcov::Matrix{Float64}   # Covariance matrix
 
-	esample::BitVector      # Is the row of the original dataframe part of the estimation sample?
-	augmentdf::DataFrame
+    esample::BitVector      # Is the row of the original dataframe part of the estimation sample?
+    augmentdf::DataFrame
 
-	coefnames::Vector       # Name of coefficients
-	yname::Symbol           # Name of dependent variable
-	formula::Formula        # Original formula 
+    coefnames::Vector       # Name of coefficients
+    yname::Symbol           # Name of dependent variable
+    formula::Formula        # Original formula 
 
-	nobs::Int64             # Number of observations
-	df_residual::Int64      # degree of freedoms
+    nobs::Int64             # Number of observations
+    df_residual::Int64      # degree of freedoms
 
-	r2::Float64             # R squared
-	r2_a::Float64           # R squared adjusted
-	r2_within::Float64      # R within
+    r2::Float64             # R squared
+    r2_a::Float64           # R squared adjusted
+    r2_within::Float64      # R within
 
     ess::Float64
-	iterations::Int         # Number of iterations        
-	converged::Bool         # Has the demeaning algorithm converged?
+    iterations::Int         # Number of iterations        
+    converged::Bool         # Has the demeaning algorithm converged?
 
 end
 

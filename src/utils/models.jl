@@ -76,7 +76,7 @@ function dropUnusedLevels!(f::PooledDataVector)
     length(uu) == length(f.pool) && return f
     sort!(uu)
     T = reftype(length(uu))
-    dict = Dict(uu, 1:convert(T, length(uu)))
+    dict = Dict{eltype(uu), T}(zip(uu, collect(1:convert(T, length(uu)))))
     @inbounds @simd for i in 1:length(f.refs)
          f.refs[i] = dict[f.refs[i]]
     end
@@ -85,12 +85,6 @@ function dropUnusedLevels!(f::PooledDataVector)
 end
 
 dropUnusedLevels!(f::DataVector) = f
-
-
-
-
-
-
 
 ##############################################################################
 ##

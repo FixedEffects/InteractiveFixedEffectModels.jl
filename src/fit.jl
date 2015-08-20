@@ -1,10 +1,3 @@
-
-##############################################################################
-#
-## Starts from a dataframe and returns a dataframe
-##
-##############################################################################
-
 function fit(m::SparseFactorModel, 
              f::Formula, 
              df::AbstractDataFrame, 
@@ -19,20 +12,13 @@ function fit(m::SparseFactorModel,
 
     ##############################################################################
     ##
-    ## Transform DataFrame into a set of Matrix and Vectors
+    ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
 
-    # initial check
-    if method == :svd
-        weight == nothing || error("The svd methods does not work with weights")
-        lambda == 0.0 || error("The svd method only works with lambda = 0.0")
-    elseif method == :ar
-        lambda == 0.0 || error("The Gauss-Seidel method only works with lambda = 0.0")
-    end
 
+    ## parse formula 
     rf = deepcopy(f)
-    ## decompose formula into normal  vs absorbpart
     (has_absorb, absorb_formula, absorb_terms, has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose!(rf)
     if has_iv
         error("partial_out does not support instrumental variables")
@@ -64,8 +50,8 @@ function fit(m::SparseFactorModel,
         dropUnusedLevels!(subdf[v])
     end
 
+    # Compute data needed for errors
     vcov_method_data = VcovMethodData(vcov_method, subdf)
-
 
     # Compute weight
     sqrtw = get_weight(subdf, weight)
@@ -112,98 +98,38 @@ function fit(m::SparseFactorModel,
 
     ##############################################################################
     ##
-    ## Estimate Model
+    ## Estimate Model on Matrix
     ##
     ##############################################################################
 
     # initialize factor models at 0.1
     idf = PooledFactor(id.refs, length(id.pool), m.rank)
     timef = PooledFactor(time.refs, length(time.pool), m.rank)
-    ## Case simple factor models
-    if !has_regressors
+  
+
+    if !has_regressors 
+        # factor model
+        (iterations, converged) = 
+            fit!(Val{method}, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
         coef = [0.0]
-        if method == :svd
-            (iterations, converged) = fit_svd!(y, 
-                                               idf, 
-                                               timef, 
-                                               maxiter = maxiter, 
-                                               tol = tol)
-        elseif method == :ar
-            (iterations, converged) = fit_ar!(y, 
-                                              idf, 
-                                              timef, 
-                                              sqrtw, 
-                                              maxiter = maxiter, 
-                                              tol = tol)
-        elseif method == :gd
-            (iterations, converged) = fit_gd!(y, 
-                                              idf, 
-                                              timef, 
-                                              sqrtw, 
-                                              maxiter = maxiter, 
-                                              tol = tol, 
-                                              lambda = lambda)
-        elseif method == :sgd
-            (iterations, converged) = fit_sgd!(y, 
-                                               idf, 
-                                               timef, 
-                                               sqrtw, 
-                                               maxiter = maxiter, 
-                                               tol = tol, 
-                                               lambda = lambda)
-        else
-            error("method not found")
-        end
-    else
+    else 
+        # interactive fixed effect
         # initial b
         crossx = cholfact!(At_mul_B(X, X))
         coef =  crossx \ At_mul_B(X, y)
         # initial loadings
-        fit_gd!(y - X * coef, idf, timef, sqrtw, maxiter = 100, tol = 1e-3)
-        # dispatch manually to the right method
-        if method == :svd
-            M = crossx \ X'
-            (coef, iterations, converged) = fit_svd!(X, 
-                                                     M, 
-                                                     coef, 
-                                                     y, 
-                                                     idf, 
-                                                     timef, 
-                                                     maxiter = maxiter, 
-                                                     tol = tol) 
-        elseif method == :ar
-            M = crossx \ X'
-            (coef, iterations, converged) = fit_ar!(X, 
-                                                     M, 
-                                                     coef, 
-                                                     y, 
-                                                     idf, 
-                                                     timef, 
-                                                     sqrtw, 
-                                                     maxiter = maxiter, 
-                                                     tol = tol) 
-        elseif method == :gd
-            M = crossx \ X'
-            (coef, iterations, converged) = fit_gd!(X, 
-                                                     M, 
-                                                     coef, 
-                                                     y, 
-                                                     idf, 
-                                                     timef, 
-                                                     sqrtw, 
-                                                     maxiter = maxiter, 
-                                                     tol = tol, 
-                                                     lambda = lambda) 
-        else
-            error("method not found")
-        end
+        fit!(Val{:gd}, y - X * coef, idf, timef, sqrtw, maxiter = 100, tol = 1e-3)
+        # estimate the model
+        M = crossx \ X'
+        (coef, iterations, converged) = 
+         fit!(Val{method}, X, M, coef, y, idf, timef, sqrtw; maxiter = maxiter, tol = tol, lambda = lambda) 
     end
 
 
 
     ##############################################################################
     ##
-    ## Return result
+    ## Transform Matrix -> DataFrame
     ##
     ##############################################################################
 
@@ -250,8 +176,6 @@ function fit(m::SparseFactorModel,
             augmentdf = hcat(augmentdf, getfe(fes, b, esample))
         end
     end
-
-
 
     if !has_regressors
         return SparseFactorResult(esample, augmentdf, ess, iterations, converged)
@@ -312,26 +236,12 @@ function fit(m::SparseFactorModel,
         r2 = 1 - ess / tss 
         r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
 
-        return RegressionFactorResult(coef, 
-                               matrix_vcov, 
-                               esample, 
-                               augmentdf, 
-                               coef_names, 
-                               yname, 
-                               f, 
-                               nobs, 
-                               df_residual, 
-                               r2, 
-                               r2_a, 
-                               r2_within, 
-                               ess, 
-                               sum(iterations), 
-                               all(converged))
+        RegressionFactorResult(coef, matrix_vcov, esample, augmentdf, coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, ess, sum(iterations), all(converged))
     end
 end
 
 
-# Symbol to formul Symbol ~ 0
+# Symbol to formula Symbol ~ 0
 function fit(m::SparseFactorModel, 
              variable::Symbol, 
              df::AbstractDataFrame, 
@@ -344,52 +254,8 @@ function fit(m::SparseFactorModel,
              tol::Real = 1e-8, 
              save = true)
     formula = Formula(variable, 0)
-    fit(m,
-        formula,
-        df,
-        method = method,
-        lambda = lambda,
-        subset = subset,
-        weight = weight,
-        subset = subset,
-        maxiter = maxiter,
-        tol = tol,
-        save = true)
+    fit(m,formula,df,method = method,lambda = lambda,subset = subset,weight = weight,subset = subset,maxiter = maxiter,tol = tol,save = true)
 end
-
-##############################################################################
-##
-## DataFrame from factors loadings
-##
-##############################################################################
-
-function getfactors{Rid, Rtime}(y::Vector{Float64},
-                                X::Matrix{Float64},
-                                coef::Vector{Float64},
-                                id::PooledFactor{Rid},
-                                time::PooledFactor{Rtime},
-                                sqrtw::AbstractVector{Float64})
-
-    # partial out Y and X with respect to i.id x factors and i.time x loadings
-    newfes = AbstractFixedEffect[]
-    ans = Array(Float64, length(y))
-    for j in 1:size(id.pool, 2)
-        for i in 1:length(y)
-            ans[i] = time.pool[time.refs[i], j]
-        end
-        currentid = FixedEffectSlope(id.refs, size(id.pool, 1), sqrtw, ans[:], :id, :time, :(idxtime))
-        push!(newfes, currentid)
-        for i in 1:length(y)
-            ans[i] = id.pool[id.refs[i], j]
-        end
-        currenttime = FixedEffectSlope(time.refs, size(time.pool, 1), sqrtw, ans[:], :time, :id, :(timexid))
-        push!(newfes, currenttime)
-    end
-    # obtain the residuals and cross 
-    return newfes
-end
-
-
 
 
 
