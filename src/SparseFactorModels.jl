@@ -35,7 +35,6 @@ include("algorithms/gd.jl")
 include("algorithms/sgd.jl")
 include("algorithms/svd.jl")
 include("algorithms/lm.jl")
-include("algorithms/lm2.jl")
 include("algorithms/optim.jl")
 
 include("fit.jl")
