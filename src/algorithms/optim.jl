@@ -174,11 +174,18 @@ function fit!{R, Rid, Rtime}(::Type{Val{R}},
     x0 = Array(Float64, n_regressors + rank * N + rank * T)
     x0[1:n_regressors] = b
 
-    @inbounds for i in 1:length(idf.pool)
-        x0[n_regressors + i] = idf.pool[i]
+    idx = n_regressors
+    @inbounds for i in 1:size(idf.pool, 1)
+        for r in 1:rank
+            idx += 1
+            x0[idx] = idf.pool[i, r]
+        end
     end
-    @inbounds for i in 1:length(timef.pool)
-        x0[n_regressors + N * rank + i] = timef.pool[i]
+    @inbounds for i in 1:size(timef.pool, 1)
+      for r in 1:rank
+          idx += 1
+          x0[idx] = timef.pool[i, r]
+      end
     end
 
     # translate indexes
@@ -207,13 +214,19 @@ function fit!{R, Rid, Rtime}(::Type{Val{R}},
 
     # expand minimumm -> (b, loadings and factors)
     b = minimizer[1:n_regressors]
-
-    @inbounds for i in 1:length(idf.pool)
-        idf.old1pool[i] =  x0[n_regressors + i]
-    end
-    @inbounds for i in 1:length(timef.pool)
-        timef.old1pool[i] = x0[n_regressors + N * rank + i]
-    end
+    idx = n_regressors
+   @inbounds for i in 1:size(idf.pool, 1)
+          for r in 1:rank
+              idx += 1
+              idf.old1pool[i, r] = minimizer[idx] 
+          end
+      end
+      @inbounds for i in 1:size(timef.pool, 1)
+        for r in 1:rank
+            idx += 1
+            timef.old1pool[i, r] = minimizer[idx] 
+        end
+      end
 
     # rescale factors and loadings so that factors' * factors = Id
     rescale!(idf.pool, timef.pool, idf.old1pool, timef.old1pool)

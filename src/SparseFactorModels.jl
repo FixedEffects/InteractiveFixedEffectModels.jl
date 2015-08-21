@@ -12,7 +12,8 @@ import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, Regressi
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
 import FixedEffectModels: reg, demean!, getfe, decompose!, allvars, AbstractFixedEffect, FixedEffect, FixedEffectIntercept, FixedEffectSlope, VcovData, AbstractVcovMethod,AbstractVcovMethodData, VcovSimple, VcovWhite, VcovCluster, VcovMethodData, vcov!, AbstractRegressionResult, title, top
-import Optim: optimize, DifferentiableFunction, TwiceDifferentiableFunction
+using Optim
+using NLsolve
 ##############################################################################
 ##
 ## Exported methods and types 
@@ -34,6 +35,8 @@ include("algorithms/ar.jl")
 include("algorithms/gd.jl")
 include("algorithms/sgd.jl")
 include("algorithms/svd.jl")
+include("algorithms/lm.jl")
+include("algorithms/lm2.jl")
 include("algorithms/optim.jl")
 
 include("fit.jl")

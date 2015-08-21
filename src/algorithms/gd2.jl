@@ -10,10 +10,10 @@ function update!{R1, R2}(::Type{Val{:gd}},
                          y::Vector{Float64},
                          sqrtw::AbstractVector{Float64},
                          r::Integer,
-                         learning_rate::Vector{Float64},
+                         learning_rate::Float64,
                          lambda::Float64)
-    learning_rate[1] = update_half!(Val{:gd}, id, time, y, sqrtw, r, learning_rate[1], lambda)
-    learning_rate[2] = update_half!(Val{:gd}, time, id, y, sqrtw, r, learning_rate[2], lambda)
+    update_half!(Val{:gd}, id, time, y, sqrtw, r, learning_rate, lambda)
+    update_half!(Val{:gd}, time, id, y, sqrtw, r, learning_rate, lambda)
 end
 
 function update_half!{R1, R2}(::Type{Val{:gd}},
@@ -25,7 +25,7 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
                               learning_rate::Float64, 
                               lambda::Float64)
     fill!(p1.storage1, zero(Float64))
-    f_x = zero(Float64)
+    fill!(p1.storage2, zero(Float64))
     @inbounds @simd for i in 1:length(y)
         idi = p1.refs[i]
         timei = p2.refs[i]
@@ -34,36 +34,21 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
         sqrtwi = sqrtw[i]
         error = y[i] - sqrtwi * loading * factor 
         p1.storage1[idi] += 2.0 * (error * sqrtwi * factor)
-        f_x += error^2
+        p1.storage2[idi] += abs2(factor)
     end
-    gxp = -sumabs2(p1.storage1)
-    f_x_scratch = Inf
-    iter = 0
-    while iter == 0 || f_x_scratch > f_x + 1e-4 * learning_rate * gxp 
-        if iter > 0
-            learning_rate *= 0.9
-        end
-        iter += 1
-        for i in 1:length(p1.storage1)
-            p1.storage2[i] = p1.pool[i, r] + learning_rate * p1.storage1[i]
-        end
-        f_x_scratch = zero(Float64)
-        @inbounds @simd for i in 1:length(y)
-            idi = p1.refs[i]
-            timei = p2.refs[i]
-            loading = p1.storage2[idi]
-            factor = p2.pool[timei, r]
-            sqrtwi = sqrtw[i]
-            error = y[i] - sqrtwi * loading * factor 
-            f_x_scratch += error^2
-        end
-    end
-    for i in 1:length(p1.storage1)
-        p1.pool[i, r] =  p1.storage2[i]
-    end
-    return learning_rate
-end
 
+    @inbounds @simd for i in 1:size(p1.pool, 1)
+        p1.pool[i, r] -= 2.0 * lambda * p1.pool[i, r]
+        if p1.storage2[i] > zero(Float64)
+            # gradient term is learning rate * p1.storage2
+            # newton term (diagonal only) is p1.storage2[i].
+            # momentum term. mu = 0 actually makes things faster for factor model
+            p1.pool[i, r] += (learning_rate * p1.storage1[i] / p1.storage2[i]^0.5 
+                              + 0.00 * (p1.old1pool[i, r] - p1.old2pool[i, r])
+                              )
+        end
+    end
+end
 
 
 ##############################################################################
@@ -95,21 +80,38 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
     copy!(timef.old2pool, timef.pool)
 
     for r in 1:rank
-        learning_rate = fill(1.0, 2)
+        olderror = ssr(idf, timef, y, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
+        learning_rate = 0.1
         iter = 0
         steps_in_a_row  = 0
-        olderror = Inf
         while iter < maxiter
             iter += 1
             update!(Val{:gd}, idf, timef, res, sqrtw, r, learning_rate, lambda)
             error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
             push!(history, error)
-            if error == zero(Float64) || abs(error - olderror)/error < tol  
-                iterations[r] = iter
-                converged[r] = true
-                break
+            if error < olderror
+                if error == zero(Float64) || (abs(error - olderror)/error < tol  && steps_in_a_row > 3)
+                    iterations[r] = iter
+                    converged[r] = true
+                    break
+                end
+                olderror = error
+                steps_in_a_row = max(1, steps_in_a_row + 1)
+                learning_rate *= 1.1
+
+                # update old2pool
+                (idf.old1pool, idf.old2pool) = (idf.old2pool, idf.old1pool)
+                (timef.old1pool, timef.old2pool) = (timef.old2pool, timef.old1pool)
+                # update old1pool
+                copy!(idf.old1pool, idf.pool)
+                copy!(timef.old1pool, timef.pool)
+            else
+                learning_rate /= max(1.5, -steps_in_a_row)
+                steps_in_a_row = min(0, steps_in_a_row - 1)
+                copy!(idf.pool, idf.old1pool, r)
+                copy!(timef.pool, timef.old1pool, r)
             end
-            olderror = error
+
         end
         # don't rescale during algorithm due to learning rate
         if r < rank
@@ -154,10 +156,7 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
     converged = false
     iterations = maxiter
     iter = 0
-    learning_rate = Array(Vector{Float64}, rank)
-    for r in 1:rank
-        learning_rate[r] = fill(1.0, 2)
-    end
+    learning_rate = fill(0.1, rank)
 
     copy!(idf.old1pool, idf.pool)
     copy!(timef.old1pool, timef.pool)
@@ -175,7 +174,33 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         copy!(res, y)
         subtract_b!(res, b, X)
         for r in 1:rank
-            update!(Val{:gd}, idf, timef, res, sqrtw, r, learning_rate[r], lambda)
+            steps_in_a_row = 0
+            olderror_inner = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
+            # recompute error since res has changed in the meantime
+            while steps_in_a_row <= 4 && (learning_rate[r] >= 1e-15 || steps_in_a_row >= 100)
+                update!(Val{:gd}, idf, timef, res, sqrtw, r, learning_rate[r], lambda)
+                error_inner = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
+                if error_inner < olderror_inner
+                    olderror_inner = error_inner
+                    steps_in_a_row = max(1, steps_in_a_row + 1)
+                    # increase learning rate
+                    learning_rate[r] *= 1.1
+                    # update old2pool
+                    (idf.old1pool, idf.old2pool) = (idf.old2pool, idf.old1pool)
+                    (timef.old1pool, timef.old2pool) = (timef.old2pool, timef.old1pool)
+                    # update old1pool
+                    copy!(idf.old1pool, idf.pool)
+                    copy!(timef.old1pool, timef.pool)
+                else
+                    # decrease learning rate
+                    learning_rate[r] /= max(1.5, -steps_in_a_row)
+                    steps_in_a_row = min(0, steps_in_a_row - 1)
+                    # cancel the update
+                    copy!(idf.pool, idf.old1pool, r)
+                    copy!(timef.pool, timef.old1pool, r)
+                end     
+            end
+            # don't rescale since screw up learning_rate
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
 

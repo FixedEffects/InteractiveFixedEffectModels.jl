@@ -6,8 +6,11 @@ df[:pYear] = pool(df[:Year])
 method = :svd
 precision = 2e-1
 
+#TODO: weight, subset, gradientdescent
 
-for method in [:svd, :ar, :gd]
+
+
+for method in [:svd, :ar, :cg, :gd]
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
@@ -27,13 +30,11 @@ for method in [:svd, :ar, :gd]
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 123.460 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -5.222 - 1) < precision
 
-	if method != :gd
-		result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df, method =  method, maxiter = 1000)
-		@test norm(result.coef / -0.3744296120563005 -1 ) < precision
-		@test norm(abs(result.augmentdf[1, :factors1])  / 0.1918 - 1) < precision
-		@test norm(abs(result.augmentdf[1, :loadings1]) / 102.336 - 1) < precision
-		@test norm(result.augmentdf[1, :residuals] / -2.2153 - 1) < precision
-	end
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df, method =  method, maxiter = 1000)
+	@test norm(result.coef / -0.3744296120563005 -1 ) < precision
+	@test norm(abs(result.augmentdf[1, :factors1])  / 0.1918 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 102.336 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals] / -2.2153 - 1) < precision
 
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df, method =  method, maxiter = 1000)
 	@test norm(result.coef / -0.524157 - 1) < precision
