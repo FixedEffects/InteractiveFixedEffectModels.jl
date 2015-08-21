@@ -4,6 +4,50 @@
 ##
 ##############################################################################
 
+function gd_f{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+    f_x = zero(Float64)
+    @inbounds @simd for i in 1:length(y)
+        idi = p1.refs[i]
+        timei = p2.refs[i]
+        loading = x[idi]
+        factor = p2.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        error = y[i] - sqrtwi * loading * factor 
+        f_x += error^2
+    end
+    return f_x
+end
+
+function gd_g!{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+    fill!(out, zero(Float64))
+    @inbounds @simd for i in 1:length(y)
+        idi = p1.refs[i]
+        timei = p2.refs[i]
+        loading = x[idi]
+        factor = p2.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        error = y[i] - sqrtwi * loading * factor 
+        out[idi] -= 2.0 * error * sqrtwi * factor
+    end
+end
+
+
+function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+    f_x = zero(Float64)
+    fill!(out, zero(Float64))
+    @inbounds @simd for i in 1:length(y)
+        idi = p1.refs[i]
+        timei = p2.refs[i]
+        loading = x[idi]
+        factor = p2.pool[timei, r]
+        sqrtwi = sqrtw[i]
+        error = y[i] - sqrtwi * loading * factor 
+        out[idi] -= 2.0 * error * sqrtwi * factor
+        f_x += error^2
+    end
+    return f_x
+end
+
 function update!{R1, R2}(::Type{Val{:gd}}, 
                          id::PooledFactor{R1},
                          time::PooledFactor{R2},
@@ -24,46 +68,33 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
                               r::Integer, 
                               learning_rate::Float64, 
                               lambda::Float64)
-    fill!(p1.storage1, zero(Float64))
-    f_x = zero(Float64)
-    @inbounds @simd for i in 1:length(y)
-        idi = p1.refs[i]
-        timei = p2.refs[i]
-        loading = p1.pool[idi, r]
-        factor = p2.pool[timei, r]
-        sqrtwi = sqrtw[i]
-        error = y[i] - sqrtwi * loading * factor 
-        p1.storage1[idi] += 2.0 * (error * sqrtwi * factor)
-        f_x += error^2
+
+
+    # compute gradient
+    d = Optim.DifferentiableFunction(
+        x -> gd_f(x, p1, p2,  y, sqrtw, r), 
+        (x, out) -> gd_g!(x, out, p1, p2,  y, sqrtw, r),
+        (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r)
+    )
+    copy!(p1.x, p1.pool, r)
+    f_x = d.fg!(p1.x, p1.gr)
+    dphi0 = -sumabs2(p1.gr)
+    scale!(p1.gr, -1.0)
+
+    # linesearch
+    lsr = Optim.LineSearchResults(Float64)
+    Optim.clear!(lsr)
+    Optim.push!(lsr, zero(Float64), f_x, dphi0)
+    learning_rate, f_update, g_update =
+              Optim.hz_linesearch!(d, p1.x, p1.gr, p1.x_ls, p1.gr_ls, lsr, learning_rate, false)
+
+    # update
+    for i in 1:length(p1.x)
+        p1.pool[i, r] =  p1.pool[i, r] + learning_rate * p1.gr[i]
     end
-    gxp = -sumabs2(p1.storage1)
-    f_x_scratch = Inf
-    iter = 0
-    while iter == 0 || f_x_scratch > f_x + 1e-4 * learning_rate * gxp 
-        if iter > 0
-            learning_rate *= 0.9
-        end
-        iter += 1
-        for i in 1:length(p1.storage1)
-            p1.storage2[i] = p1.pool[i, r] + learning_rate * p1.storage1[i]
-        end
-        f_x_scratch = zero(Float64)
-        @inbounds @simd for i in 1:length(y)
-            idi = p1.refs[i]
-            timei = p2.refs[i]
-            loading = p1.storage2[idi]
-            factor = p2.pool[timei, r]
-            sqrtwi = sqrtw[i]
-            error = y[i] - sqrtwi * loading * factor 
-            f_x_scratch += error^2
-        end
-    end
-    for i in 1:length(p1.storage1)
-        p1.pool[i, r] =  p1.storage2[i]
-    end
+
     return learning_rate
 end
-
 
 
 ##############################################################################

@@ -10,7 +10,7 @@ precision = 2e-1
 
 
 
-for method in [:svd, :ar, :cg, :gd]
+for method in [:svd, :ar, :gd]
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
@@ -56,12 +56,3 @@ for method in [:svd, :ar, :cg, :gd]
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 1000)
 	show(result)
 end
-
-
-
-#TODO: weight, subset, gradientdescent
-result = fit(SparseFactorModel(:pState, :pYear, 1), :Sales, df, method =  :cg, maxiter = 10_000)
-result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  :cg, maxiter = 10_000)
-result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  :cg, maxiter = 10_000, weight = :Pop)
-
-

@@ -75,8 +75,6 @@ Three methods are available
 
 - `:ar` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy. It is the fastest method.
 - `:gd`. This method fits a factor model by gradient descent.
-- `:lm`. This method fits a factor model by LevenBerg-Marquardt algorithm (fast for small N and T).
-- `:cg`. This method fits a factor model by conjugate gradient descent.
 - `:svd`. This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
 
 

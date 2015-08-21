@@ -20,18 +20,18 @@ function update_half!{R1, R2}(::Type{Val{:ar}},
                              y::Vector{Float64},
                              sqrtw::AbstractVector{Float64},
                              r::Integer)
-    fill!(p1.storage1, zero(Float64))
-    fill!(p1.storage2, zero(Float64))
+    fill!(p1.x, zero(Float64))
+    fill!(p1.x_ls, zero(Float64))
      @inbounds @simd for i in 1:length(p1.refs)
          pi = p1.refs[i]
          yi = y[i]
          xi = sqrtw[i] * p2.pool[p2.refs[i], r] 
-         p1.storage1[pi] += xi * yi
-         p1.storage2[pi] += abs2(xi)
+         p1.x[pi] += xi * yi
+         p1.x_ls[pi] += abs2(xi)
     end
      @inbounds @simd for i in 1:size(p1.pool, 1)
-        if p1.storage2[i] > zero(Float64)
-            p1.pool[i, r] = p1.storage1[i] / p1.storage2[i]
+        if p1.x_ls[i] > zero(Float64)
+            p1.pool[i, r] = p1.x[i] / p1.x_ls[i]
         end
     end
 end

@@ -32,10 +32,8 @@ include("utils/factors.jl")
 
 include("algorithms/ar.jl")
 include("algorithms/gd.jl")
-include("algorithms/sgd.jl")
 include("algorithms/svd.jl")
-include("algorithms/lm.jl")
-include("algorithms/optim.jl")
+
 
 include("fit.jl")
 
