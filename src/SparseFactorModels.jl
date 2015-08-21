@@ -13,7 +13,6 @@ import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, Data
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
 import FixedEffectModels: reg, demean!, getfe, decompose!, allvars, AbstractFixedEffect, FixedEffect, FixedEffectIntercept, FixedEffectSlope, VcovData, AbstractVcovMethod,AbstractVcovMethodData, VcovSimple, VcovWhite, VcovCluster, VcovMethodData, vcov!, AbstractRegressionResult, title, top
 using Optim
-using NLsolve
 ##############################################################################
 ##
 ## Exported methods and types 
