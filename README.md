@@ -46,7 +46,7 @@ fit(pfm::SparseFactorModel,
 	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
 
 		```julia
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 0)
+		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 0, df)
 		```
 
 		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
@@ -75,7 +75,7 @@ Three methods are available
 
 - `:ar` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy. It is the fastest method.
 - `:gd`. This method fits a factor model by gradient descent.
-- `:svd`. This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires that the initial dataset contains unique observations for a given pair id x time, and that there is enough RAM to store a matrix NxT. The `svd` method is fast when T/N is small and when the number of missing values is small.
+- `:svd`. This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT.
 
 
 You may find some speed comparisons [here](benchmark/benchmark.md)
@@ -86,7 +86,7 @@ You may find some speed comparisons [here](benchmark/benchmark.md)
 
 The `weights` option allows to minimize the sum of *weighted* residuals. This option is not available for the option `:svd`. 
 
-When weights are not constant within id or time, the optimization problem has local minima that are not global - all methods may end up on such local minimum. You should therefore use weights that are constant within id or time.
+When weights are not constant within id or time, the optimization problem has local minima that are not global - all methods may end up on such local minimum. You should therefore use weights that are constant within id or time or expereriment with different `methods`
 
 
 #### errors
