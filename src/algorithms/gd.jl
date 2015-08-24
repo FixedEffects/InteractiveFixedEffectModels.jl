@@ -78,7 +78,7 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
     )
 
     # update p1.x
-    copy!(p1.x, p1.pool, r)
+    copy!(p1.x, slice(p1.pool, :, r))
     f_x = d.fg!(p1.x, p1.gr)
     dphi0 = -sumabs2(p1.gr)
 

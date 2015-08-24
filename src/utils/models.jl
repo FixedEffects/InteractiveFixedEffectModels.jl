@@ -92,8 +92,6 @@ dropUnusedLevels!(f::DataVector) = f
 ##
 ##############################################################################
 
-
-
 function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept::Bool, sqrtw::Ones)
     if hasintercept
         tss = zero(Float64)
@@ -106,6 +104,7 @@ function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept
     end
     return tss
 end
+
 function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept::Bool, sqrtw::Vector{Float64})
     if hasintercept
         m = (mean(y) / sum(sqrtw) * length(residuals))::Float64

@@ -1,3 +1,20 @@
+##############################################################################
+##
+## _copy! alternates between long and wide representation
+##
+##############################################################################
+
+function _copy!{Tid, Ttime}(ymatrix::Matrix{Float64}, yvector::Vector{Float64}, idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+    @inbounds @simd for i in 1:length(yvector)
+        ymatrix[idsrefs[i], timesrefs[i]] = yvector[i]
+    end
+end
+
+function _copy!{Tid, Ttime}(yvector::Vector{Float64}, ymatrix::Matrix{Float64},  idsrefs::Vector{Tid}, timesrefs::Vector{Ttime})
+    @inbounds @simd for i in 1:length(yvector)
+        yvector[i] = ymatrix[idsrefs[i], timesrefs[i]]
+    end
+end
 
 ##############################################################################
 ##
@@ -36,7 +53,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         (predict_matrix, res_matrix) = (res_matrix, predict_matrix)
         (f_x, oldf_x) = (oldf_x, f_x)
         # transform vector into matrix
-        copy!(res_matrix, y, idf.refs, timef.refs)
+        _copy!(res_matrix, y, idf.refs, timef.refs)
 
         # principal components
         At_mul_B!(variance, res_matrix, res_matrix)
@@ -48,7 +65,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         A_mul_B!(predict_matrix, res_matrix, variance)
 
         # check convergence
-        f_x = sqeuclidean(predict_matrix, res_matrix)
+        f_x = sqeuclidean(vec(predict_matrix), vec(res_matrix))
         if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
             converged = true
             iterations = iter
@@ -110,7 +127,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         copy!(res, y)
         subtract_b!(res, b, X)
         # transform vector into matrix 
-        copy!(res_matrix, res, idf.refs, timef.refs)
+        _copy!(res_matrix, res, idf.refs, timef.refs)
         # svd of res_matrix
         At_mul_B!(variance, res_matrix, res_matrix)
         F = eigfact!(Symmetric(variance), (T - rank + 1):T)
@@ -119,7 +136,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         # Given the factors, compute beta
         A_mul_Bt!(variance, factors, factors)
         A_mul_B!(predict_matrix, res_matrix, variance)
-        copy!(res, predict_matrix, idf.refs, timef.refs)
+        _copy!(res, predict_matrix, idf.refs, timef.refs)
         BLAS.axpy!(-1.0, y, res)
         new_b = - M * res
         # Check convergence

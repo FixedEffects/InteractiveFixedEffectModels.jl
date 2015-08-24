@@ -1,3 +1,10 @@
+##############################################################################
+##
+## Fit is the only exported function
+##
+##############################################################################
+
+
 function fit(m::SparseFactorModel, 
              f::Formula, 
              df::AbstractDataFrame, 
@@ -77,6 +84,12 @@ function fit(m::SparseFactorModel,
     id = subdf[m.id]
     time = subdf[m.time]
 
+    ##############################################################################
+    ##
+    ## Construict vector y and matrix X
+    ##
+    ##############################################################################
+
     ## Compute demeaned X
     mf = simpleModelFrame(subdf, rt, esample)
     if has_regressors
@@ -131,11 +144,11 @@ function fit(m::SparseFactorModel,
 
     ##############################################################################
     ##
-    ## Transform Matrix -> DataFrame
+    ## Compute residuals
     ##
     ##############################################################################
 
-    # compute sum of squared residuals
+    # compute residuals
     residuals = deepcopy(y)
     if has_regressors
         subtract_b!(residuals, coef, X)
@@ -144,10 +157,13 @@ function fit(m::SparseFactorModel,
         subtract_factor!(residuals, sqrtw, idf, timef, r)
     end
     broadcast!(/, residuals, residuals, sqrtw)
-    ess = sumabs2(residuals)
 
+    ##############################################################################
+    ##
+    ## Save factors and loadings in a dataframe
+    ##
+    ##############################################################################
 
-    # save factors and loadings in a dataframe
     if !save 
         augmentdf = DataFrame()
     else
@@ -179,7 +195,13 @@ function fit(m::SparseFactorModel,
         end
     end
 
+    ##############################################################################
+    ##
+    ## Compute errors
+    ##
+    ##############################################################################
     if !has_regressors
+        ess = sumabs2(residuals)
         return SparseFactorResult(esample, augmentdf, ess, iterations, converged)
     else
         # compute errors for beta coefficients 
@@ -203,12 +225,11 @@ function fit(m::SparseFactorModel,
             for fe in fes
                 if typeof(vcov_method) == VcovCluster && in(fe.name, vcov_vars)
                     df_absorb_fe += 0
-                    else
+                else
                     df_absorb_fe += sum(fe.scale .!= zero(Float64))
                 end
             end
         end
-        df_absorb_factors = 0
         df_absorb_factors = 0
         for fe in newfes
             df_absorb_factors += 
@@ -225,7 +246,6 @@ function fit(m::SparseFactorModel,
         ## estimate vcov matrix
         vcov_data = VcovData(Xm, crossxm, residualsm, df_residual)
         matrix_vcov = vcov!(vcov_method_data, vcov_data)
-
 
         # compute various r2
         nobs = size(subdf, 1)

@@ -9,13 +9,11 @@ type PooledFactor{R}
     gr::Vector{Float64}
     gr_ls::Vector{Float64}
 end
+
 function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
     ans = fill(zero(Float64), l)
     PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank), ans, deepcopy(ans), deepcopy(ans), deepcopy(ans))
 end
-
-
-
 
 ##############################################################################
 ##
@@ -26,7 +24,6 @@ end
 function subtract_b!(y::Vector{Float64}, b::Vector{Float64}, X::Matrix{Float64})
     BLAS.gemm!('N', 'N', -1.0, X, b, 1.0, y)
 end
-
 
 function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2})
     for r in 1:size(id.pool, 2)
@@ -39,7 +36,6 @@ function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Floa
         y[i] -= sqrtw[i] * id.pool[id.refs[i], r] * time.pool[time.refs[i], r]
     end
 end
-
 
 
 ##############################################################################
@@ -61,10 +57,6 @@ function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Flo
    return out
 end
 
-
-
-
-
 function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real, r::Int)    
     penalty = zero(Float64)
     if lambda > 0.0
@@ -78,7 +70,6 @@ function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambd
     return lambda * penalty
 end
 
-
 function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real)    
     penalty = zero(Float64)
     if lambda > 0.0
@@ -89,17 +80,22 @@ function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambd
     return penalty
 end
 
-
-
-
-
-
 ##############################################################################
 ##
 ## rescale! a factor model
 ##
 ##############################################################################
-
+# reverse columns in a matrix
+function reverse{R}(m::Matrix{R})
+    out = similar(m)
+    for j in 1:size(m, 2)
+        invj = size(m, 2) + 1 - j 
+        @inbounds @simd for i in 1:size(m, 1)
+            out[i, j] = m[i, invj]
+        end
+    end
+    return out
+end
 
 function rescale!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
 	out = zero(Float64)
@@ -140,7 +136,6 @@ end
 ## Create dataframe from pooledfactors
 ##
 ##############################################################################
-
 
 function DataFrame(id::PooledFactor, time::PooledFactor, esample::BitVector)
     df = DataFrame()
