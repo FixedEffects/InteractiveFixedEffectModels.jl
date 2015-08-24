@@ -3,23 +3,27 @@
 ## light weight type
 ## 
 ##############################################################################
-
-# http://stackoverflow.com/a/30968709/3662288
 type Ones <: AbstractVector{Float64}
     length::Int
 end
 Base.size(O::Ones) = O.length
-Base.getindex(::Ones, ::Int...) = one(Float64)
-Base.broadcast!(::Function, ::Matrix{Float64}, ::Matrix{Float64}, ::Ones) = nothing
-Base.broadcast!(::Function, ::Vector{Float64}, ::Vector{Float64}, ::Ones) = nothing
+Base.getindex(::Ones, i::Int...) = one(Float64)
+# Add in version 0.4 unsafe_getindex
+Base.broadcast!{T}(::Function, ::Array{Float64, T}, ::Array{Float64, T}, ::Ones) = nothing
 Base.scale!(::Vector{Float64}, ::Ones) = nothing
+get_weight(df::AbstractDataFrame, weight::Symbol) = convert(Vector{Float64}, sqrt(df[weight]))
+get_weight(df::AbstractDataFrame, ::Nothing) = Ones(size(df, 1))
+
+
+
 
 
 function get_weight(df::AbstractDataFrame, weight::Symbol)
-    w = convert(Vector{Float64}, df[weight])
-    sqrtw = sqrt(w)
+    convert(Vector{Float64}, sqrt(df[weight]))
 end
-get_weight(df::AbstractDataFrame, ::Nothing) = Ones(size(df, 1))
+function get_weight(df::AbstractDataFrame, ::Nothing)
+    Ones(size(df, 1))
+end
 
 ##############################################################################
 ##
