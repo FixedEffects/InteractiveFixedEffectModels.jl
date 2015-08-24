@@ -18,7 +18,7 @@ function gd_f{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor
     return f_x
 end
 
-function gd_g!{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+function gd_g!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
     fill!(out, zero(Float64))
     @inbounds @simd for i in 1:length(y)
         idi = p1.refs[i]

@@ -26,7 +26,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           y::Vector{Float64}, 
                           idf::PooledFactor{Rid}, 
                           timef::PooledFactor{Rtime},
-                          sqrtw::Ones; 
+                          ::Ones; 
                           maxiter::Integer = 1e7, 
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
@@ -94,7 +94,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           y::Vector{Float64},
                           idf::PooledFactor{Rid},
                           timef::PooledFactor{Rtime},
-                          sqrtw::Ones;
+                          ::Ones;
                           maxiter::Integer = 100_000,
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)

@@ -9,17 +9,17 @@ type Ones <: AbstractVector{Float64}
     length::Int
 end
 Base.size(O::Ones) = O.length
-Base.getindex(O::Ones, I::Int...) = one(Float64)
-Base.broadcast!(op::Function, X::Matrix{Float64}, Y::Matrix{Float64}, O::Ones) = nothing
-Base.broadcast!(op::Function, X::Vector{Float64}, Y::Vector{Float64}, O::Ones) = nothing
-Base.scale!(X::Vector{Float64}, O::Ones) = nothing
+Base.getindex(O::Ones, ::Int...) = one(Float64)
+Base.broadcast!(o::Function, ::Matrix{Float64}, ::Matrix{Float64}, ::Ones) = nothing
+Base.broadcast!(o::Function, ::Vector{Float64}, ::Vector{Float64}, ::Ones) = nothing
+Base.scale!(::Vector{Float64}, ::Ones) = nothing
 
 
 function get_weight(df::AbstractDataFrame, weight::Symbol)
     w = convert(Vector{Float64}, df[weight])
     sqrtw = sqrt(w)
 end
-get_weight(df::AbstractDataFrame, weight::Nothing) = Ones(size(df, 1))
+get_weight(df::AbstractDataFrame, ::Nothing) = Ones(size(df, 1))
 
 ##############################################################################
 ##
@@ -92,7 +92,7 @@ dropUnusedLevels!(f::DataVector) = f
 ##
 ##############################################################################
 
-function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept::Bool, sqrtw::Ones)
+function compute_tss(y::Vector{Float64}, hasintercept::Bool, ::Ones)
     if hasintercept
         tss = zero(Float64)
         m = mean(y)::Float64
@@ -100,20 +100,20 @@ function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept
             tss += abs2((y[i] - m))
         end
     else
-        tss = abs2(norm(y))
+        tss = sumabs2(y)
     end
     return tss
 end
 
-function compute_ss(residuals::Vector{Float64}, y::Vector{Float64}, hasintercept::Bool, sqrtw::Vector{Float64})
+function compute_tss(y::Vector{Float64}, hasintercept::Bool, sqrtw::Vector{Float64})
     if hasintercept
-        m = (mean(y) / sum(sqrtw) * length(residuals))::Float64
+        m = (mean(y) / sum(sqrtw) * length(y))::Float64
         tss = zero(Float64)
         @inbounds @simd  for i in 1:length(y)
          tss += abs2(y[i] - sqrtw[i] * m)
         end
     else
-        tss = abs2(norm(y))
+        tss = sumabs2(y)
     end
     return tss
 end

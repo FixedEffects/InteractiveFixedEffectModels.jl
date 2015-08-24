@@ -250,11 +250,11 @@ function fit(m::SparseFactorModel,
         # compute various r2
         nobs = size(subdf, 1)
         ess = sumabs2(residualsm)
-        tss = compute_ss(residualsm, ym, rt.intercept, sqrtw)
+        tss = compute_tss(ym, rt.intercept, sqrtw)
         r2_within = 1 - ess / tss 
 
         ess = sumabs2(residuals)
-        tss = compute_ss(residuals, oldy, rt.intercept || has_absorb, sqrtw)
+        tss = compute_tss(oldy, rt.intercept || has_absorb, sqrtw)
         r2 = 1 - ess / tss 
         r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
 
