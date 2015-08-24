@@ -96,9 +96,6 @@ Compute robust standard errors by constructing an object of type `AbstractVcovMe
 fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
 ```
 
-#### lambda
-`lambda` adds a Tikhonov regularization term to the sum of squared residuals. This option is only available when using an optimization method.
-
 #### save
 The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
