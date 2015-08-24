@@ -276,7 +276,7 @@ function fit(m::SparseFactorModel,
              tol::Real = 1e-8, 
              save = true)
     formula = Formula(variable, 0)
-    fit(m,formula,df, vcov_method = vcov_method, method = method,lambda = lambda,subset = subset,weight = weight,subset = subset, maxiter = maxiter,tol = tol,save = save)
+    fit(m, formula, df, vcov_method, method = method,lambda = lambda,subset = subset,weight = weight,subset = subset, maxiter = maxiter,tol = tol,save = save)
 end
 
 
