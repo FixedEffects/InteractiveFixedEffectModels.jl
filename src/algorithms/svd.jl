@@ -25,8 +25,8 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
     variance = Array(Float64, (T, T))
     converged = false
     iterations = maxiter
-    error = zero(Float64)
-    olderror = zero(Float64)
+    f_x = zero(Float64)
+    oldf_x = zero(Float64)
 
 
     # starts the loop
@@ -34,7 +34,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
     while iter < maxiter
         iter += 1
         (predict_matrix, res_matrix) = (res_matrix, predict_matrix)
-        (error, olderror) = (olderror, error)
+        (f_x, oldf_x) = (oldf_x, f_x)
         # transform vector into matrix
         copy!(res_matrix, y, idf.refs, timef.refs)
 
@@ -48,8 +48,8 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         A_mul_B!(predict_matrix, res_matrix, variance)
 
         # check convergence
-        error = sqeuclidean(predict_matrix, res_matrix)
-        if error == zero(Float64) || abs(error - olderror)/error < tol 
+        f_x = sqeuclidean(predict_matrix, res_matrix)
+        if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
             converged = true
             iterations = iter
             break
@@ -97,8 +97,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
     variance = Array(Float64, (T, T))
     converged = false
     iterations = maxiter
-    error = Inf
-    olderror = Inf
+    f_x = Inf
 
     # starts the loop
     iter = 0
@@ -124,8 +123,8 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         BLAS.axpy!(-1.0, y, res)
         new_b = - M * res
         # Check convergence
-        error = chebyshev(b, new_b)
-        if error < tol 
+        f_x = chebyshev(b, new_b)
+        if f_x < tol 
             converged = true
             iterations = iter
             break

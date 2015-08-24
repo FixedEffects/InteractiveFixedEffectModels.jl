@@ -61,19 +61,19 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
     iter = 0
     res = deepcopy(y)
     for r in 1:rank
-        olderror = ssr(idf, timef, res, sqrtw, r)
+        oldf_x = ssr(idf, timef, res, sqrtw, r)
         iter = 0
         while iter < maxiter
             iter += 1
             update!(Val{:ar}, idf, timef, res, sqrtw, r)
-            error = ssr(idf, timef, res, sqrtw, r)
-            push!(history, error)
-            if error == zero(Float64) || abs(error - olderror)/error < tol 
+            f_x = ssr(idf, timef, res, sqrtw, r)
+            push!(history, f_x)
+            if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
                 iterations[r] = iter
                 converged[r] = true
                 break
             else
-                olderror = error
+                oldf_x = f_x
             end
         end
         if r < rank
@@ -119,11 +119,11 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
     iterations = maxiter
     iter = 0
     Xt = X'
-    error = Inf
-    olderror = Inf
+    f_x = Inf
+    oldf_x = Inf
     while iter < maxiter
         iter += 1
-        (error, olderror) = (olderror, error)
+        (f_x, oldf_x) = (oldf_x, f_x)
 
         if mod(iter, 100) == 0
             rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
@@ -146,8 +146,8 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
 
         # Check convergence
         subtract_b!(res, b, X)
-        error = sumabs2(res)
-        if error == zero(Float64) || abs(error - olderror)/error < tol 
+        f_x = sumabs2(res)
+        if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
             converged = true
             iterations = iter
             break

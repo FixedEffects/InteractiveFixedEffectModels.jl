@@ -70,12 +70,14 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
                               lambda::Float64)
 
 
-    # compute gradient
+    # construct differntiable function for use with Optim package
     d = Optim.DifferentiableFunction(
         x -> gd_f(x, p1, p2,  y, sqrtw, r), 
         (x, out) -> gd_g!(x, out, p1, p2,  y, sqrtw, r),
         (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r)
     )
+
+    # update p1.x
     copy!(p1.x, p1.pool, r)
     f_x = d.fg!(p1.x, p1.gr)
     dphi0 = -sumabs2(p1.gr)
@@ -133,18 +135,18 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         learning_rate = fill(1.0, 2)
         iter = 0
         steps_in_a_row  = 0
-        olderror = Inf
+        oldf_x = Inf
         while iter < maxiter
             iter += 1
             update!(Val{:gd}, idf, timef, res, sqrtw, r, learning_rate, lambda)
             error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
             push!(history, error)
-            if error == zero(Float64) || abs(error - olderror)/error < tol  
+            if error == zero(Float64) || abs(error - oldf_x)/error < tol  
                 iterations[r] = iter
                 converged[r] = true
                 break
             end
-            olderror = error
+            oldf_x = error
         end
         # don't rescale during algorithm due to learning rate
         if r < rank
@@ -200,11 +202,11 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
     copy!(timef.old2pool, timef.pool)
 
     Xt = X'
-    currenterror = Inf
-    olderror = Inf
+    f_x = Inf
+    oldf_x = Inf
     while iter < maxiter
         iter += 1
-        (currenterror, olderror) = (olderror, currenterror)
+        (f_x, oldf_x) = (oldf_x, f_x)
 
         # Given beta, compute incrementally an approximate factor model
         copy!(res, y)
@@ -221,8 +223,8 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
 
         # Check convergence
         subtract_b!(res, b, X)
-        currenterror = sumabs2(res) + ssr_penalty(idf, timef, lambda)
-        if currenterror == zero(Float64) || abs(currenterror - olderror)/currenterror < tol 
+        f_x = sumabs2(res) + ssr_penalty(idf, timef, lambda)
+        if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
             converged = true
             iterations = iter
             break
