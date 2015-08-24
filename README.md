@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/matthieugomez/SparseFactorModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/SparseFactorModels.jl)
+[![Coverage Status](https://coveralls.io/repos/matthieugomez/SparseFactorModels.jl/badge.svg?branch=master)](https://coveralls.io/r/matthieugomez/SparseFactorModels.jl?branch=master)
 
 
 ## Motivation
