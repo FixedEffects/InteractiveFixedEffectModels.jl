@@ -110,7 +110,7 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 
 ## FAQ
 #### When should I use interactive fixed effects?
-Time fixed effects assume aggregate shocks impact each individual in the same way. In contrast, interactive fixed effects allow individuals to have different exposure to aggregate shocks. 
+Time fixed effects allow to control for aggregate shocks that impact individuals in the same way. Interactive fixed effects allow to control for aggregate shocks that impact individuals in different ways, as long as this heterogeneity is constant accross time.
 
 You can find such models in the following articles:
 
