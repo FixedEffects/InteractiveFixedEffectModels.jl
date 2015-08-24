@@ -34,7 +34,6 @@ include("algorithms/ar.jl")
 include("algorithms/gd.jl")
 include("algorithms/svd.jl")
 
-
 include("fit.jl")
 
 end

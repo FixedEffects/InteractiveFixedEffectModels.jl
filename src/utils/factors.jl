@@ -62,6 +62,9 @@ function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Flo
 end
 
 
+
+
+
 function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real, r::Int)    
     penalty = zero(Float64)
     if lambda > 0.0

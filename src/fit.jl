@@ -120,7 +120,7 @@ function fit(m::SparseFactorModel,
         crossx = cholfact!(At_mul_B(X, X))
         coef =  crossx \ At_mul_B(X, y)
         # initial loadings
-        fit!(Val{:gd}, y - X * coef, idf, timef, sqrtw, maxiter = 100, tol = 1e-3)
+        fit!(Val{:ar}, y - X * coef, idf, timef, sqrtw, maxiter = 100, tol = 1e-3)
         # estimate the model
         M = crossx \ X'
         (coef, iterations, converged) = 

@@ -6,9 +6,9 @@ df[:pYear] = pool(df[:Year])
 method = :svd
 precision = 2e-1
 
+
+
 #TODO: weight, subset, gradientdescent
-
-
 
 for method in [:svd, :ar, :gd]
 	println(method)

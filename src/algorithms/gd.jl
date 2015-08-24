@@ -79,12 +79,16 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
     copy!(p1.x, p1.pool, r)
     f_x = d.fg!(p1.x, p1.gr)
     dphi0 = -sumabs2(p1.gr)
-    scale!(p1.gr, -1.0)
 
-    # linesearch
+    # build lsr
     lsr = Optim.LineSearchResults(Float64)
     Optim.clear!(lsr)
     Optim.push!(lsr, zero(Float64), f_x, dphi0)
+
+    # direction is minus gradient
+    scale!(p1.gr, -1.0)
+
+    # linesearch
     learning_rate, f_update, g_update =
               Optim.hz_linesearch!(d, p1.x, p1.gr, p1.x_ls, p1.gr_ls, lsr, learning_rate, false)
 
