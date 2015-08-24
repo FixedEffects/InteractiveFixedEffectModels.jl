@@ -164,8 +164,6 @@ end
 ##############################################################################
 
 function getfactors{Rid, Rtime}(y::Vector{Float64},
-                                X::Matrix{Float64},
-                                coef::Vector{Float64},
                                 id::PooledFactor{Rid},
                                 time::PooledFactor{Rtime},
                                 sqrtw::AbstractVector{Float64})

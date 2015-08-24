@@ -23,11 +23,11 @@ function update_half!{R1, R2}(::Type{Val{:ar}},
     fill!(p1.x, zero(Float64))
     fill!(p1.x_ls, zero(Float64))
      @inbounds @simd for i in 1:length(p1.refs)
-         pi = p1.refs[i]
+         p1i = p1.refs[i]
          yi = y[i]
          xi = sqrtw[i] * p2.pool[p2.refs[i], r] 
-         p1.x[pi] += xi * yi
-         p1.x_ls[pi] += abs2(xi)
+         p1.x[p1i] += xi * yi
+         p1.x_ls[p1i] += abs2(xi)
     end
      @inbounds @simd for i in 1:size(p1.pool, 1)
         if p1.x_ls[i] > zero(Float64)

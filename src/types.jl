@@ -40,9 +40,9 @@ type RegressionFactorResult <: AbstractRegressionResult
 
 end
 
-predict(x::RegressionFactorResult, df::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
-residuals(x::RegressionFactorResult, df::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
-title(x::RegressionFactorResult) = "Linear Factor Model"
+predict(::RegressionFactorResult, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
+residuals(::RegressionFactorResult, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
+title(::RegressionFactorResult) = "Linear Factor Model"
 top(x::RegressionFactorResult) = [
             "Number of obs" sprint(showcompact, nobs(x));
             "Degree of freedom" sprint(showcompact, nobs(x) - df_residual(x));

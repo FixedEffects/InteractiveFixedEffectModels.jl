@@ -27,7 +27,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           idf::PooledFactor{Rid}, 
                           timef::PooledFactor{Rtime},
                           ::Ones; 
-                          maxiter::Integer = 1e7, 
+                          maxiter::Integer = 100_000,
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
     lambda == 0.0 || error("The svd method only works with lambda = 0.0")
@@ -100,7 +100,6 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
                           lambda::Real = 0.0)
     lambda == 0.0 || error("The svd method only works with lambda = 0.0")
     length(unique(zip(idf.refs, timef.refs))) == length(y) || error("The svd method only works with unique observation per (id, time)")
-    b = M * y
     new_b = deepcopy(b)
     res = Array(Float64, length(y))
     N = size(idf.pool, 1)

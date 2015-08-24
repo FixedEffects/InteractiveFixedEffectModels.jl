@@ -12,25 +12,11 @@ function gd_f{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor
         loading = x[idi]
         factor = p2.pool[timei, r]
         sqrtwi = sqrtw[i]
-        error = y[i] - sqrtwi * loading * factor 
-        f_x += error^2
+        currenterror = y[i] - sqrtwi * loading * factor 
+        f_x += currenterror^2
     end
     return f_x
 end
-
-function gd_g!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
-    fill!(out, zero(Float64))
-    @inbounds @simd for i in 1:length(y)
-        idi = p1.refs[i]
-        timei = p2.refs[i]
-        loading = x[idi]
-        factor = p2.pool[timei, r]
-        sqrtwi = sqrtw[i]
-        error = y[i] - sqrtwi * loading * factor 
-        out[idi] -= 2.0 * error * sqrtwi * factor
-    end
-end
-
 
 function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
     f_x = zero(Float64)
@@ -41,9 +27,9 @@ function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFact
         loading = x[idi]
         factor = p2.pool[timei, r]
         sqrtwi = sqrtw[i]
-        error = y[i] - sqrtwi * loading * factor 
-        out[idi] -= 2.0 * error * sqrtwi * factor
-        f_x += error^2
+        currenterror = y[i] - sqrtwi * loading * factor 
+        out[idi] -= 2.0 * currenterror * sqrtwi * factor
+        f_x += currenterror^2
     end
     return f_x
 end
@@ -73,7 +59,7 @@ function update_half!{R1, R2}(::Type{Val{:gd}},
     # construct differntiable function for use with Optim package
     d = Optim.DifferentiableFunction(
         x -> gd_f(x, p1, p2,  y, sqrtw, r), 
-        (x, out) -> gd_g!(x, out, p1, p2,  y, sqrtw, r),
+        (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r),
         (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r)
     )
 

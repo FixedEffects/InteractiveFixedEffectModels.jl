@@ -206,7 +206,7 @@ function fit(m::SparseFactorModel,
     else
         # compute errors for beta coefficients 
         ## partial out Y on X over dummy_time x loadio
-        newfes = getfactors(y, X, coef, idf, timef, sqrtw)
+        newfes = getfactors(y, idf, timef, sqrtw)
         ym = deepcopy(y)
         Xm = deepcopy(X)
         iterationsv = Int[]
@@ -276,7 +276,7 @@ function fit(m::SparseFactorModel,
              tol::Real = 1e-8, 
              save = true)
     formula = Formula(variable, 0)
-    fit(m,formula,df,method = method,lambda = lambda,subset = subset,weight = weight,subset = subset,maxiter = maxiter,tol = tol,save = true)
+    fit(m,formula,df, vcov_method = vcov_method, method = method,lambda = lambda,subset = subset,weight = weight,subset = subset, maxiter = maxiter,tol = tol,save = save)
 end
 
 
