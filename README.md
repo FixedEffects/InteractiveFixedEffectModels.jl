@@ -3,7 +3,7 @@
 
 ## Motivation
 
-This package estimates linear factor models on sparse datasets (as in the Netflix problem).
+This package estimates linear factor models on sparse datasets (i.e. datasets where there is not one observation per (id x time) combination).
 
 For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `beta`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
