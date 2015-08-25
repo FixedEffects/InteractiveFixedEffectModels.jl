@@ -15,7 +15,7 @@ function fit(m::SparseFactorModel,
              weight::Union(Symbol, Nothing) = nothing, 
              maxiter::Integer = 100000, 
              tol::Real = 1e-15, 
-             save = true)
+             save = false)
 
     ##############################################################################
     ##
@@ -26,6 +26,7 @@ function fit(m::SparseFactorModel,
         weight == nothing || error("The svd method does not handle weights")
     end
 
+
     ## parse formula 
     rf = deepcopy(f)
     (has_absorb, absorb_formula, absorb_terms, has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose!(rf)
@@ -35,6 +36,10 @@ function fit(m::SparseFactorModel,
     rt = Terms(rf)
     has_regressors = allvars(rf.rhs) != [] || (rt.intercept == true && !has_absorb)
 
+    # change default if has_regressors
+    if !has_regressors
+        save = true
+    end
     ## create a dataframe without missing values & negative weights
     vars = allvars(rf)
     vcov_vars = allvars(vcov_method)
