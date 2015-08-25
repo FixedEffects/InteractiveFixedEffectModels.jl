@@ -34,26 +34,15 @@ function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFact
     return f_x
 end
 
-function update!{R1, R2}(::Type{Val{:gd}}, 
-                         id::PooledFactor{R1},
-                         time::PooledFactor{R2},
-                         y::Vector{Float64},
-                         sqrtw::AbstractVector{Float64},
-                         r::Integer,
-                         learning_rate::Vector{Float64},
-                         lambda::Float64)
-    learning_rate[1] = update_half!(Val{:gd}, id, time, y, sqrtw, r, learning_rate[1], lambda)
-    learning_rate[2] = update_half!(Val{:gd}, time, id, y, sqrtw, r, learning_rate[2], lambda)
-end
 
-function update_half!{R1, R2}(::Type{Val{:gd}},
-                              p1::PooledFactor{R1},
-                              p2::PooledFactor{R2},
-                              y::Vector{Float64},
-                              sqrtw::AbstractVector{Float64},
-                              r::Integer, 
-                              learning_rate::Float64, 
-                              lambda::Float64)
+function update!{R1, R2}(::Type{Val{:gd}},
+                        y::Vector{Float64},
+                        sqrtw::AbstractVector{Float64},
+                        p1::PooledFactor{R1},
+                        p2::PooledFactor{R2},      
+                        r::Integer, 
+                        learning_rate::Float64, 
+                        lambda::Float64)
 
 
     # construct differntiable function for use with Optim package
@@ -124,7 +113,8 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         oldf_x = Inf
         while iter < maxiter
             iter += 1
-            update!(Val{:gd}, idf, timef, res, sqrtw, r, learning_rate, lambda)
+            learning_rate[1] = update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[1], lambda)
+            learning_rate[2] = update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[2], lambda)
             error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
             push!(history, error)
             if error == zero(Float64) || abs(error - oldf_x)/error < tol  
@@ -198,7 +188,10 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         copy!(res, y)
         subtract_b!(res, b, X)
         for r in 1:rank
-            update!(Val{:gd}, idf, timef, res, sqrtw, r, learning_rate[r], lambda)
+            learning_rate[r][1] = 
+                    update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[r][1], lambda)
+            learning_rate[r][2] = 
+                    update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[r][2], lambda)
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
 

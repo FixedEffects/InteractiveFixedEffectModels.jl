@@ -3,23 +3,12 @@
 ## update! by alternative regressions
 ##
 ##############################################################################
-
 function update!{R1, R2}(::Type{Val{:ar}},
-                         id::PooledFactor{R1},
-                         time::PooledFactor{R2},
                          y::Vector{Float64},
                          sqrtw::AbstractVector{Float64},
+                         p1::PooledFactor{R1},
+                         p2::PooledFactor{R2},
                          r::Integer)
-    update_half!(Val{:ar}, id, time, y, sqrtw, r)
-    update_half!(Val{:ar}, time, id, y, sqrtw, r)
-end
-
-function update_half!{R1, R2}(::Type{Val{:ar}},
-                             p1::PooledFactor{R1},
-                             p2::PooledFactor{R2},
-                             y::Vector{Float64},
-                             sqrtw::AbstractVector{Float64},
-                             r::Integer)
     fill!(p1.x, zero(Float64))
     fill!(p1.x_ls, zero(Float64))
      @inbounds @simd for i in 1:length(p1.refs)
@@ -65,7 +54,8 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
         iter = 0
         while iter < maxiter
             iter += 1
-            update!(Val{:ar}, idf, timef, res, sqrtw, r)
+            update!(Val{:ar}, res, sqrtw, idf, timef, r)
+            update!(Val{:ar}, res, sqrtw, timef, idf, r)
             f_x = ssr(idf, timef, res, sqrtw, r)
             push!(history, f_x)
             if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
@@ -135,7 +125,8 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
         copy!(res, y)
         subtract_b!(res, b, X)
         for r in 1:rank
-            update!(Val{:ar}, idf, timef, res, sqrtw, r)
+            update!(Val{:ar}, res, sqrtw, timef, idf, r)
+            update!(Val{:ar}, res, sqrtw, idf, timef, r)
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
 
