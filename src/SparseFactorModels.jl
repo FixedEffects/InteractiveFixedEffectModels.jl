@@ -7,7 +7,8 @@ module SparseFactorModels
 ## Dependencies
 ##
 ##############################################################################
-
+using Reexport
+@reexport using FixedEffectModels
 using Compat
 using Optim
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
