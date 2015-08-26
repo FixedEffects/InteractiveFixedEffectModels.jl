@@ -123,9 +123,8 @@ You can find such models in the following articles:
 The `cov` option is passed to a regression of y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
 
 
-
 #### What if I don't know the number of factors?
-As proven in Moon Weidner (2015), overestimating the number of factors still returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. A rule of thumb is to check that your estimate stays constant when you add more factors.
+ Moon Weidner (2015) show that overestimating the number of factors still returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. A rule of thumb is to check that your estimate stays constant when you add more factors.
 
 #### Does this command implement the bias correction term in Bai (2009)?
 In presence of cross or time correlation beyond the factor structure, the estimate for beta is biased (but still consistent): see Theorem 3 in Bai 2009, which derives the correction term in special cases. However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
@@ -136,7 +135,7 @@ For models with fixed effect, an equivalent way to obtain β is to first demean 
 In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
 #### Can I have multiple observations per (id x time) ?
-Yes, as long as you don't use the method `svd`. That being said, be aware of local minima by checking different methods give the same results.
+Yes, unless you use the method `svd`. That being said, be aware of local minima by checking different methods give the same results.
 
 
 
