@@ -15,8 +15,7 @@ import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, Regressi
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
 import FixedEffectModels: reg, demean!, getfe, decompose!, allvars, AbstractFixedEffect, FixedEffect, FixedEffectIntercept, FixedEffectSlope, VcovData, AbstractVcovMethod,AbstractVcovMethodData, VcovSimple, VcovWhite, VcovCluster, VcovMethodData, vcov!, AbstractRegressionResult, title, top
-import Distances: sqeuclidean, chebyshev
-
+import Distances: sqeuclidean
 ##############################################################################
 ##
 ## Exported methods and types 
@@ -32,6 +31,7 @@ SparseFactorResult
 include("types.jl")
 include("utils/models.jl")
 include("utils/factors.jl")
+include("utils/chebyshev.jl")
 
 include("algorithms/ar.jl")
 include("algorithms/gd.jl")

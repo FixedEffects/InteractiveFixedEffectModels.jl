@@ -139,8 +139,7 @@ function fit!{Rid, Rtime}(::Type{Val{:svd}},
         BLAS.axpy!(-1.0, y, res)
         new_b = - M * res
         # Check convergence
-        f_x = chebyshev(b, new_b)
-        if f_x < tol 
+        if _chebyshev(b, new_b, tol)
             converged = true
             iterations = iter
             break
