@@ -36,6 +36,7 @@ include("utils/chebyshev.jl")
 include("algorithms/ar.jl")
 include("algorithms/gd.jl")
 include("algorithms/svd.jl")
+include("algorithms/optim.jl")
 
 include("fit.jl")
 
