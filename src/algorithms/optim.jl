@@ -17,7 +17,6 @@ function optim_f{Ttime, Tid}(x::Vector{Float64}, sqrtw::AbstractVector{Float64},
         f_x += abs2(error)
     end
 
-
     # Tikhonov term
     if lambda > 0.0
         @inbounds @simd for i in 1:length(x)
@@ -42,6 +41,7 @@ function optim_fg!{Ttime, Tid}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
         out[idi] -= 2.0 * error * sqrtwi * factor 
         out[timei] -= 2.0 * error * sqrtwi * loading 
     end
+
     # Tikhonov term
     if lambda > 0.0
         @inbounds @simd for i in 1:length(x)
@@ -51,8 +51,6 @@ function optim_fg!{Ttime, Tid}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
     end
     return f_x
 end
-
-
 
 function fit!{R, Rid, Rtime}(::Type{Val{R}},
                         y::Vector{Float64},
@@ -135,7 +133,7 @@ function optim_f{Tid, Ttime}(x::Vector{Float64}, sqrtw::AbstractVector{Float64},
     return f_x
 end
 
-# fitness + gradient in the same loop
+# fitness + gradient
 function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, len::Real)
     fill!(out, zero(Float64))
     f_x = zero(Float64)
@@ -154,13 +152,13 @@ function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
         error = y[i] - prediction
         f_x += abs2(error)
         for k in 1:n_regressors
-            out[k] -= 2.0 * error  * Xt[k, i] * invlen
+            out[k] -= 2.0 * error  * Xt[k, i]
         end
         for r in 1:rank
-            out[timei + r] -= 2.0 * error * sqrtwi * x[idi + r] * invlen
+            out[timei + r] -= 2.0 * error * sqrtwi * x[idi + r]
         end
         for r in 1:rank
-            out[idi + r] -= 2.0 * error * sqrtwi * x[timei + r] * invlen
+            out[idi + r] -= 2.0 * error * sqrtwi * x[timei + r]
         end
     end
 
@@ -173,8 +171,6 @@ function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
     end
     return f_x 
 end
-
-
 
 function fit!{R, Rid, Rtime}(::Type{Val{R}}, 
                          X::Matrix{Float64},

@@ -72,9 +72,9 @@ function fit(m::SparseFactorModel,
 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
-        fes = AbstractFixedEffect[FixedEffect(subdf, a, sqrtw) for a in absorb_terms.terms]
+        fes = FixedEffect[FixedEffect(subdf, a, sqrtw) for a in absorb_terms.terms]
         # in case some FixedEffect is aFixedEffectIntercept, remove the intercept
-        if any([typeof(f) <: FixedEffectIntercept for f in fes]) 
+        if any([typeof(f.interaction) <: Ones for f in fes]) 
             rt.intercept = false
         end
     else
@@ -95,7 +95,7 @@ function fit(m::SparseFactorModel,
     ##
     ##############################################################################
 
-    ## Compute demeaned X
+    # Compute demeaned X
     mf = simpleModelFrame(subdf, rt, esample)
     if has_regressors
         coef_names = coefnames(mf)
@@ -104,7 +104,7 @@ function fit(m::SparseFactorModel,
         demean!(X, iterations, converged, fes)
     end
 
-    ## Compute demeaned y
+    # Compute demeaned y
     py = model_response(mf)[:]
     yname = rt.eterms[1]
     if eltype(py) != Float64
@@ -205,6 +205,7 @@ function fit(m::SparseFactorModel,
     ## Compute errors
     ##
     ##############################################################################
+   
     if !has_regressors
         ess = sumabs2(residuals)
         return SparseFactorResult(esample, augmentdf, ess, iterations, converged)
@@ -228,7 +229,7 @@ function fit(m::SparseFactorModel,
             df_absorb_fe = 0
             ## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
             for fe in fes
-                if typeof(vcov_method) == VcovCluster && in(fe.name, vcov_vars)
+                if typeof(vcov_method) == VcovCluster && in(fe.factorname, vcov_vars)
                     df_absorb_fe += 0
                 else
                     df_absorb_fe += sum(fe.scale .!= zero(Float64))
@@ -238,7 +239,7 @@ function fit(m::SparseFactorModel,
         df_absorb_factors = 0
         for fe in newfes
             df_absorb_factors += 
-                (typeof(vcov_method) == VcovCluster && in(fe.name, vcov_vars)) ? 
+                (typeof(vcov_method) == VcovCluster && in(fe.factorname, vcov_vars)) ? 
                     0 : sum(fe.scale .!= zero(Float64))
         end
         df_residual = size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors 

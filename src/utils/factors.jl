@@ -153,7 +153,7 @@ function build_column{R}(refs::Vector{R}, loadings::Matrix{Float64}, r::Int, esa
     T = eltype(refs)
     newrefs = fill(zero(T), length(esample))
     newrefs[esample] = refs
-    return convert(DataArray{Float64}, PooledDataArray(RefArray(newrefs), loadings[:, r]))
+    return PooledDataArray(RefArray(newrefs), loadings[:, r])
 end
 
 
@@ -169,18 +169,18 @@ function getfactors{Rid, Rtime}(y::Vector{Float64},
                                 sqrtw::AbstractVector{Float64})
 
     # partial out Y and X with respect to i.id x factors and i.time x loadings
-    newfes = AbstractFixedEffect[]
+    newfes = FixedEffect[]
     ans = Array(Float64, length(y))
     for j in 1:size(id.pool, 2)
         for i in 1:length(y)
             ans[i] = time.pool[time.refs[i], j]
         end
-        currentid = FixedEffectSlope(id.refs, size(id.pool, 1), sqrtw, ans[:], :id, :time, :(idxtime))
+        currentid = FixedEffect(id.refs, size(id.pool, 1), sqrtw, ans[:], :id, :time, :(idxtime))
         push!(newfes, currentid)
         for i in 1:length(y)
             ans[i] = id.pool[id.refs[i], j]
         end
-        currenttime = FixedEffectSlope(time.refs, size(time.pool, 1), sqrtw, ans[:], :time, :id, :(timexid))
+        currenttime = FixedEffect(time.refs, size(time.pool, 1), sqrtw, ans[:], :time, :id, :(timexid))
         push!(newfes, currenttime)
     end
     # obtain the residuals and cross 
