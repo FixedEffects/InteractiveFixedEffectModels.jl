@@ -5,8 +5,8 @@
 ##
 ##############################################################################
 # fitness
-function optim_f{Ttime, Tid}(x::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, l::Integer, lambda::Real, invlen::Real)
-    out = zero(Float64)
+function optim_f{Ttime, Tid}(x::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, l::Integer, lambda::Real, len::Real)
+    f_x = zero(Float64)
     @inbounds @simd for i in 1:length(y)
         idi = idrefs[i]
         timei = timerefs[i] + l
@@ -14,21 +14,23 @@ function optim_f{Ttime, Tid}(x::Vector{Float64}, sqrtw::AbstractVector{Float64},
         factor = x[timei]
         sqrtwi = sqrtw[i]
         error = y[i] - sqrtwi * loading * factor
-        out += abs2(error)
+        f_x += abs2(error)
     end
 
+
     # Tikhonov term
-    @inbounds @simd for i in 1:length(x)
-        out += lambda * abs2(x[i])
+    if lambda > 0.0
+        @inbounds @simd for i in 1:length(x)
+            f_x += len * lambda * abs2(x[i])
+        end
     end
-    return out 
+    return f_x 
 end
 
 # fitness + gradient 
-function optim_fg!{Ttime, Tid}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, l::Integer, lambda::Real, invlen::Real)
+function optim_fg!{Ttime, Tid}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, l::Integer, lambda::Real, len::Real)
     fill!(out, zero(Float64))
-    len_y = length(y)
-    sum = zero(Float64)
+    f_x = zero(Float64)
     @inbounds @simd for i in 1:length(y)
         idi = idrefs[i]
         timei = timerefs[i]+l
@@ -36,16 +38,18 @@ function optim_fg!{Ttime, Tid}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
         factor = x[timei]
         sqrtwi = sqrtw[i]
         error =  y[i] - sqrtwi * loading * factor
-        sum += abs2(error)
+        f_x += abs2(error)
         out[idi] -= 2.0 * error * sqrtwi * factor 
         out[timei] -= 2.0 * error * sqrtwi * loading 
     end
     # Tikhonov term
-    @inbounds @simd for i in 1:length(x)
-        sum += lambda * abs2(x[i])
-        out[i] += 2.0 * lambda * x[i]
+    if lambda > 0.0
+        @inbounds @simd for i in 1:length(x)
+            f_x += len * lambda * abs2(x[i])
+            out[i] += 2.0 * len * lambda * x[i]
+        end
     end
-    return sum
+    return f_x
 end
 
 
@@ -58,7 +62,8 @@ function fit!{R, Rid, Rtime}(::Type{Val{R}},
                         maxiter::Integer = 100_000,
                         tol::Real = 1e-9,
                         lambda::Real = 0.0)
-    invlen = 1 / abs2(norm(sqrtw, 2)) 
+
+    len = sumabs2(sqrtw)
     N = size(idf.pool, 1)
     T = size(timef.pool, 1)
     rank = size(idf.pool, 2)
@@ -71,9 +76,9 @@ function fit!{R, Rid, Rtime}(::Type{Val{R}},
     for r in 1:rank
         # set up optimization problem
         d = DifferentiableFunction(
-            x -> optim_f(x, sqrtw, res, timef.refs, idf.refs, N, lambda, invlen),
-            (x, out) -> optim_fg!(x, out, sqrtw, res, timef.refs, idf.refs, N, lambda, invlen),
-            (x, out) -> optim_fg!(x, out, sqrtw, res, timef.refs, idf.refs, N, lambda, invlen)
+            x -> optim_f(x, sqrtw, res, timef.refs, idf.refs, N, lambda, len),
+            (x, out) -> optim_fg!(x, out, sqrtw, res, timef.refs, idf.refs, N, lambda, len),
+            (x, out) -> optim_fg!(x, out, sqrtw, res, timef.refs, idf.refs, N, lambda, len)
             )
 
         # optimize
@@ -101,8 +106,8 @@ end
 ##
 ##############################################################################
 # fitness
-function optim_f{Tid, Ttime}(x::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, invlen::Real)
-    out = zero(Float64)
+function optim_f{Tid, Ttime}(x::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, len::Real)
+    f_x = zero(Float64)
     # residual term
     @simd for i in 1:length(y)
         prediction = zero(Float64)
@@ -118,21 +123,22 @@ function optim_f{Tid, Ttime}(x::Vector{Float64}, sqrtw::AbstractVector{Float64},
           prediction += sqrtwi * x[id + r] * x[time + r]
         end
         error = y[i] - prediction
-        out += abs2(error)
+        f_x += abs2(error)
     end
-    out *= invlen
 
     # Tikhonov term
-    @simd for i in (n_regressors+1):length(x)
-        out += lambda * abs2(x[i])
+    if lambda > 0.0
+        @simd for i in (n_regressors+1):length(x)
+            f_x += len * lambda * abs2(x[i])
+        end
     end
-    return out
+    return f_x
 end
 
 # fitness + gradient in the same loop
-function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, invlen::Real)
+function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::AbstractVector{Float64}, y::Vector{Float64}, timerefs::Vector{Ttime}, idrefs::Vector{Tid}, n_regressors::Integer, rank::Integer, Xt::Matrix{Float64}, lambda::Real, len::Real)
     fill!(out, zero(Float64))
-    sum = zero(Float64)
+    f_x = zero(Float64)
     # residual term
     @inbounds @simd for i in 1:length(y)
         prediction = zero(Float64)
@@ -146,7 +152,7 @@ function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
             prediction += sqrtwi * x[idi + r] * x[timei + r]
         end
         error = y[i] - prediction
-        sum += abs2(error)
+        f_x += abs2(error)
         for k in 1:n_regressors
             out[k] -= 2.0 * error  * Xt[k, i] * invlen
         end
@@ -157,14 +163,15 @@ function optim_fg!{Tid, Ttime}(x::Vector{Float64}, out::Vector{Float64}, sqrtw::
             out[idi + r] -= 2.0 * error * sqrtwi * x[timei + r] * invlen
         end
     end
-    sum *= invlen
 
     # Tikhonov term
-    @inbounds @simd for i in (n_regressors+1):length(x)
-        sum += lambda * abs2(x[i])
-        out[i] += 2.0 * lambda * x[i]
+    if lambda > 0.0
+        @inbounds @simd for i in (n_regressors+1):length(x)
+            f_x += len * lambda * abs2(x[i])
+            out[i] += 2.0 * len * lambda * x[i]
+        end
     end
-    return sum 
+    return f_x 
 end
 
 
@@ -181,6 +188,7 @@ function fit!{R, Rid, Rtime}(::Type{Val{R}},
                          tol::Real = 1e-9,
                          lambda::Real = 0.0)
 
+    len = sumabs2(sqrtw)
     n_regressors = size(X, 2)
     invlen = 1 / abs2(norm(sqrtw, 2)) 
     rank = size(idf.pool, 2)
@@ -221,9 +229,9 @@ function fit!{R, Rid, Rtime}(::Type{Val{R}},
 
     # optimize
     d = DifferentiableFunction(
-        x -> optim_f(x, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, invlen),
-        (x, out) ->  optim_fg!(x, out, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, invlen),
-        (x, out) ->  optim_fg!(x, out, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, invlen)
+        x -> optim_f(x, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, len),
+        (x, out) ->  optim_fg!(x, out, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, len),
+        (x, out) ->  optim_fg!(x, out, sqrtw, y, timerefs, idrefs, n_regressors, rank, Xt, lambda, len)
         )
     # convergence is chebyshev for x
     result = optimize(d, x0, method = R, iterations = maxiter, xtol = tol, ftol = -nextfloat(0.0), grtol = -nextfloat(0.0))

@@ -4,7 +4,7 @@
 ##
 ##############################################################################
 
-function gd_f{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+function gd_f{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer, lambda::Real, len::Real)
     f_x = zero(Float64)
     @inbounds @simd for i in 1:length(y)
         idi = p1.refs[i]
@@ -15,10 +15,18 @@ function gd_f{R1, R2}(x::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor
         currenterror = y[i] - sqrtwi * loading * factor 
         f_x += currenterror^2
     end
+    if lambda > 0.0
+        @inbounds @simd for i in 1:size(p1.pool, 2)
+            f_x += len * lambda * x[i]^2
+        end
+        @inbounds @simd for i in 1:size(p2.pool, 2)
+            f_x += len * lambda * p2.pool[i, r]^2
+        end
+    end
     return f_x
 end
 
-function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer)
+function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFactor{R1}, p2::PooledFactor{R2},  y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer, lambda::Real, len::Real)
     f_x = zero(Float64)
     fill!(out, zero(Float64))
     @inbounds @simd for i in 1:length(y)
@@ -31,6 +39,15 @@ function gd_fg!{R1, R2}(x::Vector{Float64}, out::Vector{Float64}, p1::PooledFact
         out[idi] -= 2.0 * currenterror * sqrtwi * factor
         f_x += currenterror^2
     end
+    if lambda > 0.0
+        @inbounds @simd for i in 1:size(p1.pool, 1)
+            f_x += len * lambda * x[i]^2
+            out[idi] += 2.0 * len * lambda * x[i]
+        end
+        @inbounds @simd for i in 1:size(p2.pool, 1)
+            f_x += len * lambda * p2.pool[i, r]^2
+        end
+    end
     return f_x
 end
 
@@ -42,14 +59,13 @@ function update!{R1, R2}(::Type{Val{:gd}},
                         p2::PooledFactor{R2},      
                         r::Integer, 
                         learning_rate::Float64, 
-                        lambda::Float64)
-
-
+                        lambda::Real,
+                        len::Real)
     # construct differntiable function for use with Optim package
     d = Optim.DifferentiableFunction(
-        x -> gd_f(x, p1, p2,  y, sqrtw, r), 
-        (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r),
-        (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r)
+        x -> gd_f(x, p1, p2,  y, sqrtw, r, lambda, len), 
+        (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r, lambda, len),
+        (x, out) -> gd_fg!(x, out, p1, p2,  y, sqrtw, r, lambda, len)
     )
 
     # update p1.x
@@ -94,6 +110,7 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
                           lambda::Real = 0.0)
 
     # initialize
+    len = sumabs2(sqrtw)
     rank = size(idf.pool, 2)
     iterations = fill(maxiter, rank)
     converged = fill(false, rank)
@@ -113,8 +130,8 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         oldf_x = Inf
         while iter < maxiter
             iter += 1
-            learning_rate[1] = update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[1], lambda)
-            learning_rate[2] = update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[2], lambda)
+            learning_rate[1] = update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[1], lambda, len)
+            learning_rate[2] = update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[2], lambda, len)
             error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
             push!(history, error)
             if error == zero(Float64) || abs(error - oldf_x)/error < tol  
@@ -155,6 +172,8 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
 
+    lambda == 0.0 || error("The alternative regression method only works with lambda = 0.0")
+    len = sumabs2(sqrtw)
     rank = size(idf.pool, 2)
     N = size(idf.pool, 1)
     T = size(timef.pool, 1)
@@ -189,9 +208,9 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         subtract_b!(res, b, X)
         for r in 1:rank
             learning_rate[r][1] = 
-                    update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[r][1], lambda)
+                    update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[r][1], lambda, len)
             learning_rate[r][2] = 
-                    update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[r][2], lambda)
+                    update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[r][2], lambda, len)
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
 

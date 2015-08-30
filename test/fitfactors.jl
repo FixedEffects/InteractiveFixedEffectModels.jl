@@ -3,7 +3,7 @@ df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
 
-for method in [:svd, :ar, :gd]
+for method in [:svd, :ar, :gd, :cg]
 	precision = 1e-1
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), :Sales, df , method =  method, maxiter = 10_000) ;
