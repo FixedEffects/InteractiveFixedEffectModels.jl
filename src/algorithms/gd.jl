@@ -172,7 +172,7 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
                           tol::Real = 1e-9,
                           lambda::Real = 0.0)
 
-    lambda == 0.0 || error("The alternative regression method only works with lambda = 0.0")
+    lambda == 0.0 || error("The gradiend descent method only works with lambda = 0.0")
     len = sumabs2(sqrtw)
     rank = size(idf.pool, 2)
     N = size(idf.pool, 1)
