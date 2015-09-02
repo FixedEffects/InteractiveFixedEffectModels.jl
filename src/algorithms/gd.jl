@@ -90,7 +90,7 @@ function update!{R1, R2}(::Type{Val{:gd}},
         p1.pool[i, r] =  p1.pool[i, r] + learning_rate * p1.gr[i]
     end
 
-    return learning_rate
+    return f_x, learning_rate
 end
 
 
@@ -130,16 +130,15 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         oldf_x = Inf
         while iter < maxiter
             iter += 1
-            learning_rate[1] = update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[1], lambda, len)
-            learning_rate[2] = update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[2], lambda, len)
-            error = ssr(idf, timef, res, sqrtw, r) + ssr_penalty(idf, timef, lambda, r)
-            push!(history, error)
-            if error == zero(Float64) || abs(error - oldf_x)/error < tol  
+            f_x, learning_rate[1] = update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[1], lambda, len)
+            f_x, learning_rate[2] = update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[2], lambda, len)
+            push!(history, f_x)
+            if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol  
                 iterations[r] = iter
                 converged[r] = true
                 break
             end
-            oldf_x = error
+            oldf_x = f_x
         end
         # don't rescale during algorithm due to learning rate
         if r < rank
@@ -221,7 +220,7 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
 
         # Check convergence
         subtract_b!(res, b, X)
-        f_x = sumabs2(res) + ssr_penalty(idf, timef, lambda)
+        f_x = sumabs2(res)
         if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
             converged = true
             iterations = iter

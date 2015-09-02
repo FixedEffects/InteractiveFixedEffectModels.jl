@@ -57,29 +57,6 @@ function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Flo
    return out
 end
 
-function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real, r::Int)    
-    penalty = zero(Float64)
-    if lambda > 0.0
-        @inbounds @simd for i in 1:size(id.pool, 1)
-            penalty += abs2(id.pool[i, r])
-        end
-        @inbounds @simd for i in 1:size(time.pool, 1)
-            penalty += abs2(time.pool[i, r])
-        end
-    end
-    return lambda * penalty
-end
-
-function ssr_penalty{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, lambda::Real)    
-    penalty = zero(Float64)
-    if lambda > 0.0
-        for r in 1:rank
-            penalty += ssr_penalty(id, time, lambda, r)
-        end
-    end
-    return penalty
-end
-
 ##############################################################################
 ##
 ## rescale! a factor model
