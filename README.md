@@ -102,7 +102,7 @@ The option `save = true` saves a new dataframe storing residuals, factors, loadi
 ## Install
 
 ```julia
-Pkg.clone("https://github.com/matthieugomez/FixedEffectModels.jl")
+Pkg.update()
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
