@@ -128,7 +128,7 @@ The `cov` option is passed to a regression of y on x and covariates of the form 
 In presence of cross or time correlation beyond the factor structure, the estimate for beta is biased (but still consistent): see Theorem 3 in Bai 2009, which derives the correction term in special cases. However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
 
 
-#### Can't `β` be simply estimated by replacing X with the residuals of X on a factor model?
+#### Can `β` be estimated by replacing X with the residuals of X on a factor model?
 For models with fixed effect, an equivalent way to obtain β is to first demean regressors within groups and then regress `y` on these residuals instead of the original regressors.
 In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
