@@ -206,9 +206,9 @@ function fit!{Rid, Rtime}(::Type{Val{:gd}},
         copy!(res, y)
         subtract_b!(res, b, X)
         for r in 1:rank
-            learning_rate[r][1] = 
+            _, learning_rate[r][1] = 
                     update!(Val{:gd}, res, sqrtw, idf, timef, r, learning_rate[r][1], lambda, len)
-            learning_rate[r][2] = 
+            _, learning_rate[r][2] = 
                     update!(Val{:gd}, res, sqrtw, timef, idf, r, learning_rate[r][2], lambda, len)
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
