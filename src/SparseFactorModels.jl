@@ -7,6 +7,7 @@ module SparseFactorModels
 ## Dependencies
 ##
 ##############################################################################
+
 using Reexport
 @reexport using FixedEffectModels
 using Compat
@@ -16,18 +17,22 @@ import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, Data
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
 import FixedEffectModels: reg, demean!, getfe, decompose!, allvars, FixedEffect, Ones, VcovData, AbstractVcovMethod,AbstractVcovMethodData, VcovSimple, VcovWhite, VcovCluster, VcovMethodData, vcov!, AbstractRegressionResult, title, top
 import Distances: sqeuclidean
+
 ##############################################################################
 ##
 ## Exported methods and types 
 ##
 ##############################################################################
+
 export SparseFactorModel,
 SparseFactorResult
+
 ##############################################################################
 ##
 ## Load files
 ##
 ##############################################################################
+
 include("types.jl")
 include("utils/models.jl")
 include("utils/factors.jl")
