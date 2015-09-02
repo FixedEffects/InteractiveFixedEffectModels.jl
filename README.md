@@ -13,6 +13,13 @@ For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time)
 When X is a set of id or time dummies, this problem corresponds to a principal component analysis with missing values. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
 
 
+To install
+```julia
+Pkg.update()
+Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
+```
+
+
 ## Syntax
 
 The general syntax is
@@ -98,15 +105,6 @@ fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pStat
 
 #### save
 The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
-
-## Install
-
-```julia
-Pkg.update()
-Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
-```
-
-
 
 ## FAQ
 #### When should I use interactive fixed effects?
