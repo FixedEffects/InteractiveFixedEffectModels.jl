@@ -7,7 +7,6 @@ method = :svd
 precision = 2e-1
 
 
-
 #TODO: weight, subset, gradientdescent
 
 for method in [:svd, :ar, :gd, :cg]
