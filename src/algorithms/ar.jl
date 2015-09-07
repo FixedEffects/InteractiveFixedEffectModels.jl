@@ -133,7 +133,7 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
         # Given factor model, compute beta
         copy!(res, y)
         subtract_factor!(res, sqrtw, idf, timef)
-        b = M * res
+        b = -0.5 * b .+ 1.5 .* M * res
 
         # Check convergence
         subtract_b!(res, b, X)

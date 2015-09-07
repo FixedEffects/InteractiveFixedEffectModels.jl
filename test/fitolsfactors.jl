@@ -9,7 +9,7 @@ precision = 2e-1
 
 #TODO: weight, subset, gradientdescent
 
-for method in [:svd, :ar, :gd, :cg]
+for method in [:svd, :ar, :cg]
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000, save = true)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision

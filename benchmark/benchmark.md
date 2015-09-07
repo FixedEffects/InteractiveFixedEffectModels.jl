@@ -126,7 +126,7 @@ result.converged = Bool[true]
 ```julia
 for method in [:ar, :svd, :gd]
 	println("method : $(method)")
-	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = :lm, maxiter = 10, save = false)
+	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 10000, save = false)
 	@show result.ess
 	@show result.converged
 end

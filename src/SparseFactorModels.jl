@@ -37,14 +37,11 @@ include("types.jl")
 include("utils/models.jl")
 include("utils/factors.jl")
 include("utils/chebyshev.jl")
-include("utils/lsqr.jl")
 
 
 include("algorithms/ar.jl")
-include("algorithms/gd.jl")
 include("algorithms/svd.jl")
 include("algorithms/optim.jl")
-include("algorithms/lm.jl")
 
 include("fit.jl")
 

@@ -77,8 +77,9 @@ function fit(m::SparseFactorModel,
         if any([typeof(f.interaction) <: Ones for f in fes]) 
             rt.intercept = false
         end
+        pfe = FixedEffectProblem(fes)
     else
-        fes = nothing
+        pfe = nothing
     end
 
     # initialize iterations and converged
@@ -101,7 +102,7 @@ function fit(m::SparseFactorModel,
         coef_names = coefnames(mf)
         X = ModelMatrix(mf).m
         broadcast!(*, X, X, sqrtw)
-        demean!(X, iterations, converged, fes)
+        residualize!(X, pfe, iterations, converged)
     end
 
     # Compute demeaned y
@@ -114,7 +115,7 @@ function fit(m::SparseFactorModel,
     end
     broadcast!(*, y, y, sqrtw)
     oldy = deepcopy(y)
-    demean!(y, iterations, converged, fes)
+    residualize!(y, pfe, iterations, converged)
 
     ##############################################################################
     ##
@@ -144,8 +145,6 @@ function fit(m::SparseFactorModel,
         (coef, iterations, converged) = 
          fit!(Val{method}, X, M, coef, y, idf, timef, sqrtw; maxiter = maxiter, tol = tol, lambda = lambda) 
     end
-
-
 
     ##############################################################################
     ##
@@ -196,7 +195,7 @@ function fit(m::SparseFactorModel,
             end
             b = oldresiduals - residuals
             # get fixed effect
-            augmentdf = hcat(augmentdf, getfe(fes, b, esample))
+            augmentdf = hcat(augmentdf, solvefe!(pfe, b, esample))
         end
     end
 
@@ -213,12 +212,13 @@ function fit(m::SparseFactorModel,
         # compute errors for beta coefficients 
         ## partial out Y on X over dummy_time x loadio
         newfes = getfactors(y, idf, timef, sqrtw)
+        newpfe = FixedEffectProblem(newfes)
         ym = deepcopy(y)
         Xm = deepcopy(X)
         iterationsv = Int[]
         convergedv = Bool[]
-        demean!(ym, iterationsv, convergedv, newfes)
-        demean!(Xm, iterationsv, convergedv, newfes)
+        residualize!(ym, newpfe, iterationsv, convergedv)
+        residualize!(Xm, newpfe, iterationsv, convergedv)
 
         residualsm = ym - Xm * coef
         crossxm = cholfact!(At_mul_B(Xm, Xm))
