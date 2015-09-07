@@ -195,7 +195,7 @@ function fit(m::SparseFactorModel,
             end
             b = oldresiduals - residuals
             # get fixed effect
-            augmentdf = hcat(augmentdf, solvefe!(pfe, b, esample))
+            augmentdf = hcat(augmentdf, getfe!(pfe, b, esample))
         end
     end
 
