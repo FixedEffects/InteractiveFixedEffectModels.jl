@@ -10,6 +10,7 @@ module SparseFactorModels
 
 using Reexport
 @reexport using FixedEffectModels
+import FixedEffectModels: title, top
 using Compat
 using Optim
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual

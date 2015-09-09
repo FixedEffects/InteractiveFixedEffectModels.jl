@@ -66,7 +66,7 @@ result.converged = Bool[true]
 
 ### N x T x 4/5
 ```julia
-for method in [:ar, :svd, :gd]
+for method in [:ar, :svd, :lm]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, unbalanceddf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -151,7 +151,7 @@ result.converged = true
 
 
 ```julia
-for method in [:ar, :svd, :gd]
+for method in [:ar]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, unbalanceddf, method = method, maxiter = 10_000, save = false)
 	@show result.ess
