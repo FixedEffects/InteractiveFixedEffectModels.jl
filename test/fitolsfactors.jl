@@ -3,14 +3,12 @@ using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 df = dataset("plm", "Cigar")
 df[:pState] = pool(df[:State])
 df[:pYear] = pool(df[:Year])
-method = :lm
 precision = 2e-1
-result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000, save = true)
 
 
 #TODO: weight, subset, gradientdescent
 
-for method in [:lm]
+for method in [:svd, :ar, :cg]
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000, save = true)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision

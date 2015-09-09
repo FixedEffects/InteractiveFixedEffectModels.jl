@@ -33,11 +33,10 @@ SparseFactorResult
 ##
 ##############################################################################
 
-include("types.jl")
 include("utils/models.jl")
-include("utils/factors.jl")
 include("utils/chebyshev.jl")
 
+include("types.jl")
 
 include("algorithms/ar.jl")
 include("algorithms/svd.jl")
