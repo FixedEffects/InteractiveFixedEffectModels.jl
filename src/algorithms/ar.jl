@@ -21,9 +21,9 @@ function update!{R1, R2}(::Type{Val{:ar}},
          p1[p1i] += xi * yi
          p1scale[p1i] += abs2(xi)
     end
-     @inbounds @simd for i in 1:size(p1, 1)
+    @inbounds @simd for i in 1:size(p1, 1)
         p1[i] /= p1scale[i]
-      end
+    end
 end
 
 ##############################################################################
@@ -122,12 +122,6 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
         iter += 1
         (f_x, oldf_x) = (oldf_x, f_x)
 
-        if mod(iter, 100) == 0
-            rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
-            (idf.pool, idf.old1pool) = (idf.old1pool, idf.pool)
-            (timef.pool, timef.old1pool) = (timef.old1pool, timef.pool)
-        end
-        
         # Given beta, compute incrementally an approximate factor model
         copy!(res, y)
         subtract_b!(res, b, X)

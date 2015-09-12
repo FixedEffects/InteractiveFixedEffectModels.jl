@@ -4,8 +4,10 @@
 
 # TODO. Follow LMQR for (i) better stopping rule (ii) better projection on zero in case x non identified
 function cgls!(x::Union(AbstractVector{Float64}, Nothing), 
-               r::AbstractVector{Float64}, A::AbstractMatrix{Float64}, lambda::AbstractVector{Float64}, 
-               s::AbstractVector{Float64}, p::AbstractVector{Float64}, q::AbstractVector{Float64}, ptmp, ptmp2; 
+               r::AbstractVector{Float64}, A::AbstractMatrix{Float64}, 
+               normalization::AbstractVector{Float64}, s::AbstractVector{Float64}, 
+               z::AbstractVector{Float64}, p::AbstractVector{Float64}, 
+               q::AbstractVector{Float64}, ptmp; 
                tol::Real=1e-5, maxiter::Int=10)
 
     # Initialization.
@@ -13,11 +15,7 @@ function cgls!(x::Union(AbstractVector{Float64}, Nothing),
     iterations = maxiter 
 
     Ac_mul_B!(s, A, r)
-    normalization = similar(lambda)
     sumabs2!(normalization, A)
-    axpy!(1.0, lambda, normalization)
-
-    z = similar(s)
     broadcast!(/, z, s, normalization)
     copy!(p, z)
     normS0 = dot(s, z)
@@ -27,14 +25,11 @@ function cgls!(x::Union(AbstractVector{Float64}, Nothing),
     while iter < maxiter
         iter += 1
         A_mul_B!(q, A, p) 
-        Ac_mul_B!(ptmp2, A, q)
-        broadcast!(*, ptmp, p, lambda)
-        axpy!(1.0, ptmp, ptmp2)
-        α = normSold / dot(ptmp2, p)
+        Ac_mul_B!(ptmp, A, q)
+        α = normSold / dot(ptmp, p)
         # x = x + αp
         x == nothing || axpy!(α, p, x) 
-        axpy!(-α, ptmp2, s)
-        broadcast!(*, ptmp, p, lambda)
+        axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         normS = dot(s, z)
         if α * maxabs(q) <= tol 
@@ -59,8 +54,6 @@ function dogleg!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, lambda=0.0)
     δsd = similar(x) # steepest descent
     δdiff = similar(x) # δgn - δsd
     δx = similar(x)
-    dtd = similar(x)
-    fill!(dtd, zero(Float64))
     ftrial = similar(fcur)
     ftmp = similar(fcur)
     q = similar(fcur)
@@ -69,9 +62,10 @@ function dogleg!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, lambda=0.0)
     s = similar(x)
     p = similar(x)
     q = similar(fcur)
+    z = similar(s)
     ptmp = similar(x)
     ptmp2 = similar(x)
-
+    normalization = similar(x)
 
     f!(x, fcur)
     g!(x, fg)
@@ -102,7 +96,7 @@ function dogleg!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, lambda=0.0)
             else
                 if (!gncomputed)
                     fill!(δgn, zero(Float64))
-                    cgls!(δgn, fcur, fg, dtd, s, p, q, ptmp, ptmp2)
+                    cgls!(δgn, fcur, fg, normalization, s, z, p, q, ptmp)
                     # δdiff = δgn - δsd
                     copy!(δdiff, δgn)
                     axpy!(-1.0, δsd,  δdiff)
