@@ -14,16 +14,13 @@ function update!{R1, R2}(::Type{Val{:ar}},
                          )
     fill!(p1, zero(Float64))
     fill!(p1scale, zero(Float64))
-     @inbounds @simd for i in 1:length(p1refs)
+     @inbounds @simd for i in 1:length(y)
          p1i = p1refs[i]
-         yi = y[i]
          xi = sqrtw[i] * p2[p2refs[i]] 
-         p1[p1i] += xi * yi
+         p1[p1i] += xi * y[i]
          p1scale[p1i] += abs2(xi)
     end
-    @inbounds @simd for i in 1:size(p1, 1)
-        p1[i] /= p1scale[i]
-    end
+    broadcast!(/, p1, p1, p1scale)
 end
 
 ##############################################################################

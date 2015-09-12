@@ -19,10 +19,9 @@ function fit!{Rid, Rtime}(::Type{Val{:lm}},
     fp = FactorProblem(y, sqrtw, X, idf.refs, timef.refs, size(idf.pool, 2))
     fv = FactorVector(b, idf.pool, timef.pool)
     fg = FactorGradient(b, idf.pool, timef.pool, similar(b), idf.old1pool, timef.old1pool, fp)
-  
-iterations, converged = dogleg!(fv, fg, similar(y), 
-                                (x, out) -> f!(x, out, fp), 
-                                g!)
+    iterations, converged = dogleg!(fv, fg, similar(y), 
+                                    (x, out) -> f!(x, out, fp), 
+                                    g!)
     # rescale factors and loadings so that factors' * factors = Id
     copy!(idf.old1pool, fv.idpool)
     copy!(timef.old1pool, fv.timepool)
@@ -96,12 +95,7 @@ end
 sumabs2(fv::FactorVector) = sumabs2(fv.b) + sumabs2(fv.idpool) + sumabs2(fv.timepool)
 norm(fv::FactorVector) = sqrt(sumabs2(fv))
 maxabs(fv::FactorVector) = max(maxabs(fv.b), maxabs(fv.idpool), maxabs(fv.timepool))
-function wdot(d::FactorVector, fv1::FactorVector, fv2::FactorVector)
-    wdot(d.b, fv1.b, fv2.b) + wdot(d.idpool, fv1.idpool, fv2.idpool) + wdot(d.timepool, fv1.timepool, fv2.timepool)
-end
-function wsumabs2(d::FactorVector, fv::FactorVector)
-    wsumabs2(d.b, fv.b) + wsumabs2(d.idpool, fv.idpool) + wsumabs2(d.timepool, fv.timepool)
-end
+
 
 function fill!(fv::FactorVector, x)
     fill!(fv.b, x)
@@ -113,20 +107,6 @@ function similar(fv::FactorVector)
     FactorVector(similar(fv.b), similar(fv.idpool), similar(fv.timepool))
 end
 
-function f!(fv::FactorVector, out::Vector{Float64}, fp::FactorProblem)
-    copy!(out, fp.y)
-    for k in 1:length(fv.b)
-        @inbounds @simd for i in 1:length(out)
-            out[i] -= fv.b[k] * fp.X[i, k] 
-        end
-    end
-    for r in 1:fp.rank
-        @inbounds @simd for i in 1:length(out)
-            out[i] -= fp.sqrtw[i] * fv.idpool[fp.idrefs[i], r] * fv.timepool[fp.timerefs[i], r]
-        end
-    end
-    return out
-end
 
 ##############################################################################
 ##
@@ -188,12 +168,42 @@ function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fv::FactorVect
     return y
 end
 
+
+function sumabs2!(fv::FactorVector, fg::FactorGradient) 
+    copy!(fv.b, fg.scaleb)
+    copy!(fv.idpool, fg.scaleid)
+    copy!(fv.timepool, fg.scaletime)
+end
+
+##############################################################################
+##
+## Functions and Gradient
+##
+##############################################################################
+
+function f!(fv::FactorVector, out::Vector{Float64}, fp::FactorProblem)
+    copy!(out, fp.y)
+    for k in 1:length(fv.b)
+        @inbounds @simd for i in 1:length(out)
+            out[i] -= fv.b[k] * fp.X[i, k] 
+        end
+    end
+    for r in 1:fp.rank
+        @inbounds @simd for i in 1:length(out)
+            out[i] -= fp.sqrtw[i] * fv.idpool[fp.idrefs[i], r] * fv.timepool[fp.timerefs[i], r]
+        end
+    end
+    return out
+end
+
+
 function g!(fv::FactorVector, fg::FactorGradient)
     copy!(fg.b, fv.b)
     copy!(fg.idpool, fv.idpool)
     copy!(fg.timepool, fv.timepool)
     fill!(fg.scaleb, zero(Float64))
 
+    # fill scale
     for k in 1:length(fv.b)
         @inbounds @simd for i in 1:length(fg.fp.y)
             fg.scaleb[k] += abs2(fg.fp.X[i, k])
@@ -212,15 +222,6 @@ function g!(fv::FactorVector, fg::FactorGradient)
         end
     end
 end
-
-function sumabs2!(fv::FactorVector, fg::FactorGradient) 
-    copy!(fv.b, fg.scaleb)
-    copy!(fv.idpool, fg.scaleid)
-    copy!(fv.timepool, fg.scaletime)
-end
-
-
-
 
 
 

@@ -168,15 +168,11 @@ end
 
 ```
 method : ar
-  0.994516 seconds (386.63 k allocations: 124.067 MB, 1.92% gc time)
-result.ess = 543565.5890951306
+ 22.953487 seconds (13.33 k allocations: 755.468 MB, 0.47% gc time)
+result.ess = 554512.0500473888
 result.converged = true
-method : svd
- 22.306019 seconds (395.48 k allocations: 1.835 GB, 1.04% gc time)
-result.ess = 542208.1913287133
-result.converged = true
-method : gd
-  1.782945 seconds (2.63 M allocations: 158.451 MB, 1.31% gc time)
-result.ess = 543565.5890951335
+method : lm
+ 24.461941 seconds (5.03 k allocations: 115.327 MB, 0.29% gc time)
+result.ess = 542208.1913295744
 result.converged = true
 ```
