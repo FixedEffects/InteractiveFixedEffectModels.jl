@@ -1,5 +1,3 @@
-VERSION >= v"0.4.0-dev+6521" &&  __precompile__(true)
-
 module SparseFactorModels
 
 ##############################################################################
@@ -13,6 +11,7 @@ using Reexport
 import FixedEffectModels: title, top
 using Compat
 using Optim
+import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, sumabs2, maxabs, fill!, norm
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
@@ -35,12 +34,12 @@ SparseFactorResult
 
 include("utils/models.jl")
 include("utils/chebyshev.jl")
+include("utils/cgls.jl")
 
 include("types.jl")
 
 include("algorithms/ar.jl")
-include("algorithms/svd.jl")
-include("algorithms/optim.jl")
+include("algorithms/lm.jl")
 
 include("fit.jl")
 

@@ -9,10 +9,10 @@ function fit(m::SparseFactorModel,
              f::Formula, 
              df::AbstractDataFrame, 
              vcov_method::AbstractVcovMethod = VcovSimple(); 
-             method::Symbol = :ar, 
+             method::Union(Symbol, Void) = nothing, 
              lambda::Real = 0.0, 
              subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
-             weight::Union(Symbol, Nothing) = nothing, 
+             weight::Union(Symbol, Void) = nothing, 
              maxiter::Integer = 100000, 
              tol::Real = 1e-15, 
              save = false)
@@ -129,11 +129,17 @@ function fit(m::SparseFactorModel,
   
 
     if !has_regressors 
+        if method == nothing
+            method = :ar
+        end
         # factor model
         (iterations, converged) = 
             fit!(Val{method}, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
         coef = [0.0]
     else 
+        if method == nothing
+            method = :lm
+        end
         # interactive fixed effect
         # initial b
         crossx = cholfact!(At_mul_B(X, X))

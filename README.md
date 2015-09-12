@@ -80,12 +80,12 @@ fit(pfm::SparseFactorModel,
 #### method
 Three methods are available
 
-- `:ar` (default) This method fits a factor model by alternating regressions on loadings interacted with time dummy and factors interacted by id dummy. It is the fastest method.
-- `:gd`. This method fits a factor model by gradient descent.
-- `:svd`. This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT.
+- `:ar` This method corresponds to coordinate gradient descent 
+- `:lm` This method corresponds to the dogleg method
 
 
-You may find some speed comparisons [here](benchmark/benchmark.md)
+Note that I don't use the svd method described in Bai (2009) This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT. It is slower than either method.
+
 
 
 

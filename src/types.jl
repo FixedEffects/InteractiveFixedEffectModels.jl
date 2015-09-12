@@ -77,13 +77,11 @@ type PooledFactor{R}
     pool::Matrix{Float64}
     old1pool::Matrix{Float64}
     old2pool::Matrix{Float64}
-    x::Vector{Float64}
-    x_ls::Vector{Float64}
 end
 
 function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
     ans = fill(zero(Float64), l)
-    PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l), fill(0.1, l))
+    PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank))
 end
 
 

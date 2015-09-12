@@ -40,7 +40,7 @@ sparsedf = df[subset, :]
 
 ### N x T
 ```julia
-for method in [:ar, :svd, :gd]
+for method in [:ar, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, df, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -58,15 +58,11 @@ method : svd
 elapsed time: 0.485647961 seconds (200014520 bytes allocated, 21.41% gc time)
 result.ess => 1.404830097924866e8
 result.converged => Bool[true]
-method : gd
-  3.408362 seconds (1.41 M allocations: 167.936 MB, 2.27% gc time)
-result.ess = 1.404830097924866e8
-result.converged = Bool[true]
 ```
 
 ### N x T x 4/5
 ```julia
-for method in [:ar, :svd, :lm]
+for method in [:ar, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, unbalanceddf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -84,16 +80,12 @@ method : svd
   1.852528 seconds (1.32 k allocations: 221.154 MB, 4.46% gc time)
 result.ess = 1.1234472891128775e8
 result.converged = Bool[true]
-method : gd
-  1.793133 seconds (995.87 k allocations: 132.403 MB, 3.76% gc time)
-result.ess = 1.1234472891128767e8
-result.converged = Bool[true]
 ```
 
 
 ### N x T x 1/5
 ```julia
-for method in [:ar, :svd, :gd]
+for method in [:ar, :svd]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, sparsedf, method = method, maxiter = 100_000, save = false)
 	@show result.ess
@@ -111,10 +103,6 @@ method : svd
   9.717171 seconds (5.14 k allocations: 365.202 MB, 0.95% gc time)
 result.ess = 2.8100350063355103e7
 result.converged = Bool[true]
-method : gd
-  0.608217 seconds (1.32 M allocations: 49.866 MB, 0.61% gc time)
-result.ess = 2.8100350063354842e7
-result.converged = Bool[true]
 ```
 
 
@@ -124,7 +112,7 @@ result.converged = Bool[true]
 ### N x T
 
 ```julia
-for method in [:ar, :svd, :gd]
+for method in [:ar, :svd, :lm]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 10000, save = false)
 	@show result.ess
@@ -142,7 +130,7 @@ method : svd
 result.ess = 2.4806926953436537e6
 result.converged = true
 method : gd
- 27.051480 seconds (10.56 M allocations: 749.053 MB, 1.48% gc time)
+22.158362 seconds (337.93 k allocations: 588.696 MB, 0.88% gc time)
 result.ess = 2.480692695343663e6
 result.converged = true
 ```
@@ -151,7 +139,7 @@ result.converged = true
 
 
 ```julia
-for method in [:ar]
+for method in [:ar, :svd, :lm]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, unbalanceddf, method = method, maxiter = 10_000, save = false)
 	@show result.ess
@@ -178,7 +166,7 @@ result.converged = true
 
 
 ```julia
-for method in [:ar, :svd, :gd]
+for method in [:ar, :svd, :lm]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, sparsedf, method = method, maxiter = 10_000, save = false)
 	@show result.ess

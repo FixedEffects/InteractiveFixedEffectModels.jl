@@ -6,23 +6,24 @@
 function update!{R1, R2}(::Type{Val{:ar}},
                          y::Vector{Float64},
                          sqrtw::AbstractVector{Float64},
-                         p1::PooledFactor{R1},
-                         p2::PooledFactor{R2},
-                         r::Integer)
-    fill!(p1.x, zero(Float64))
-    fill!(p1.x_ls, zero(Float64))
-     @inbounds @simd for i in 1:length(p1.refs)
-         p1i = p1.refs[i]
+                         p1::AbstractVector{Float64},
+                         p1scale::Vector{Float64},
+                         p1refs::Vector{R1},
+                         p2::AbstractVector{Float64},
+                         p2refs::Vector{R2}
+                         )
+    fill!(p1, zero(Float64))
+    fill!(p1scale, zero(Float64))
+     @inbounds @simd for i in 1:length(p1refs)
+         p1i = p1refs[i]
          yi = y[i]
-         xi = sqrtw[i] * p2.pool[p2.refs[i], r] 
-         p1.x[p1i] += xi * yi
-         p1.x_ls[p1i] += abs2(xi)
+         xi = sqrtw[i] * p2[p2refs[i]] 
+         p1[p1i] += xi * yi
+         p1scale[p1i] += abs2(xi)
     end
-     @inbounds @simd for i in 1:size(p1.pool, 1)
-        if p1.x_ls[i] > zero(Float64)
-            p1.pool[i, r] = p1.x[i] / p1.x_ls[i]
-        end
-    end
+     @inbounds @simd for i in 1:size(p1, 1)
+        p1[i] /= p1scale[i]
+      end
 end
 
 ##############################################################################
@@ -49,13 +50,16 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
     history = Float64[]
     iter = 0
     res = deepcopy(y)
+    p1scale = Array(Float64, size(idf.pool, 1))
+    p2scale = Array(Float64, size(timef.pool, 1))
+
     for r in 1:rank
         oldf_x = ssr(idf, timef, res, sqrtw, r)
         iter = 0
         while iter < maxiter
             iter += 1
-            update!(Val{:ar}, res, sqrtw, idf, timef, r)
-            update!(Val{:ar}, res, sqrtw, timef, idf, r)
+            update!(Val{:ar}, res, sqrtw, slice(idf.pool, :, r), p1scale, idf.refs, slice(timef.pool, :, r), timef.refs)
+            update!(Val{:ar}, res, sqrtw, slice(timef.pool, :, r), p2scale, timef.refs, slice(idf.pool, :, r), idf.refs)
             f_x = ssr(idf, timef, res, sqrtw, r)
             push!(history, f_x)
             if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
@@ -75,7 +79,7 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
 
-    return (iterations, converged)
+    return iterations, converged
 end
 
 ##############################################################################
@@ -104,6 +108,9 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
     res = deepcopy(y)
     new_b = deepcopy(b)
 
+    p1scale = Array(Float64, size(idf.pool, 1))
+    p2scale = Array(Float64, size(timef.pool, 1))
+    
     # starts loop
     converged = false
     iterations = maxiter
@@ -125,14 +132,15 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
         copy!(res, y)
         subtract_b!(res, b, X)
         for r in 1:rank
-            update!(Val{:ar}, res, sqrtw, timef, idf, r)
-            update!(Val{:ar}, res, sqrtw, idf, timef, r)
+          update!(Val{:ar}, res, sqrtw, slice(idf.pool, :, r), p1scale, idf.refs, slice(timef.pool, :, r), timef.refs)
+          update!(Val{:ar}, res, sqrtw, slice(timef.pool, :, r), p2scale, timef.refs, slice(idf.pool, :, r), idf.refs)
             subtract_factor!(res, sqrtw, idf, timef, r)
         end
 
         # Given factor model, compute beta
         copy!(res, y)
         subtract_factor!(res, sqrtw, idf, timef)
+        ## note acceleration
         b = -0.5 * b .+ 1.5 .* M * res
 
         # Check convergence
@@ -148,5 +156,5 @@ function fit!{Rid, Rtime}(::Type{Val{:ar}},
     rescale!(idf.old1pool, timef.old1pool, idf.pool, timef.pool)
     (idf.old1pool, idf.pool) = (idf.pool, idf.old1pool)
     (timef.old1pool, timef.pool) = (timef.pool, timef.old1pool)
-    return (b, [iterations], [converged])
+    return b, [iterations], [converged]
 end
