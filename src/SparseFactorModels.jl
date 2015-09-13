@@ -31,12 +31,12 @@ SparseFactorResult
 ## Load files
 ##
 ##############################################################################
+include("types.jl")
 
 include("utils/models.jl")
 include("utils/chebyshev.jl")
 include("utils/cgls.jl")
-
-include("types.jl")
+include("utils/factors.jl")
 
 include("algorithms/ar.jl")
 include("algorithms/lm.jl")
