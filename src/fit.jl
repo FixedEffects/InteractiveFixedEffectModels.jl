@@ -124,32 +124,35 @@ function fit(m::SparseFactorModel,
     ##############################################################################
 
     # initialize factor models at 0.1
-    idf = PooledFactor(id.refs, length(id.pool), m.rank)
-    timef = PooledFactor(time.refs, length(time.pool), m.rank)
+    idpool = fill(0.1, length(id.pool), m.rank)
+    timepool = fill(0.1, length(time.pool), m.rank)
   
 
-    if !has_regressors 
+    if !has_regressors
+        fp = FactorProblem(y, sqrtw, id.refs, time.refs, m.rank)
+        fs = FactorSolution(idpool, timepool)
+        # factor model 
         if method == nothing
-            method = :ar
-        end
-        # factor model
-        (iterations, converged) = 
-            fit!(Val{method}, y, idf, timef, sqrtw, maxiter = maxiter, tol = tol, lambda = lambda)
-        coef = [0.0]
+             method = :ar
+         end
+        (fs, iterations, converged) = 
+            fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
     else 
-        if method == nothing
-            method = :lm
-        end
         # interactive fixed effect
+        if method == nothing
+             method = :lm
+         end
         # initial b
-        crossx = cholfact!(At_mul_B(X, X))
-        coef =  crossx \ At_mul_B(X, y)
+        coef =  cholfact!(At_mul_B(X, X)) \ At_mul_B(X, y)
+        fp = FactorProblem(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
+        fs = FactorSolution(idpool, timepool)
         # initial loadings
-        fit!(Val{:ar}, y - X * coef, idf, timef, sqrtw, maxiter = 100, tol = 1e-3)
+        fit!(Val{:ar}, fp, fs; maxiter = 100, tol = 1e-3)
         # estimate the model
-        M = crossx \ X'
-        (coef, iterations, converged) = 
-         fit!(Val{method}, X, M, coef, y, idf, timef, sqrtw; maxiter = maxiter, tol = tol, lambda = lambda) 
+        fp = FactorProblem(y, sqrtw, X, id.refs, time.refs, m.rank)
+        fs = FactorSolution(coef, fs.idpool, fs.timepool)
+        (fs, iterations, converged) = 
+            fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda) 
     end
 
     ##############################################################################
@@ -161,49 +164,10 @@ function fit(m::SparseFactorModel,
     # compute residuals
     residuals = deepcopy(y)
     if has_regressors
-        subtract_b!(residuals, coef, X)
+        BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, residuals)
     end
-    for r in 1:m.rank
-        subtract_factor!(residuals, sqrtw, idf, timef, r)
-    end
+    subtract_factor!(residuals, sqrtw, id.refs, time.refs, fs.idpool, fs.timepool)
     broadcast!(/, residuals, residuals, sqrtw)
-
-    ##############################################################################
-    ##
-    ## Save factors and loadings in a dataframe
-    ##
-    ##############################################################################
-
-    if !save 
-        augmentdf = DataFrame()
-    else
-        augmentdf = DataFrame(idf, timef, esample)
-
-        # save residuals in a dataframe
-        if all(esample)
-            augmentdf[:residuals] = residuals
-        else
-            augmentdf[:residuals] =  DataArray(Float64, size(augmentdf, 1))
-            augmentdf[esample, :residuals] = residuals
-        end
-
-        # save fixed effects in a dataframe
-        if has_absorb
-            # residual before demeaning
-            mf = simpleModelFrame(subdf, rt, esample)
-            oldresiduals = model_response(mf)[:]
-            if has_regressors
-                oldX = ModelMatrix(mf).m
-                subtract_b!(oldresiduals, coef, oldX)
-            end
-            for r in 1:m.rank
-                subtract_factor!(oldresiduals, fill(one(Float64), length(residuals)), idf, timef, r)
-            end
-            b = oldresiduals - residuals
-            # get fixed effect
-            augmentdf = hcat(augmentdf, getfe!(pfe, b, esample))
-        end
-    end
 
     ##############################################################################
     ##
@@ -213,11 +177,10 @@ function fit(m::SparseFactorModel,
    
     if !has_regressors
         ess = sumabs2(residuals)
-        return SparseFactorResult(esample, augmentdf, ess, iterations, converged)
     else
         # compute errors for beta coefficients 
         ## partial out Y on X over dummy_time x loadio
-        newfes = getfactors(y, idf, timef, sqrtw)
+        newfes = getfactors(fp, fs)
         newpfe = FixedEffectProblem(newfes)
         ym = deepcopy(y)
         Xm = deepcopy(X)
@@ -226,9 +189,8 @@ function fit(m::SparseFactorModel,
         residualize!(ym, newpfe, iterationsv, convergedv)
         residualize!(Xm, newpfe, iterationsv, convergedv)
 
-        residualsm = ym - Xm * coef
+        residualsm = ym - Xm * fs.b
         crossxm = cholfact!(At_mul_B(Xm, Xm))
-
         ## compute the right degree of freedom
         df_absorb_fe = 0
         if has_absorb 
@@ -269,8 +231,51 @@ function fit(m::SparseFactorModel,
         tss = compute_tss(oldy, rt.intercept || has_absorb, sqrtw)
         r2 = 1 - ess / tss 
         r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
+    end
 
-        RegressionFactorResult(coef, matrix_vcov, esample, augmentdf, coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, ess, sum(iterations), all(converged))
+
+
+    ##############################################################################
+    ##
+    ## Save factors and loadings in a dataframe
+    ##
+    ##############################################################################
+
+    if !save 
+        augmentdf = DataFrame()
+    else
+        augmentdf = DataFrame(id.refs, time.refs, fs.idpool, fs.timepool, esample)
+        # save residuals in a dataframe
+        if all(esample)
+            augmentdf[:residuals] = residuals
+        else
+            augmentdf[:residuals] =  DataArray(Float64, size(augmentdf, 1))
+            augmentdf[esample, :residuals] = residuals
+        end
+
+        # save fixed effects in a dataframe
+        if has_absorb
+            # residual before demeaning
+            mf = simpleModelFrame(subdf, rt, esample)
+            oldresiduals = model_response(mf)[:]
+            if has_regressors
+                oldX = ModelMatrix(mf).m
+                BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
+            end
+            subtract_factor!(oldresiduals, sqrtw, id.refs, time.refs, fs.idpool, fs.timepool)
+            b = oldresiduals - residuals
+            # get fixed effect
+            augmentdf = hcat(augmentdf, getfe!(pfe, b, esample))
+        end
+    end
+
+
+    if !has_regressors
+        return SparseFactorResult(esample, augmentdf, ess, iterations, converged)
+    else
+        return RegressionFactorResult(fs.b, matrix_vcov, esample, augmentdf, 
+            coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, 
+            ess, sum(iterations), all(converged))
     end
 end
 

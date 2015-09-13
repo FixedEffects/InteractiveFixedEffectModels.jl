@@ -13,6 +13,33 @@ end
 
 ##############################################################################
 ##
+## Internally
+##
+##############################################################################
+
+type FactorProblem{W, TX, Rid, Rtime}
+    y::Vector{Float64}
+    sqrtw::W
+    X::TX
+    idrefs::Vector{Rid}
+    timerefs::Vector{Rtime}
+    rank::Int
+end
+function FactorProblem(y::Vector{Float64}, sqrtw, idrefs::Vector, timerefs::Vector, rank::Int)
+    FactorProblem(y, sqrtw, nothing, idrefs, timerefs, rank)
+end
+
+type FactorSolution{Tb} <: AbstractVector{Float64}
+    b::Tb
+    idpool::Matrix{Float64}
+    timepool::Matrix{Float64}
+end
+FactorSolution(idpool, timepool) = FactorSolution(nothing, idpool, timepool)
+
+
+
+##############################################################################
+##
 ## Result type
 ##
 ##############################################################################
@@ -65,25 +92,6 @@ top(x::RegressionFactorResult) = [
             ]
 
 
-##############################################################################
-##
-## Internal type
-##
-##############################################################################
-
-# type used internally to store idrefs, timerefs, factors, loadings
-type PooledFactor{R}
-    refs::Vector{R}
-    pool::Matrix{Float64}
-    old1pool::Matrix{Float64}
-    old2pool::Matrix{Float64}
-end
-
-function PooledFactor{R}(refs::Vector{R}, l::Integer, rank::Integer)
-    ans = fill(zero(Float64), l)
-    PooledFactor(refs, fill(0.1, l, rank), fill(0.1, l, rank), fill(0.1, l, rank))
-end
-
 
 ##############################################################################
 ##
@@ -91,19 +99,15 @@ end
 ##
 ##############################################################################
 
-function subtract_b!(y::Vector{Float64}, b::Vector{Float64}, X::Matrix{Float64})
-    BLAS.gemm!('N', 'N', -1.0, X, b, 1.0, y)
-end
-
-function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2})
-    for r in 1:size(id.pool, 2)
-        subtract_factor!(y, sqrtw, id, time, r)
+function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, idrefs::Vector{R1}, timerefs::Vector{R2}, idpool::Matrix{Float64}, timepool::Matrix{Float64})
+    for r in 1:size(idpool, 2)
+        subtract_factor!(y, sqrtw, idrefs, timerefs, slice(idpool, :, r), slice(timepool, :, r))
     end
 end
 
-function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
+function subtract_factor!{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, idrefs::Vector{R1}, timerefs::Vector{R2}, idpool::AbstractVector{Float64}, timepool::AbstractVector{Float64})
     @inbounds @simd for i in 1:length(y)
-        y[i] -= sqrtw[i] * id.pool[id.refs[i], r] * time.pool[time.refs[i], r]
+        y[i] -= sqrtw[i] * idpool[idrefs[i]] * timepool[timerefs[i]]
     end
 end
 
@@ -114,13 +118,13 @@ end
 ##
 ##############################################################################
 
-function ssr{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, y::Vector{Float64}, sqrtw::AbstractVector{Float64}, r::Integer, lambda::Real = 0.0)
+function ssr{R1, R2}(y::Vector{Float64}, sqrtw::AbstractVector{Float64}, idrefs::Vector{R1}, timerefs::Vector{R2}, idpool::AbstractVector{Float64}, timepool::AbstractVector{Float64})
     out = zero(Float64)
     @inbounds @simd for i in 1:length(y)
-        idi = id.refs[i]
-        timei = time.refs[i]
-        loading = id.pool[idi, r]
-        factor = time.pool[timei, r]
+        idi = idrefs[i]
+        timei = timerefs[i]
+        loading = idpool[idi]
+        factor = timepool[timei]
         sqrtwi = sqrtw[i]
         out += abs2(y[i] - sqrtwi * loading * factor)
     end 
@@ -144,18 +148,14 @@ function reverse{R}(m::Matrix{R})
     return out
 end
 
-function rescale!{R1, R2}(id::PooledFactor{R1}, time::PooledFactor{R2}, r::Integer)
-    out = zero(Float64)
-    @inbounds @simd for i in 1:size(time.pool, 1)
-        out += abs2(time.pool[i, r])
-    end
-    out = sqrt(out)
-    @inbounds @simd for i in 1:size(id.pool, 1)
-        id.pool[i, r] *= out
+function rescale!(idpool::AbstractVector{Float64}, timepool::AbstractVector{Float64})
+    out = norm(timepool)
+    @inbounds @simd for i in 1:length(idpool)
+        idpool[i] *= out
     end
     invout = 1 / out
-    @inbounds @simd for i in 1:size(time.pool, 1)
-        time.pool[i, r] *= invout
+    @inbounds @simd for i in 1:length(timepool)
+        timepool[i] *= invout
     end
 end
 
@@ -184,23 +184,23 @@ end
 ##
 ##############################################################################
 
-function DataFrame(id::PooledFactor, time::PooledFactor, esample::BitVector)
+function DataFrame{R1, R2}(idrefs::Vector{R1}, timerefs::Vector{R2}, idpool::Matrix{Float64}, timepool::Matrix{Float64}, esample::BitVector)
     df = DataFrame()
     anyNA = all(esample)
-    for r in 1:size(id.pool, 2)
+    for r in 1:size(idpool, 2)
         # loadings
-        df[convert(Symbol, "loadings$r")] = build_column(id.refs, id.pool, r, esample)
-        df[convert(Symbol, "factors$r")] = build_column(time.refs, time.pool, r, esample)
+        df[convert(Symbol, "loadings$r")] = build_column(idrefs, idpool[:, r], esample)
+        df[convert(Symbol, "factors$r")] = build_column(timerefs, timepool[:, r], esample)
     end
     return df
 end
 
 
-function build_column{R}(refs::Vector{R}, loadings::Matrix{Float64}, r::Int, esample::BitVector)
+function build_column{R}(refs::Vector{R}, loadings::Vector{Float64}, esample::BitVector)
     T = eltype(refs)
     newrefs = fill(zero(T), length(esample))
     newrefs[esample] = refs
-    return PooledDataArray(RefArray(newrefs), loadings[:, r])
+    return PooledDataArray(RefArray(newrefs), loadings)
 end
 
 
@@ -210,23 +210,21 @@ end
 ##
 ##############################################################################
 
-function getfactors{Rid, Rtime}(y::Vector{Float64},
-                            id::PooledFactor{Rid},
-                            time::PooledFactor{Rtime},
-                            sqrtw::AbstractVector{Float64})
+function getfactors(fp::FactorProblem,fs::FactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
-    ans = Array(Float64, length(y))
-    for j in 1:size(id.pool, 2)
-        for i in 1:length(y)
-            ans[i] = time.pool[time.refs[i], j]
+    for r in 1:fp.rank
+        ans = Array(Float64, length(fp.y))
+        for i in 1:length(fp.y)
+            ans[i] = fs.timepool[fp.timerefs[i], r]
         end
-        currentid = FixedEffect(id.refs, size(id.pool, 1), sqrtw, ans[:], :id, :time, :(idxtime))
+        currentid = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, ans, :id, :time, :(idxtime))
         push!(newfes, currentid)
-        for i in 1:length(y)
-            ans[i] = id.pool[id.refs[i], j]
+        ans = Array(Float64, length(fp.y))
+        for i in 1:length(fp.y)
+            ans[i] = fs.idpool[fp.idrefs[i], r]
         end
-        currenttime = FixedEffect(time.refs, size(time.pool, 1), sqrtw, ans[:], :time, :id, :(timexid))
+        currenttime = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, ans, :time, :id, :(timexid))
         push!(newfes, currenttime)
     end
     # obtain the residuals and cross 

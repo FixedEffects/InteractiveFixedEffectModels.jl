@@ -1,29 +1,35 @@
 ##############################################################################
 ##
 ## dogleg method
+## Is Levenberg-Marquardt the Most Efficient Optimization Algorithm for Implementing Bundle Adjustment? ## Manolis I.A. Lourakis and Antonis A. Argyros
+##
+## x is any type that implements: norm, sumabs2, maxabs, dot, similar, fill!, copy!, axpy!, broadcast!
+## fcur is any type that implements: sumabs2, scale!, similar
+## f!(x, out) returns vector f_i(x) in in out
+## g!(x, out) returns jacobian in out
 ##
 ##############################################################################
 
-function dogleg!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, lambda=0.0)
-    Δ = norm(x)
-    g = similar(x)
+function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
+
+    # temporary array
     δgn = similar(x) # gauss newton step
     δsd = similar(x) # steepest descent
     δdiff = similar(x) # δgn - δsd
     δx = similar(x)
     ftrial = similar(fcur)
     ftmp = similar(fcur)
-    q = similar(fcur)
 
-    # for cgls
+    # temporary arrays used in cgls
     s = similar(x)
     p = similar(x)
-    q = similar(fcur)
-    z = similar(s)
+    z = similar(x)
     ptmp = similar(x)
-    ptmp2 = similar(x)
     normalization = similar(x)
-
+    q = similar(fcur)
+   
+    # initialize
+    Δ = norm(x)
     f!(x, fcur)
     g!(x, fg)
     scale!(fcur, -1.0)
@@ -33,20 +39,20 @@ function dogleg!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, lambda=0.0)
     while iter < maxiter 
         iter += 1
         g!(x, fg)
-        Ac_mul_B!(g, fg, fcur)
-        if maxabs(g) <= tol
+        Ac_mul_B!(δsd, fg, fcur)
+        if maxabs(δsd) <= tol
             return iter, true
         end
-        A_mul_B!(ftmp, fg, g)
-        scale!(δsd, g, sumabs2(g)/sumabs2(ftmp))
+        A_mul_B!(ftmp, fg, δsd)
+        scale!(δsd, sumabs2(δsd)/sumabs2(ftmp))
         gncomputed = false
         ρ = -1.0
         while ρ < 0
             # compute δx
             if norm(δsd) >= Δ
                 # Cauchy point is out of the region
-                # take largest Cauchy step withub the trust region boundary
-                scale!(δx, δsd, Δ/norm(δsd))
+                # take largest Cauchy step within the trust region boundary
+                scale!(δx, δsd, Δ / norm(δsd))
             else
                 if (!gncomputed)
                     fill!(δgn, zero(Float64))
@@ -87,7 +93,7 @@ function dogleg!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, lambda=0.0)
                     g!(x, fg)
                     residual = trial_residual
                 else
-                    # unsucessful. revert.
+                    # unsucessful iteration
                     axpy!(-1.0, δx, x)
                 end
                 if ρ < 0.25
@@ -125,14 +131,14 @@ end
 
 # r should equal b - Ax0 where x0 is an initial guess for x. It is NOT modified in place
 # x, s, p, q are used for storage. s, p should have dimension size(A, 2). q should have simension size(A, 1). 
+# Conjugate gradient least square with jacobi normalization
 
-# TODO. Follow LMQR for (i) better stopping rule (ii) better projection on zero in case x non identified
 function cgls!(x::Union(AbstractVector{Float64}, Nothing), 
                r::AbstractVector{Float64}, A::AbstractMatrix{Float64}, 
                normalization::AbstractVector{Float64}, s::AbstractVector{Float64}, 
                z::AbstractVector{Float64}, p::AbstractVector{Float64}, 
                q::AbstractVector{Float64}, ptmp; 
-               tol::Real=1e-5, maxiter::Int=10)
+               tol::Real=1e-5, maxiter::Int=100)
 
     # Initialization.
     converged = false
