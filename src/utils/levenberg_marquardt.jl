@@ -8,7 +8,6 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
     const MAX_λ = 1e16 # minimum trust region radius
     const MIN_λ = 1e-16 # maximum trust region radius
     const MIN_STEP_QUALITY = 1e-3
-    const MIN_DIAGONAL = 1e-6 # lower bound on values of diagonal matrix used to regularize the trust region step
 
     converged = false
     iterations = maxiter
@@ -16,7 +15,6 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
 
     δx = similar(x)
     dtd = similar(x)
-    rhs = similar(x)
     dtd = similar(x)
     ftrial = similar(fcur)
     ftmp = similar(fcur)
@@ -26,14 +24,14 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
     p = similar(x)
     z = similar(x)
     ptmp = similar(x)
-    ptmp2 = similar(ptmp)
+    ptmp2 = similar(x)
     normalization = similar(x)
     q = similar(fcur)
 
+    # initialize
     f!(x, fcur)
     scale!(fcur, -1.0)
     residual = sumabs2(fcur)
-
     iter = 0
     while iter < maxiter 
         iter += 1
@@ -44,7 +42,7 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
         sumabs2!(dtd, fg)
         scale!(dtd, λ^2)
         fill!(δx, zero(Float64))
-        cglsiter, conv = cgls!(δx, fcur, fg, dtd, normalization, s, z, p, q, ptmp, ptmp2; maxiter = 10)
+        cglsiter, conv = cgls!(δx, fcur, fg, dtd, normalization, s, z, p, q, ptmp, ptmp2; maxiter = 5)
         iter += cglsiter
         out = predicted_value!(ftmp, fcur, fg, δx)
         # try to update

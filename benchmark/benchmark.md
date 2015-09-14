@@ -122,12 +122,12 @@ end
 
 ```
 method : ar
- 13.409037 seconds (8.63 k allocations: 2.454 GB, 3.79% gc time)
-result.ess = 2.4806926953436616e6
+ 10.577261 seconds (4.33 k allocations: 472.248 MB, 1.46% gc time)
+result.ess = 2.4806926953436593e6
 result.converged = true
 method : lm
- 20.038076 seconds (3.54 k allocations: 549.281 MB, 1.02% gc time)
-result.ess = 2.480692695344588e6
+ 17.640411 seconds (4.08 k allocations: 492.120 MB, 1.56% gc time)
+result.ess = 2.4806926953443335e6
 result.converged = true
 ```
 
@@ -168,11 +168,11 @@ end
 
 ```
 method : ar
-  4.096860 seconds (564.47 k allocations: 120.336 MB, 1.56% gc time)
+  3.476221 seconds (6.27 k allocations: 95.358 MB)
 result.ess = 554512.0500474076
 result.converged = true
 method : lm
- 13.137710 seconds (309.68 k allocations: 114.640 MB, 0.53% gc time)
+  4.513196 seconds (4.79 k allocations: 99.933 MB, 2.11% gc time)
 result.ess = 542208.1913295444
 result.converged = true
 ```
