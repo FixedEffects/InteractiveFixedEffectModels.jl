@@ -80,11 +80,11 @@ fit(pfm::SparseFactorModel,
 #### method
 Three methods are available
 
-- `:ar` This method corresponds to coordinate gradient descent 
-- `:lm` This method corresponds to the dogleg method
+- `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
+- `:lm` This method corresponds to the dogleg method (= method to solve non linear least square problems, adapted for sparce matrices).
 
 
-Note that I don't use the svd method described in Bai (2009) This method fits a factor model by SVD on the matrix N x T, after imputing missing values using predictions from the factor model fitted in the previous iteration. The `:svd` method requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT. It is slower than either method.
+Note that I don't use the svd method described in Bai (2009) since it requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT.
 
 
 
