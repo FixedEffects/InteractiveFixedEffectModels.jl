@@ -11,6 +11,9 @@
 ##############################################################################
 
 function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
+    const MAX_Δ = 1e16 # minimum trust region radius
+    const MIN_Δ = 1e-16 # maximum trust region radius
+    const MIN_STEP_QUALITY = 1e-3
 
     # temporary array
     δgn = similar(x) # gauss newton step
@@ -47,7 +50,7 @@ function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
         scale!(δsd, sumabs2(δsd)/sumabs2(ftmp))
         gncomputed = false
         ρ = -1.0
-        while ρ < 0
+        while ρ <= MIN_STEP_QUALITY
             # compute δx
             if norm(δsd) >= Δ
                 # Cauchy point is out of the region
@@ -97,9 +100,9 @@ function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
                     axpy!(-1.0, δx, x)
                 end
                 if ρ < 0.25
-                   Δ = Δ / 2
+                   Δ = max(MIN_Δ, Δ / 2)
                 elseif ρ > 0.75
-                   Δ = 2 * Δ
+                   Δ = min(MAX_Δ, 2 * Δ)
                end
                 if Δ <= tol * norm(x)
                     return iter, true
