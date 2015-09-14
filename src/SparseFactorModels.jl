@@ -36,10 +36,12 @@ include("types.jl")
 include("utils/models.jl")
 include("utils/chebyshev.jl")
 include("utils/dogleg.jl")
+include("utils/lm.jl")
 include("utils/factors.jl")
 
+
 include("algorithms/ar.jl")
-include("algorithms/lm.jl")
+include("algorithms/ls.jl")
 
 include("fit.jl")
 

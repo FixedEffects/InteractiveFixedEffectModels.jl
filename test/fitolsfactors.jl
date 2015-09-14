@@ -6,15 +6,15 @@ df[:pYear] = pool(df[:Year])
 precision = 2e-1
 
 
-for method in [:ar, :lm]
+for method in [:ar, :dl, :lm]
 	println(method)
-	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 10_000, save = true)
+	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, save = true)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.228 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 851.514 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -9.7870 - 1) < precision
 
-	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method =  method, maxiter = 10_000, save = true)
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method =  method, save = true)
 	@test norm(result.coef ./ [163.01350, -0.40610] - 1) < precision
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.227 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 184.1897 - 1) < precision
@@ -49,6 +49,6 @@ for method in [:ar, :lm]
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
 
 	# show method
-	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method, maxiter = 1000)
+	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method)
 	show(result)
 end

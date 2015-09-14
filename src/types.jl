@@ -29,7 +29,7 @@ function FactorProblem(y::Vector{Float64}, sqrtw, idrefs::Vector, timerefs::Vect
     FactorProblem(y, sqrtw, nothing, idrefs, timerefs, rank)
 end
 
-type FactorSolution{Tb} <: AbstractVector{Float64}
+type FactorSolution{Tb}
     b::Tb
     idpool::Matrix{Float64}
     timepool::Matrix{Float64}

@@ -10,10 +10,9 @@
 ##
 ##############################################################################
 
-function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
+function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol = 1e-8, maxiter = 100)
     const MAX_Δ = 1e16 # minimum trust region radius
     const MIN_Δ = 1e-16 # maximum trust region radius
-    const MIN_STEP_QUALITY = 1e-3
 
     # temporary array
     δgn = similar(x) # gauss newton step
@@ -50,7 +49,7 @@ function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
         scale!(δsd, sumabs2(δsd)/sumabs2(ftmp))
         gncomputed = false
         ρ = -1.0
-        while ρ <= MIN_STEP_QUALITY
+        while ρ <= 0.
             # compute δx
             if norm(δsd) >= Δ
                 # Cauchy point is out of the region
@@ -59,7 +58,8 @@ function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol =1e-8, maxiter=20)
             else
                 if (!gncomputed)
                     fill!(δgn, zero(Float64))
-                    cgls!(δgn, fcur, fg, normalization, s, z, p, q, ptmp)
+                    cgls_iter, converged = cgls!(δgn, fcur, fg, normalization, s, z, p, q, ptmp; tol = tol, maxiter = 50)
+                    iter += cgls_iter
                     # δdiff = δgn - δsd
                     copy!(δdiff, δgn)
                     axpy!(-1.0, δsd,  δdiff)
@@ -136,22 +136,19 @@ end
 # x, s, p, q are used for storage. s, p should have dimension size(A, 2). q should have simension size(A, 1). 
 # Conjugate gradient least square with jacobi normalization
 
-function cgls!(x::Union(AbstractVector{Float64}, Nothing), 
-               r::AbstractVector{Float64}, A::AbstractMatrix{Float64}, 
-               normalization::AbstractVector{Float64}, s::AbstractVector{Float64}, 
-               z::AbstractVector{Float64}, p::AbstractVector{Float64}, 
-               q::AbstractVector{Float64}, ptmp; 
+function cgls!(x, r, A, normalization, s, z, p, q, ptmp; 
                tol::Real=1e-5, maxiter::Int=100)
 
     # Initialization.
-    converged = false
     iterations = maxiter 
+    converged = false
 
     Ac_mul_B!(s, A, r)
     sumabs2!(normalization, A)
     broadcast!(/, z, s, normalization)
     copy!(p, z)
     normS0 = dot(s, z)
+    norms = norm(s)
     normSold = normS0  
 
     iter = 0
@@ -165,7 +162,7 @@ function cgls!(x::Union(AbstractVector{Float64}, Nothing),
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         normS = dot(s, z)
-        if α * maxabs(q) <= tol 
+        if (α * norm(ptmp) <= tol * norms) || normS <= tol * normS0
             iterations = iter
             converged = true
             break

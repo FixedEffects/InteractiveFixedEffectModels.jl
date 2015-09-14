@@ -81,7 +81,7 @@ fit(pfm::SparseFactorModel,
 Three methods are available
 
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:lm` This method corresponds to the dogleg method (= method to solve non linear least square problems, adapted for sparce matrices).
+- `:lm` This method corresponds to Levenberg Marquardt Method adapted for sparse matrices (see "An Inexact Levenberg-Marquardt method for Large Sparse Nonlinear Least Squares" by Wright and Hold)
 
 
 Note that I don't use the svd method described in Bai (2009) since it requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT.
