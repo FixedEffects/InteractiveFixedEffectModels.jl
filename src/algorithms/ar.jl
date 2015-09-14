@@ -1,3 +1,5 @@
+# Solution method : Gauss Seidel 
+
 ##############################################################################
 ##
 ## update! by alternative regressions

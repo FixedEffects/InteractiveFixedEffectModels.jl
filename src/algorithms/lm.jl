@@ -1,4 +1,4 @@
-
+# Solution method: sparse dogleg / levenbeg marquard
 ##############################################################################
 ##
 ## Estimate interactive factor model by incremental optimization routine
