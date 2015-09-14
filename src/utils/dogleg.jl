@@ -58,7 +58,7 @@ function dogleg!(x, fg, fcur, f!::Function, g!::Function; tol = 1e-8, maxiter = 
             else
                 if (!gncomputed)
                     fill!(δgn, zero(Float64))
-                    cgls_iter, converged = cgls!(δgn, fcur, fg, normalization, s, z, p, q, ptmp; tol = tol, maxiter = 50)
+                    cgls_iter, converged = cgls!(δgn, fcur, fg, normalization, s, z, p, q, ptmp; tol = tol)
                     iter += cgls_iter
                     # δdiff = δgn - δsd
                     copy!(δdiff, δgn)
@@ -137,7 +137,7 @@ end
 # Conjugate gradient least square with jacobi normalization
 
 function cgls!(x, r, A, normalization, s, z, p, q, ptmp; 
-               tol::Real=1e-5, maxiter::Int=100)
+               tol::Real=1e-5, maxiter::Int=10_000)
 
     # Initialization.
     iterations = maxiter 
@@ -162,7 +162,7 @@ function cgls!(x, r, A, normalization, s, z, p, q, ptmp;
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         normS = dot(s, z)
-        if (α * norm(ptmp) <= tol * norms) || normS <= tol * normS0
+        if (α * norm(ptmp) <= tol * norms) || (normS <= (tol * normS0))
             iterations = iter
             converged = true
             break

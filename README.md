@@ -81,7 +81,7 @@ fit(pfm::SparseFactorModel,
 Three methods are available
 
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:lm` This method corresponds to Levenberg Marquardt Method adapted for sparse matrices (see "An Inexact Levenberg-Marquardt method for Large Sparse Nonlinear Least Squares" by Wright and Hold)
+- `:lm` This method corresponds to Levenberg Marquardt Method adapted for sparse matrices.
 
 
 Note that I don't use the svd method described in Bai (2009) since it requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT.
@@ -145,6 +145,7 @@ Yes, unless you use the method `svd`. That being said, be aware of local minima 
 -  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* (2008) Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. 
 - Raiko, Tapani, Alexander Ilin, and Juha Karhunen. *Principal component analysis for sparse high-dimensional data.* (2008) Neural Information Processing.
 - Srebro, Nathan, and Tommi Jaakkola. *Weighted low-rank approximations* (2010) The Journal of Machine Learning Research 11 
+- Nocedal, Jorge and Stephen Wright *An Inexact Levenberg-Marquardt method for Large Sparse Nonlinear Least Squares*  (1985) The Journal of the Australian Mathematical Society
 
 ## Related Packages
 - https://github.com/joidegn/FactorModels.jl : fits and predict factor models on matrices
