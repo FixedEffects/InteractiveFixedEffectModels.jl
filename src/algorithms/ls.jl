@@ -5,7 +5,7 @@
 ##
 ##############################################################################
 
-function fit!{W, Rid, Rtime}(t::Union{Type{Val{:lm}},Type{Val{:dl}}}, 
+function fit!{W, Rid, Rtime}(::Type{Val{:lm}}, 
                          fp::FactorProblem{W, Matrix{Float64}, Rid, Rtime},
                          fs::FactorSolution{Vector{Float64}}; 
                          maxiter::Integer = 100_000,
@@ -14,15 +14,9 @@ function fit!{W, Rid, Rtime}(t::Union{Type{Val{:lm}},Type{Val{:dl}}},
     scaleb = vec(sumabs2(fp.X, 1))
     fg = FactorGradient(fs.b, fs.idpool, fs.timepool, scaleb, 
                         similar(fs.idpool), similar(fs.timepool), fp)
-    if isa(t, Type{Val{:lm}})
-        iterations, converged = levenberg_marquardt!(fs, fg, similar(fp.y), 
+    iterations, converged = levenberg_marquardt!(fs, fg, similar(fp.y), 
                                     (x, out) -> f!(x, out, fp), 
                                     g!, tol = tol, maxiter = maxiter)
-    elseif isa(t, Type{Val{:dl}})
-        iterations, converged = dogleg!(fs, fg, similar(fp.y), 
-                                    (x, out) -> f!(x, out, fp), 
-                                    g!, tol = tol, maxiter = maxiter)
-    end
     # rescale factors and loadings so that factors' * factors = Id
     fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
     return fs, [iterations], [converged]

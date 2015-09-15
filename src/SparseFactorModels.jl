@@ -35,7 +35,6 @@ include("types.jl")
 
 include("utils/models.jl")
 include("utils/chebyshev.jl")
-include("utils/dogleg.jl")
 include("utils/levenberg_marquardt.jl")
 include("utils/factors.jl")
 
