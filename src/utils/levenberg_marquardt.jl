@@ -1,7 +1,8 @@
 ##############################################################################
 ##
 ## An Inexact Levenberg Marquardt Method for Large Sparse Nonlinear Least Squares
-##
+## SJ Wright and J.N. Holt
+## 
 ##############################################################################
 
 function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1.0)
@@ -50,10 +51,7 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
         f!(x, ftrial)
         trial_residual = sumabs2(ftrial)
         ρ = (residual - trial_residual) / (residual - out - λ^2 * sumabs2(δx))
-        if ρ < 0.01
-            axpy!(-1.0, δx, x)
-            λ = min(10*λ, MAX_λ)
-        else
+        if ρ > MIN_STEP_QUALITY
             copy!(fcur, ftrial)
             scale!(fcur, -1.0)
             residual = trial_residual
@@ -62,6 +60,11 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
                 λ = max(0.1*λ, MIN_λ)
             end
             need_jacobian = true
+        else
+            axpy!(-1.0, δx, x)
+            λ = min(10*λ, MAX_λ)
+        else
+            
         end
         if maxabs(δx) < tol
             iterations = iter
