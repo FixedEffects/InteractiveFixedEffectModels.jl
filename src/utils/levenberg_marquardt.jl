@@ -124,7 +124,7 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         normS = dot(s, z)
-        if α * maxabs(q) <= tol || normS/normS0 <= tol
+        if normS <= tol * normS0
             iterations = iter
             converged = true
             break
