@@ -15,7 +15,6 @@ When X is a set of id or time dummies, this problem corresponds to a principal c
 
 To install
 ```julia
-Pkg.update()
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
