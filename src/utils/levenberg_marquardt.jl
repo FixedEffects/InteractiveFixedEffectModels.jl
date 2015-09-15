@@ -63,8 +63,6 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
         else
             axpy!(-1.0, δx, x)
             λ = min(10*λ, MAX_λ)
-        else
-            
         end
         if maxabs(δx) < tol
             iterations = iter
