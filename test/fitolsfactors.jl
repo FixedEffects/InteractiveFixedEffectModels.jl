@@ -14,6 +14,8 @@ for method in [:ar, :lm]
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 851.514 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -9.7870 - 1) < precision
 
+	show(result)
+
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method =  method, save = true)
 	@test norm(result.coef ./ [163.01350, -0.40610] - 1) < precision
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.227 - 1) < precision
@@ -47,8 +49,4 @@ for method in [:ar, :lm]
 	@test norm(abs(result.augmentdf[:loadings2][1])    /15.551 - 1) < precision
 	@test norm(result.augmentdf[:residuals][1] /-3.8624  - 1) < precision
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
-
-	# show method
-	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method =  method)
-	show(result)
 end

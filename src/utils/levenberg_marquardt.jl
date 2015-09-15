@@ -86,16 +86,15 @@ end
 
 ##############################################################################
 ##
-## Solve A'AX' = X'b
+## Solve (A'A + diagm(d))x = A'b by cgls with jacobi normalization
+## x is the initial guess for x. It is modified in place
+## r equals b - Ax0 where x0 is the initial guess for x. It is not modified in place
+## s, p, z, ptmp, ptmp2 are used for storage. They have dimension size(A, 2). 
+## q is used for storage. It has dimension size(A, 1). 
 ##
 ##############################################################################
 
-
-# r should equal b - Ax0 where x0 is an initial guess for x. It is NOT modified in place
-# x, s, p, q are used for storage. s, p should have dimension size(A, 2). q should have simension size(A, 1). 
-# Conjugate gradient least square with jacobi normalization
-
-function cgls!(x, r, A, dtd, normalization, s, z, p, q, ptmp, ptmp2; 
+function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2; 
                tol::Real=1e-5, maxiter::Int=100)
 
     # Initialization.
@@ -104,7 +103,7 @@ function cgls!(x, r, A, dtd, normalization, s, z, p, q, ptmp, ptmp2;
 
     Ac_mul_B!(s, A, r)
     sumabs2!(normalization, A)
-    axpy!(1.0, dtd, normalization)
+    axpy!(1.0, d, normalization)
     broadcast!(/, z, s, normalization)
     copy!(p, z)
     normS0 = dot(s, z)
@@ -116,7 +115,7 @@ function cgls!(x, r, A, dtd, normalization, s, z, p, q, ptmp, ptmp2;
         iter += 1
         A_mul_B!(q, A, p) 
         Ac_mul_B!(ptmp, A, q)
-        broadcast!(*, ptmp2, dtd, p)
+        broadcast!(*, ptmp2, d, p)
         axpy!(1.0, ptmp2, ptmp)
         α = normSold / dot(ptmp, p)
         # x = x + αp

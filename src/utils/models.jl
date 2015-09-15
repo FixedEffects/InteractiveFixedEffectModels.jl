@@ -1,12 +1,13 @@
 ##############################################################################
 ##
-## light weight type
+## get weight
 ## 
 ##############################################################################
+
 function get_weight(df::AbstractDataFrame, weight::Symbol)
     convert(Vector{Float64}, sqrt(df[weight]))
 end
-function get_weight(df::AbstractDataFrame, ::Nothing)
+function get_weight(df::AbstractDataFrame, ::Void)
     Ones(size(df, 1))
 end
 
