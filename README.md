@@ -12,25 +12,17 @@ For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time)
 
 When X is a set of id or time dummies, this problem corresponds to a principal component analysis with missing values. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
 
+To solve the problem above, two minimization methods are available
+
+- `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
+- `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
+
+These methods are generally faster than the svd method described in Bai (2009). Moreover, these methods (i) accept dataset with more than one observation for a given pair id x time (ii) with N and T so large one cannot store a matrix N x T.
 
 To install
 ```julia
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
-
-
-
-## Method
-
-The package estimates the set of `β`, factors and loadings by directly minimizing the problem above.
-
-Two minimization methods are available
-
-- `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
-
-Contrary to the svd method described in Bai (2009), both methods (i) accept dataset with more than one observation for a given pair id x time (ii) with N and T so large one cannot store a matrix N x T. They are also faster.
-
 
 ## Syntax
 
