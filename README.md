@@ -17,7 +17,12 @@ To solve the problem above, two minimization methods are available
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
 - `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
 
-These methods are generally faster than the svd method described in Bai (2009). Moreover, these methods (i) accept dataset with more than one observation for a given pair id x time (ii) with N and T so large one cannot store a matrix N x T.
+Contrary to the method described in Bai (2009), these methods
+
+- are faster
+- accept datasets with more than one observation for a given pair id x time 
+- accept weights
+- handle datasets with both N and T large
 
 To install
 ```julia
