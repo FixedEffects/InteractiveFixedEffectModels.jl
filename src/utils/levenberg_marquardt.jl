@@ -107,9 +107,8 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
     axpy!(1.0, d, normalization)
     broadcast!(/, z, s, normalization)
     copy!(p, z)
-    normS0 = dot(s, z)
-    normSold = normS0  
-
+    ssr0 = dot(s, z)
+    ssrold = ssr0  
 
     iter = 0
     while iter < maxiter
@@ -118,22 +117,22 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
         Ac_mul_B!(ptmp, A, q)
         broadcast!(*, ptmp2, d, p)
         axpy!(1.0, ptmp2, ptmp)
-        α = normSold / dot(ptmp, p)
+        α = ssrold / dot(ptmp, p)
         # x = x + αp
         x == nothing || axpy!(α, p, x) 
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
-        normS = dot(s, z)
-        if normS <= tol * normS0
+        ssr = dot(s, z)
+        if ssr <= tol^2 * ssr0
             iterations = iter
             converged = true
             break
         end
-        β = normS / normSold
+        β = ssr / ssrold
         # p = s + β p
         scale!(p, β)
         axpy!(1.0, z, p) 
-        normSold = normS
+        ssrold = ssr
     end
     return iterations, converged
 end
