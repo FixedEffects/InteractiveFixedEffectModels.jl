@@ -1,7 +1,6 @@
-# Solution method: minimize by sparse dogleg / levenbeg marquard
 ##############################################################################
 ##
-## Estimate interactive factor model by incremental optimization routine
+## Solution method: minimize by sparse levenbeg marquard
 ##
 ##############################################################################
 
@@ -27,7 +26,6 @@ end
 ## Factor Vector
 ##
 ##############################################################################
-
 
 function length(x::FactorSolution{Vector{Float64}}) 
     length(x.b) + length(x.idpool) + length(x.timepool)
@@ -76,7 +74,6 @@ end
 sumabs2(fs::FactorSolution{Vector{Float64}}) = sumabs2(fs.b) + sumabs2(fs.idpool) + sumabs2(fs.timepool)
 norm(fs::FactorSolution{Vector{Float64}}) = sqrt(sumabs2(fs))
 maxabs(fs::FactorSolution{Vector{Float64}}) = max(maxabs(fs.b), maxabs(fs.idpool), maxabs(fs.timepool))
-
 
 function fill!(fs::FactorSolution{Vector{Float64}}, x)
     fill!(fs.b, x)
@@ -130,7 +127,6 @@ function Ac_mul_B!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient, y::A
     return fs
 end
 
-
 function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolution{Vector{Float64}})
     A_mul_B!(y, fg.fp.X, fs.b)
     for r in 1:fg.fp.rank
@@ -147,7 +143,6 @@ function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolu
     return y
 end
 
-
 function sumabs2!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient) 
     copy!(fs.b, fg.scaleb)
     copy!(fs.idpool, fg.scaleid)
@@ -157,7 +152,7 @@ end
 
 ##############################################################################
 ##
-## Functions and Gradient
+## Functions and Gradient for the function to minimize
 ##
 ##############################################################################
 
@@ -171,7 +166,6 @@ function f!(fs::FactorSolution{Vector{Float64}}, out::Vector{Float64}, fp::Facto
     end
     return out
 end
-
 
 function g!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient)
     copy!(fg.b, fs.b)
@@ -192,5 +186,3 @@ function g!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient)
         end
     end
 end
-
-
