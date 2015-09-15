@@ -5,7 +5,7 @@
 
 This package estimates linear factor models on sparse datasets (i.e. datasets where there is not one observation per (id x time) combination).
 
-For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `beta`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
@@ -17,6 +17,19 @@ To install
 ```julia
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
+
+
+
+## Method
+
+The package estimates the set of `β`, factors and loadings by directly minimizing the problem above.
+
+Two minimization methods are available
+
+- `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
+- `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
+
+Contrary to the svd method described in Bai (2009), both methods (i) accept dataset with more than one observation for a given pair id x time (ii) with N and T so large one cannot store a matrix N x T. They are also faster.
 
 
 ## Syntax
@@ -75,15 +88,6 @@ fit(pfm::SparseFactorModel,
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
 		```
 
-
-#### method
-Three methods are available
-
-- `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:lm` This method corresponds to Levenberg Marquardt Method adapted for sparse matrices.
-
-
-Note that I don't use the svd method described in Bai (2009) since it requires (i) that the initial dataset contains unique observations for a given pair id x time (ii) that there is enough RAM to store a matrix NxT.
 
 
 
