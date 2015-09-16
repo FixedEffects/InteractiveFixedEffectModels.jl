@@ -48,7 +48,7 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
         clamp!(dtd, MIN_DIAGONAL, Inf)
         # solve (J'J + diagm(dtd)) = -J'f
         fill!(δx, zero(Float64))
-        cglsiter, conv = cgls!(δx, fcur, fg, dtd, normalization, s, z, p, q, ptmp, ptmp2; maxiter = 5)
+        cglsiter, conv = cgls!(δx, fcur, fg, dtd, normalization, s, z, p, q, ptmp, ptmp2; tol = 0.5)
         iter += cglsiter
         # predicted residual
         A_mul_B!(ftmp, fg, δx)

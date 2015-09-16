@@ -172,7 +172,7 @@ method : ar
 result.ess = 554512.0500474076
 result.converged = true
 method : lm
-  4.513196 seconds (4.79 k allocations: 99.933 MB, 2.11% gc time)
-result.ess = 542208.1913295444
+  3.096967 seconds (3.24 k allocations: 99.879 MB, 1.84% gc time)
+result.ess = 542208.1906390274
 result.converged = true
 ```
