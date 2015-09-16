@@ -39,7 +39,7 @@ include("utils/factors.jl")
 
 
 include("algorithms/ar.jl")
-include("algorithms/ls.jl")
+include("algorithms/lm.jl")
 
 include("fit.jl")
 
