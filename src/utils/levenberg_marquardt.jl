@@ -45,12 +45,13 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
         fill!(δx, zero(Float64))
         cglsiter, conv = cgls!(δx, fcur, fg, dtd, normalization, s, z, p, q, ptmp, ptmp2; maxiter = 5)
         iter += cglsiter
-        out = predicted_value!(ftmp, fcur, fg, δx)
+        A_mul_B!(ftmp, fg, δx)
+        predicted_residual = _sumabs2diff(fcur, ftmp)
         # try to update
         axpy!(1.0, δx, x)
         f!(x, ftrial)
         trial_residual = sumabs2(ftrial)
-        ρ = (residual - trial_residual) / (residual - out - λ^2 * sumabs2(δx))
+        ρ = (residual - trial_residual) / (residual - predicted_residual - λ^2 * sumabs2(δx))
         if ρ > MIN_STEP_QUALITY
             copy!(fcur, ftrial)
             scale!(fcur, -1.0)
@@ -74,12 +75,10 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
 end
 
 
-function predicted_value!(ftmp, fcur, fg, δx)
-    A_mul_B!(ftmp, fg, δx)
-    # Ratio of actual to predicted reduction
+function _sumabs2diff(x1, x2)
     out = zero(Float64)
-    @inbounds @simd for i in 1:length(fcur)
-        out += abs2(-fcur[i] + ftmp[i])
+    @inbounds @simd for i in 1:length(x1)
+        out += abs2(x1[i] - x2[i])
     end
     return out
 end

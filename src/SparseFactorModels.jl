@@ -10,7 +10,6 @@ using Reexport
 @reexport using FixedEffectModels
 import FixedEffectModels: title, top
 using Compat
-using Optim
 import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, sumabs2, maxabs, fill!, norm
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
