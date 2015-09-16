@@ -9,6 +9,8 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
     const MAX_λ = 1e16 # minimum trust region radius
     const MIN_λ = 1e-16 # maximum trust region radius
     const MIN_STEP_QUALITY = 1e-3
+    const GOOD_STEP_QUALITY = 0.75
+    const MIN_DIAGONAL = 1e-6
 
     converged = false
     iterations = maxiter
@@ -40,19 +42,23 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
             g!(x, fg)
             need_jacobian = false
         end
+        # dtd = λ^2 diag(J'J)
         sumabs2!(dtd, fg)
         scale!(dtd, λ^2)
+        clamp!(dtd, MIN_DIAGONAL, Inf)
+        # solve (J'J + λ^2 diag(dtd)) = -J'f
         fill!(δx, zero(Float64))
         cglsiter, conv = cgls!(δx, fcur, fg, dtd, normalization, s, z, p, q, ptmp, ptmp2; maxiter = 5)
         iter += cglsiter
+        # predicted residual
         A_mul_B!(ftmp, fg, δx)
         predicted_residual = _sumabs2diff(fcur, ftmp)
-        # try to update
+        # trial residual
         axpy!(1.0, δx, x)
         f!(x, ftrial)
         trial_residual = sumabs2(ftrial)
         ρ = (residual - trial_residual) / (residual - predicted_residual - λ^2 * sumabs2(δx))
-        if ρ > MIN_STEP_QUALITY
+        if ρ > GOOD_STEP_QUALITY
             copy!(fcur, ftrial)
             scale!(fcur, -1.0)
             residual = trial_residual
@@ -62,6 +68,7 @@ function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1
             end
             need_jacobian = true
         else
+            # revert update
             axpy!(-1.0, δx, x)
             λ = min(10*λ, MAX_λ)
         end

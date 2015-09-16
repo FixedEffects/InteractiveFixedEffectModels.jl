@@ -86,6 +86,12 @@ function similar(fs::FactorSolution{Vector{Float64}})
     return FactorSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
 end
 
+function clamp!(fs::FactorSolution{Vector{Float64}}, lo, hi)
+    clamp!(fs.b, lo, hi)
+    clamp!(fs.idpool, lo, hi)
+    clamp!(fs.timepool, lo, hi)
+    return fs
+end
 
 ##############################################################################
 ##
