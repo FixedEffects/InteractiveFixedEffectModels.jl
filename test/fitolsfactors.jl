@@ -13,6 +13,7 @@ for method in [:ar, :lm]
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.228 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 851.514 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -9.7870 - 1) < precision
+	@test result.r2_within > 0.0
 
 	show(result)
 
@@ -21,24 +22,31 @@ for method in [:ar, :lm]
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.227 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 184.1897 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals]  / -1.774 - 1) < precision
+	@test result.r2_within > 0.0
+
 
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method = method, maxiter = 1000, save = true)
 	@test norm(result.coef / -0.425389 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :factors1])  / 0.2474 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 123.460 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -5.222 - 1) < precision
+	@test result.r2_within > 0.0
+
 
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pYear, df, method = method, maxiter = 1000, save = true)
 	@test norm(result.coef / -0.3744296120563005 -1 ) < precision
 	@test norm(abs(result.augmentdf[1, :factors1])  / 0.1918 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 102.336 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -2.2153 - 1) < precision
+	@test result.r2_within > 0.0
 
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState + pYear, df, method = method, maxiter = 1000, save = true)
 	@test norm(result.coef / -0.524157 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.256 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 60.0481 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -5.614 - 1) < precision
+	@test result.r2_within > 0.0
+
 
 	# subset
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method = method, subset = (df[:State] .<= 30), maxiter = 1000, save = true)

@@ -41,18 +41,18 @@ function getfactors(fp::FactorProblem,fs::FactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:fp.rank
-        ans = Array(Float64, length(fp.y))
+        idinteraction = Array(Float64, length(fp.y))
         for i in 1:length(fp.y)
-            ans[i] = fs.timepool[fp.timerefs[i], r]
+            idinteraction[i] = fs.timepool[fp.timerefs[i], r]
         end
-        currentid = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, ans, :id, :time, :(idxtime))
-        push!(newfes, currentid)
-        ans = Array(Float64, length(fp.y))
+        idfe = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, idinteraction, :id, :time, :(idxtime))
+        push!(newfes, idfe)
+        timeinteraction = Array(Float64, length(fp.y))
         for i in 1:length(fp.y)
-            ans[i] = fs.idpool[fp.idrefs[i], r]
+            timeinteraction[i] = fs.idpool[fp.idrefs[i], r]
         end
-        currenttime = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, ans, :time, :id, :(timexid))
-        push!(newfes, currenttime)
+        timefe = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, timeinteraction, :time, :id, :(timexid))
+        push!(newfes, timefe)
     end
     # obtain the residuals and cross 
     return newfes

@@ -99,6 +99,8 @@ end
 ## s, p, z, ptmp, ptmp2 are used for storage. They have dimension size(A, 2). 
 ## q is used for storage. It has dimension size(A, 1). 
 ##
+## Stopping rule : Least-squares problems, normal equations, and stopping criteria for the conjugate gradient method Mario Arioli and Serge Gratton 
+##
 ##############################################################################
 
 function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2; 
@@ -115,6 +117,8 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
     copy!(p, z)
     ssr0 = dot(s, z)
     ssrold = ssr0  
+    ν = sumabs2(r)
+    ψ = Float64[]
 
     iter = 0
     while iter < maxiter
@@ -124,11 +128,13 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
         broadcast!(*, ptmp2, d, p)
         axpy!(1.0, ptmp2, ptmp)
         α = ssrold / dot(ptmp, p)
+        push!(ψ, α * ssrold)
+        ν -= α * ssrold
         axpy!(α, p, x) 
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         ssr = dot(s, z)
-        if ssr <= tol^2 * ssr0
+        if ssr <= eps() || ψ[end] <= eps() || ((iter >= 3) && (sum(sub(ψ, (iter-2):iter)) <= max(eps(), tol^2 * ν)))
             iterations = iter
             converged = true
             break

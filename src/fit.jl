@@ -14,7 +14,7 @@ function fit(m::SparseFactorModel,
              subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
              weight::Union(Symbol, Void) = nothing, 
              maxiter::Integer = 100000, 
-             tol::Real = 1e-15, 
+             tol::Real = 1e-8, 
              save = false)
 
     ##############################################################################
@@ -96,8 +96,9 @@ function fit(m::SparseFactorModel,
     ##
     ##############################################################################
 
-    # Compute demeaned X
     mf = simpleModelFrame(subdf, rt, esample)
+
+    # Compute demeaned X
     if has_regressors
         coef_names = coefnames(mf)
         X = ModelMatrix(mf).m
@@ -186,10 +187,17 @@ function fit(m::SparseFactorModel,
         Xm = deepcopy(X)
         iterationsv = Int[]
         convergedv = Bool[]
-        residualize!(ym, newpfe, iterationsv, convergedv)
-        residualize!(Xm, newpfe, iterationsv, convergedv)
+        @show mean(ym)
+        @show mean(Xm, 1)
+        for i in 1:length(newfes)
+            @show newfes[i]
+        end
 
-        residualsm = ym - Xm * fs.b
+        residualize!(ym, newpfe, iterationsv, convergedv, tol = tol, maxiter = maxiter)
+        residualize!(Xm, newpfe, iterationsv, convergedv, tol = tol, maxiter = maxiter)
+        @show mean(ym)
+        @show mean(Xm, 1)
+        residualsm = ym .- Xm * fs.b
         crossxm = cholfact!(At_mul_B(Xm, Xm))
         ## compute the right degree of freedom
         df_absorb_fe = 0
@@ -210,12 +218,7 @@ function fit(m::SparseFactorModel,
                 (typeof(vcov_method) == VcovCluster && in(fe.factorname, vcov_vars)) ? 
                     0 : sum(fe.scale .!= zero(Float64))
         end
-        df_residual = size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors 
-        if df_residual < 0
-            println("There are more parameters than degrees of freedom")
-            println("No degree of freedom adjustment for factor structure")
-            df_residual = size(X, 1) - size(X, 2) - df_absorb_fe 
-        end
+        df_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
 
         ## estimate vcov matrix
         vcov_data = VcovData(Xm, crossxm, residualsm, df_residual)

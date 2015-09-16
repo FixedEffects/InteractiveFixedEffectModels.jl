@@ -45,10 +45,10 @@ function axpy!(α::Float64, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSol
     return fs2
 end
 
-function broadcast!(x, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
-    broadcast!(x, out.b, fs1.b, fs2.b)
-    broadcast!(x, out.idpool, fs1.idpool, fs2.idpool)
-    broadcast!(x, out.timepool, fs1.timepool, fs2.timepool)
+function broadcast!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
+    broadcast!(f, out.b, fs1.b, fs2.b)
+    broadcast!(f, out.idpool, fs1.idpool, fs2.idpool)
+    broadcast!(f, out.timepool, fs1.timepool, fs2.timepool)
 end
 
 function scale!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, α::Float64)
@@ -57,12 +57,12 @@ function scale!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector
     scale!(fs2.timepool, fs1.timepool, α)
     return fs2
 end
-
 function scale!(fs::FactorSolution{Vector{Float64}}, α::Float64)
-    scale!(fs, fs, α)
+    scale!(fs.b, α)
+    scale!(fs.idpool, α)
+    scale!(fs.timepool, α)
     return fs
 end
-
 function dot(fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})  
     out = (dot(fs1.b, fs2.b) 
         + dot(vec(fs1.idpool), vec(fs2.idpool)) 
