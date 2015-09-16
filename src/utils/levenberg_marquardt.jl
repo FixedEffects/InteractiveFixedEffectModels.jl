@@ -93,7 +93,7 @@ end
 
 ##############################################################################
 ##
-## Solve (A'A + diagm(d))x = A'b by cgls with jacobi normalization
+## Solve (A'A + diagm(d))x = A'b by cgls with jacobi preconditioner
 ## x is the initial guess for x. It is modified in place
 ## r equals b - Ax0 where x0 is the initial guess for x. It is not modified in place
 ## s, p, z, ptmp, ptmp2 are used for storage. They have dimension size(A, 2). 
@@ -124,8 +124,7 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
         broadcast!(*, ptmp2, d, p)
         axpy!(1.0, ptmp2, ptmp)
         α = ssrold / dot(ptmp, p)
-        # x = x + αp
-        x == nothing || axpy!(α, p, x) 
+        axpy!(α, p, x) 
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         ssr = dot(s, z)
