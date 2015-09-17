@@ -187,16 +187,8 @@ function fit(m::SparseFactorModel,
         Xm = deepcopy(X)
         iterationsv = Int[]
         convergedv = Bool[]
-        @show mean(ym)
-        @show mean(Xm, 1)
-        for i in 1:length(newfes)
-            @show newfes[i]
-        end
-
         residualize!(ym, newpfe, iterationsv, convergedv, tol = tol, maxiter = maxiter)
         residualize!(Xm, newpfe, iterationsv, convergedv, tol = tol, maxiter = maxiter)
-        @show mean(ym)
-        @show mean(Xm, 1)
         residualsm = ym .- Xm * fs.b
         crossxm = cholfact!(At_mul_B(Xm, Xm))
         ## compute the right degree of freedom
