@@ -17,7 +17,7 @@ To solve the problem above, two minimization methods are available
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
 - `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
 
-In contrast to the method described in Bai (2009), these methods are faster, accept datasets with more than one observation for a given pair id x time (or weights), and handle cases where both dimensions are large.
+In contrast to the method described in Bai (2009), these methods accept datasets with more than one observation for a given pair id x time (or weights), and handle cases where both dimensions are large. They also tend to be faster.
 
 To install
 ```julia
