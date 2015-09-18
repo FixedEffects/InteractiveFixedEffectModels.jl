@@ -104,7 +104,7 @@ end
 ##############################################################################
 
 function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2; 
-               tol::Real=1e-5, maxiter::Int=100)
+               tol::Real=1e-8, maxiter::Int=100)
 
     # Initialization.
     converged = false
@@ -134,7 +134,7 @@ function cgls!(x, r, A, d, normalization, s, z, p, q, ptmp, ptmp2;
         axpy!(-α, ptmp, s)
         broadcast!(/, z, s, normalization)
         ssr = dot(s, z)
-        if ssr <= 1e-20 || ψ[end] <= 1e-20 || ((iter >= 3) && (sum(sub(ψ, (iter-2):iter)) <= max(eps(), tol^2 * ν)))
+        if (iter >= 3) && (sum(sub(ψ, (iter-2):iter)) <= max(1e-20, tol^2 * ν))
             iterations = iter
             converged = true
             break
