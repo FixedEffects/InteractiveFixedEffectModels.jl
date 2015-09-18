@@ -58,4 +58,11 @@ for method in [:ar, :lm]
 	@test norm(result.augmentdf[:residuals][1] /-3.8624  - 1) < precision
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
 
+	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price |> pState, df, weight = :Pop, method = :lm, maxiter = 1000, save = true) 
+	@test result.ess <= 86835
+
+	if method == :lm
+		result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, weight = :Pop, method = :lm, maxiter = 1000, save = true) 
+		@test result.ess <= 597000
+	end
 end

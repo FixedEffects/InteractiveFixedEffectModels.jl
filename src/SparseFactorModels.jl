@@ -33,7 +33,6 @@ SparseFactorResult
 include("types.jl")
 
 include("utils/models.jl")
-include("utils/chebyshev.jl")
 include("utils/levenberg_marquardt.jl")
 include("utils/factors.jl")
 
