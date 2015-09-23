@@ -129,7 +129,7 @@ For models with fixed effect, an equivalent way to obtain β is to first demean 
 In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
 #### Can I have multiple observations per (id x time) ?
-Yes, but in this case, the optimization problem generally has local minima. The algorithm tries to catch these cases, and restart the optimization algorithm on a random starting point.
+Yes, but in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 
 ## References
