@@ -106,7 +106,7 @@ function dogleg!(x, fcur, f!::Function, J, g!::Function;
             end
             if ρ < 0.25
                Δ = max(MIN_Δ, Δ / 2)
-            elseif ρ > 0.75
+            elseif ρ > GOOD_STEP_QUALITY
                Δ = min(MAX_Δ, 2 * Δ)
            end          
         end
