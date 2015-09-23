@@ -3,12 +3,10 @@ using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 precision = 2e-1
 
 
-
+df = dataset("plm", "Cigar")
+df[:pState] = pool(df[:State])
+df[:pYear] = pool(df[:Year])
 for method in [:ar, :lm, :dl]
-
-	df = dataset("plm", "Cigar")
-	df[:pState] = pool(df[:State])
-	df[:pYear] = pool(df[:Year])
 
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method = method, save = true)
@@ -60,17 +58,25 @@ for method in [:ar, :lm, :dl]
 	@test norm(abs(result.augmentdf[:loadings2][1])    /15.551 - 1) < precision
 	@test norm(result.augmentdf[:residuals][1] /-3.8624  - 1) < precision
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
-
-
-
-	df = dataset("plm", "EmplUK")
-	df[:id1] = df[:Firm]
-	df[:id2] = df[:Year]
-	df[:pid1] = pool(df[:id1])
-	df[:pid2] = pool(df[:id2])
-	df[:y] = df[:Wage]
-	df[:x1] = df[:Emp]
-	df[:w] = df[:Output]
 end
+
+
+df = dataset("plm", "EmplUK")
+df[:id1] = df[:Firm]
+df[:id2] = df[:Year]
+df[:pid1] = pool(df[:id1])
+df[:pid2] = pool(df[:id2])
+df[:y] = df[:Wage]
+df[:x1] = df[:Emp]
+df[:w] = df[:Output]
+for method in [:lm, :dl]
+	result = fit(SparseFactorModel(:pid1, :pid2, 2), y ~ x1, df, method = method, save = true)
+	@test norm(result.coef ./ [4.53965, -0.0160858] - 1) < precision
+	result = fit(SparseFactorModel(:pid1, :pid2, 2), y ~ x1, df, method = method, save = true, weight = :w)
+	@test norm(result.coef ./ [3.47551,-0.017366] - 1) < precision
+	result = fit(SparseFactorModel(:pid1, :pid2, 1), y ~ x1, df, method = method, save = true, weight = :w)
+	@test norm(result.coef ./ [ -2.62105, -0.0470005] - 1) < precision
+end
+
 
 

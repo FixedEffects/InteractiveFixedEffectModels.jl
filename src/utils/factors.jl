@@ -66,6 +66,10 @@ end
 
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(scaledloadings::Matrix{Float64}, scaledfactors::Matrix{Float64}, loadings::Matrix{Float64}, factors::Matrix{Float64})
+    if any(isnan, factors)
+        copy!(scaledfactors, factors)
+        return scaledloadings, scaledfactors
+    end
     U = eigfact!(Symmetric(At_mul_B(factors, factors)))
     sqrtDx = diagm(sqrt(abs(U[:values])))
     A_mul_B!(scaledloadings,  loadings,  U[:vectors] * sqrtDx)

@@ -13,7 +13,7 @@ function fit(m::SparseFactorModel,
              lambda::Real = 0.0, 
              subset::Union(AbstractVector{Bool}, Nothing) = nothing, 
              weight::Union(Symbol, Void) = nothing, 
-             maxiter::Integer = 100000, 
+             maxiter::Integer = 10_000, 
              tol::Real = 1e-8, 
              save = false)
 
@@ -142,18 +142,37 @@ function fit(m::SparseFactorModel,
         # interactive fixed effect
         if method == nothing
              method = :dl
-         end
-        # initial b
+        end
+
+        # initialize fs
         coef =  cholfact!(At_mul_B(X, X)) \ At_mul_B(X, y)
         fp = FactorProblem(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
-        # initial loadings
         fit!(Val{:ar}, fp, fs; maxiter = 100, tol = 1e-3)
-        # estimate the model
-        fp = FactorProblem(y, sqrtw, X, id.refs, time.refs, m.rank)
         fs = FactorSolution(coef, fs.idpool, fs.timepool)
-        (fs, iterations, converged) = 
-            fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda) 
+
+        fp = FactorProblem(y, sqrtw, X, id.refs, time.refs, m.rank)
+        ym = deepcopy(y)
+        Xm = deepcopy(X)
+        while true
+            # estimate the model
+            (fs, iterations, converged) = 
+                fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
+            if !any(isnan, fs.timepool) 
+                # compute errors for beta coefficients 
+                ## partial out Y on X over dummy_time x loadio  
+                newpfe = FixedEffectProblem(getfactors(fp, fs))
+                residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
+                residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
+                if norm(fs.b - At_mul_B(Xm, Xm) \ At_mul_B(Xm, ym)) <= 0.01 * norm(fs.b)
+                    break
+                end
+            end
+            warn("Algorithm ended up on local minimum. Restarting from random x0")
+            fs = FactorSolution(randn!(fs.b), randn!(fs.idpool), randn!(fs.timepool))
+            copy!(ym, y)
+            copy!(Xm, X)
+        end
     end
 
     ##############################################################################
@@ -179,16 +198,7 @@ function fit(m::SparseFactorModel,
     if !has_regressors
         ess = sumabs2(residuals)
     else
-        # compute errors for beta coefficients 
-        ## partial out Y on X over dummy_time x loadio
         newfes = getfactors(fp, fs)
-        newpfe = FixedEffectProblem(newfes)
-        ym = deepcopy(y)
-        Xm = deepcopy(X)
-        iterationsv = Int[]
-        convergedv = Bool[]
-        residualize!(ym, newpfe, iterationsv, convergedv, tol = tol, maxiter = maxiter)
-        residualize!(Xm, newpfe, iterationsv, convergedv, tol = tol, maxiter = maxiter)
         residualsm = ym .- Xm * fs.b
         crossxm = cholfact!(At_mul_B(Xm, Xm))
         ## compute the right degree of freedom
