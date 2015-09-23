@@ -178,16 +178,16 @@ function norm(a::VectorWrapper)
     return sqrt(norm(a.y)^2 + norm(a.x)^2)
 end
 
-function A_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::Tx, 
-                β::Float64, b::VectorWrapper{Ty, Tx})
+function A_mul_B!{TA, Tx, Ty}(α::Number, mw::MatrixWrapper{TA, Tx}, a::Tx, 
+                β::Number, b::VectorWrapper{Ty, Tx})
     map!((x, z) -> x * z, mw.tmp, a, mw.normalization)
     A_mul_B!(α, mw.A, mw.tmp, β, b.y)
     map!((z, x, y)-> β * z + α * x * y, b.x, b.x, mw.tmp, mw.d)
     return b
 end
 
-function Ac_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::VectorWrapper{Ty, Tx}, 
-                β::Float64, b::Tx)
+function Ac_mul_B!{TA, Tx, Ty}(α::Number, mw::MatrixWrapper{TA, Tx}, a::VectorWrapper{Ty, Tx}, 
+                β::Number, b::Tx)
     Ac_mul_B!(α, mw.A, a.y, 0.0, mw.tmp)
     map!((z, x, y)-> z + α * x * y, mw.tmp, mw.tmp, a.x, mw.d)
     map!((x, z) -> x * z, mw.tmp, mw.tmp, mw.normalization)
@@ -214,10 +214,10 @@ function lm_lssolver!(δx, mfcur, J, dtd, λ, alloc)
     # and 1/sqrt(diag(A'A)) as preconditioner
     normalization, tmp, zerosvector, u, v, h, hbar = alloc
     copy!(normalization, dtd)
-    clamp!(dtd, MIN_DIAGONAL, Inf)
+    map!(x -> max(x, MIN_DIAGONAL), dtd, dtd)
     scale!(dtd, λ^2)
     axpy!(1.0, dtd, normalization)
-    map!(x -> 1/sqrt(x), normalization, normalization)
+    map!(x -> 1 / sqrt(x), normalization, normalization)
     map!(sqrt, dtd, dtd)
     y = VectorWrapper(mfcur, zerosvector)
     A = MatrixWrapper(J, dtd, normalization, tmp)

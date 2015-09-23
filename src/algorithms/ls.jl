@@ -36,10 +36,6 @@ end
 ##
 ##############################################################################
 
-function length(x::FactorSolution{Vector{Float64}}) 
-    length(x.b) + length(x.idpool) + length(x.timepool)
-end
-
 function copy!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}})
     copy!(fs2.b, fs1.b)
     copy!(fs2.idpool, fs1.idpool)
@@ -75,12 +71,6 @@ function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vecto
     return out
 end
 
-function broadcast!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
-    broadcast!(f, out.b, fs1.b, fs2.b)
-    broadcast!(f, out.idpool, fs1.idpool, fs2.idpool)
-    broadcast!(f, out.timepool, fs1.timepool, fs2.timepool)
-end
-
 function scale!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, α::Float64)
     scale!(fs2.b, fs1.b, α)
     scale!(fs2.idpool, fs1.idpool, α)
@@ -93,6 +83,7 @@ function scale!(fs::FactorSolution{Vector{Float64}}, α::Float64)
     scale!(fs.timepool, α)
     return fs
 end
+
 function dot(fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})  
     out = dot(fs1.b, fs2.b) 
     for i in 1:size(fs1.idpool, 2)
@@ -106,7 +97,6 @@ end
 
 sumabs2(fs::FactorSolution{Vector{Float64}}) = sumabs2(fs.b) + sumabs2(fs.idpool) + sumabs2(fs.timepool)
 norm(fs::FactorSolution{Vector{Float64}}) = sqrt(sumabs2(fs))
-maxabs(fs::FactorSolution{Vector{Float64}}) = max(maxabs(fs.b), maxabs(fs.idpool), maxabs(fs.timepool))
 
 function fill!(fs::FactorSolution{Vector{Float64}}, x)
     fill!(fs.b, x)
@@ -119,12 +109,6 @@ function similar(fs::FactorSolution{Vector{Float64}})
     return FactorSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
 end
 
-function clamp!(fs::FactorSolution{Vector{Float64}}, lo, hi)
-    clamp!(fs.b, lo, hi)
-    clamp!(fs.idpool, lo, hi)
-    clamp!(fs.timepool, lo, hi)
-    return fs
-end
 
 ##############################################################################
 ##

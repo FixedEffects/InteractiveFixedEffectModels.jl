@@ -15,6 +15,10 @@ for method in [:ar, :lm, :dl]
 	@test norm(result.augmentdf[1, :residuals] / -9.7870 - 1) < precision
 	@test result.r2_within > 0.0
 
+	if method == :lm || method == :dl
+		@test result.iterations <= 200
+	end
+
 	show(result)
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method = method, save = true)
 	@test norm(result.coef ./ [163.01350, -0.40610] - 1) < precision
