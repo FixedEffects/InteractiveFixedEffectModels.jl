@@ -154,13 +154,16 @@ function fit(m::SparseFactorModel,
         fp = FactorProblem(y, sqrtw, X, id.refs, time.refs, m.rank)
         ym = deepcopy(y)
         Xm = deepcopy(X)
-        while true
+
+        while true 
             # estimate the model
             (fs, iterations, converged) = 
                 fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
             if !any(isnan, fs.timepool) 
-                # compute errors for beta coefficients 
-                ## partial out Y on X over dummy_time x loadio  
+                # check that I obtain the same coefficient if I solve
+                # y ~ x + γ1 x factors + γ2 x loadings
+                # if not, this means fit! ended up on a a local minimum. 
+                # restart with randomized coefficients, factors, loadings
                 newpfe = FixedEffectProblem(getfactors(fp, fs))
                 residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
                 residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
