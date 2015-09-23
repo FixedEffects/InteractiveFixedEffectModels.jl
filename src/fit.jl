@@ -171,7 +171,7 @@ function fit(m::SparseFactorModel,
                     break
                 end
             end
-            warn("Algorithm ended up on local minimum. Restarting from random x0")
+            warn("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
             fs = FactorSolution(randn!(fs.b), randn!(fs.idpool), randn!(fs.timepool))
             copy!(ym, y)
             copy!(Xm, X)
