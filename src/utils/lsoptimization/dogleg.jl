@@ -26,10 +26,6 @@ const GOOD_STEP_QUALITY = 0.75
 function dogleg!(x, fcur, f!::Function, J, g!::Function; 
                 tol = 1e-8, maxiter = 100, Δ = 1.0)
  
-
-    iterations = maxiter
-    converged = false
-
     # temporary array
     δgn = similar(x) # gauss newton step
     δsd = similar(x) # steepest descent
@@ -115,7 +111,7 @@ function dogleg!(x, fcur, f!::Function, J, g!::Function;
            end          
         end
     end
-    return iterations, converged
+    return maxiter, false
 end
 
 ##############################################################################

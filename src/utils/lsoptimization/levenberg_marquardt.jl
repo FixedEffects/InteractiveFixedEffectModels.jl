@@ -24,9 +24,6 @@ const MIN_DIAGONAL = 1e-6
 
 function levenberg_marquardt!(x, fcur, f!, J, g!; 
                               tol::Real = 1e-8, maxiter::Integer = 1000, λ::Real = 10.0)
-    converged = false
-    iterations = maxiter
-    need_jacobian = true
 
     # temporary array
     δx = similar(x)
@@ -41,6 +38,8 @@ function levenberg_marquardt!(x, fcur, f!, J, g!;
     f!(x, fcur)
     mfcur = scale!(fcur, -1.0)
     residual = sumabs2(mfcur)
+    need_jacobian = true
+
     iter = 0
     while iter < maxiter 
         iter += 1
@@ -82,7 +81,7 @@ function levenberg_marquardt!(x, fcur, f!, J, g!;
             λ = min(10 * λ, MAX_λ)
         end
     end
-    return iterations, converged
+    return maxiter, false
 end
 
 ##############################################################################
