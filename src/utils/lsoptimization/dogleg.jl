@@ -18,11 +18,14 @@
 ## x is the initial solution and is transformed in place to the solution
 ##
 ##############################################################################
+const MIN_Δ = 1e-16 # maximum trust region radius
+const MAX_Δ = 1e16 # minimum trust region radius
+const MIN_STEP_QUALITY = 1e-3
+const GOOD_STEP_QUALITY = 0.75
 
 function dogleg!(x, fcur, f!::Function, J, g!::Function; 
                 tol = 1e-8, maxiter = 100, Δ = 1.0)
-    const MAX_Δ = 1e16 # minimum trust region radius
-    const MIN_Δ = 1e-16 # maximum trust region radius
+ 
 
     iterations = maxiter
     converged = false
@@ -51,7 +54,7 @@ function dogleg!(x, fcur, f!::Function, J, g!::Function;
         scale!(δsd, sumabs2(δsd) / sumabs2(ftmp))
         gncomputed = false
         ρ = -1.0
-        while ρ <= 0.
+        while ρ < MIN_STEP_QUALITY
             # compute δx
             if norm(δsd) >= Δ
                 # Cauchy point is out of the region
@@ -95,7 +98,7 @@ function dogleg!(x, fcur, f!::Function, J, g!::Function;
             axpy!(-1.0, mfcur, ftmp)
             predicted_residual = sumabs2(ftmp)
             ρ = (trial_residual - residual) / (predicted_residual - residual)
-            if ρ > 0
+            if ρ >= MIN_STEP_QUALITY
                 # Successful iteration
                 copy!(fcur, ftrial)
                 mfcur = scale!(fcur, -1.0)
