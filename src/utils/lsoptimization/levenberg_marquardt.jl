@@ -133,8 +133,11 @@ end
 ## we use LSMR for the problem ||Ax-b|| with
 ## matrix A = |J         |
 ##            |diag(dtd) |
-# and 1/sqrt(diag(A'A)) as preconditioner
-
+## and 1/sqrt(diag(A'A)) as preconditioner
+##
+## We only solve with btol = 0.5
+## See "An Inexact Levenberg-Marquardt Method for Large Sparse Nonlinear Least Squares"
+## Weight Holt (1985)
 ##############################################################################
 
 type MatrixWrapper{TA, Tx}
