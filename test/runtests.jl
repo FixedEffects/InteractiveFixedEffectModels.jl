@@ -1,8 +1,9 @@
 using SparseFactorModels
 
-tests = ["fitfactors.jl", 
-		 "fitolsfactors.jl", 
-		 ]
+tests = ["lsoptimization.jl",
+		"factormodel.jl", 
+		"interactivefixedeffectsmodel.jl"
+		]
 
 println("Running tests:")
 

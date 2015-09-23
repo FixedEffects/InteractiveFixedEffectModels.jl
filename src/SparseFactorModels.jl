@@ -33,12 +33,13 @@ SparseFactorResult
 include("types.jl")
 
 include("utils/models.jl")
-include("utils/levenberg_marquardt.jl")
 include("utils/factors.jl")
-
+include("utils/lsoptimization/levenberg_marquardt.jl")
+include("utils/lsoptimization/dogleg.jl")
+include("utils/lsoptimization/lsmr.jl")
 
 include("algorithms/ar.jl")
-include("algorithms/lm.jl")
+include("algorithms/ls.jl")
 
 include("fit.jl")
 

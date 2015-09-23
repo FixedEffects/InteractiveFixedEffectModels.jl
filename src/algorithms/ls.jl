@@ -1,10 +1,10 @@
 ##############################################################################
 ##
-## Solution method: minimize by sparse levenbeg marquard
+## Solution method: minimize by sparse least square optimization
 ##
 ##############################################################################
 
-function fit!{W, Rid, Rtime}(::Type{Val{:lm}}, 
+function fit!{W, Rid, Rtime}(t::Union(Type{Val{:lm}}, Type{Val{:dl}}), 
                          fp::FactorProblem{W, Matrix{Float64}, Rid, Rtime},
                          fs::FactorSolution{Vector{Float64}}; 
                          maxiter::Integer = 100_000,
@@ -13,9 +13,18 @@ function fit!{W, Rid, Rtime}(::Type{Val{:lm}},
     scaleb = vec(sumabs2(fp.X, 1))
     fg = FactorGradient(fs.b, fs.idpool, fs.timepool, scaleb, 
                         similar(fs.idpool), similar(fs.timepool), fp)
-    iterations, converged = levenberg_marquardt!(fs, fg, similar(fp.y), 
+    if t == Val{:lm}
+        iterations, converged = levenberg_marquardt!(fs, similar(fp.y), 
                                     (x, out) -> f!(x, out, fp), 
-                                    g!, tol = tol, maxiter = maxiter)
+                                    fg, g!; 
+                                    tol = tol, maxiter = maxiter)
+    else
+        iterations, converged = dogleg!(fs, similar(fp.y), 
+                                        (x, out) -> f!(x, out, fp), 
+                                        fg, g!; 
+                                        tol = tol, maxiter = maxiter)
+    end
+
     # rescale factors and loadings so that factors' * factors = Id
     fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
     return fs, [iterations], [converged]
@@ -153,6 +162,11 @@ function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, �
     return fs
 end
 
+function Ac_mul_B!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient, y::AbstractVector{Float64})
+    Ac_mul_B!(1.0, fg, y, 0.0, fs)
+end
+
+
 function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Float64}}, β::Number, y::AbstractVector{Float64})
     Base.BLAS.gemm!('N', 'N', -α, fg.fp.X, fs.b, β, y)
     for r in 1:fg.fp.rank
@@ -168,7 +182,12 @@ function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Floa
     return y
 end
 
-function sumabs2!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient) 
+function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolution{Vector{Float64}})
+    A_mul_B!(1.0, fg, fs, 0.0, y)
+end
+
+
+function sumabs21!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient) 
     copy!(fs.b, fg.scaleb)
     copy!(fs.idpool, fg.scaleid)
     copy!(fs.timepool, fg.scaletime)

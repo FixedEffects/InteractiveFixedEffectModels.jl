@@ -1,148 +1,3 @@
-type MatrixWrapper{TA, Tx}
-    A::TA
-    d::Tx
-end
-
-type VectorWrapper{Ty, Tx}
-    y::Ty
-    x::Tx
-end
-
-function copy!{Tx, Ty}(a::VectorWrapper{Tx, Ty}, b::VectorWrapper{Tx, Ty})
-    copy!(a.y, b.y)
-    copy!(a.x, b.x)
-    return a
-end
-
-function fill!(a::VectorWrapper, x)
-    fill!(a.y, x)
-    fill!(a.x, x)
-    return a
-end
-
-function scale!(a::VectorWrapper, x)
-    scale!(a.y, x)
-    scale!(a.x, x)
-    return a
-end
-
-function axpy!{Tx, Ty}(α, a::VectorWrapper{Tx, Ty}, b::VectorWrapper{Tx, Ty})
-    axpy!(α, a.y, b.y)
-    axpy!(α, a.x, b.x)
-    return b
-end
-
-function norm(a::VectorWrapper)
-    return sqrt(norm(a.y)^2 + norm(a.x)^2)
-end
-
-function A_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::Tx, 
-                β::Float64, b::VectorWrapper{Ty, Tx})
-    A_mul_B!(α, mw.A, a, β, b.y)
-    map!((z, x, y)-> β * z + α * x * y, b.x, b.x, a, mw.d)
-    return b
-end
-
-function Ac_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::VectorWrapper{Ty, Tx}, 
-                β::Float64, b::Tx)
-    Ac_mul_B!(α, mw.A, a.y, β, b)
-    map!((z, x, y)-> z + α * x * y, b, b, a.x, mw.d)
-    return b
-end
-
-##############################################################################
-##
-## An Inexact Levenberg Marquardt Method for Large Sparse Nonlinear Least Squares
-## SJ Wright and J.N. Holt
-## 
-##############################################################################
-
-function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1.0)
-    const MAX_λ = 1e16 # minimum trust region radius
-    const MIN_λ = 1e-16 # maximum trust region radius
-    const MIN_STEP_QUALITY = 1e-3
-    const GOOD_STEP_QUALITY = 0.75
-    const MIN_DIAGONAL = 1e-6
-
-    converged = false
-    iterations = maxiter
-    need_jacobian = true
-
-    δx = similar(x)
-    dtd = similar(x)
-    normalization = similar(x)
-
-    ftrial = similar(fcur)
-    ftmp = similar(fcur)
-    zerosvector = similar(x)
-    fill!(zerosvector, zero(Float64))
-
-    # for lsmr
-    v = similar(x)
-    h = similar(x)
-    hbar = similar(x)
-    u = VectorWrapper(similar(fcur), similar(x))
-    # initialize
-    f!(x, fcur)
-    scale!(fcur, -1.0)
-    residual = sumabs2(fcur)
-    iter = 0
-    while iter < maxiter 
-        iter += 1
-        if need_jacobian
-            g!(x, fg)
-            need_jacobian = false
-        end
-        # dtd = λ diag(J'J)
-        sumabs2!(dtd, fg)
-        scale!(dtd, λ)
-        clamp!(dtd, MIN_DIAGONAL, Inf)
-        # solve (J'J + diagm(dtd)) = -J'f
-        # we use LSMR with the matrix A = |J         |
-        #                                 |diag(dtd) |
-        # (recommanded by Michael Saunders)
-        fill!(δx, zero(Float64))
-        y = VectorWrapper(fcur, zerosvector)
-        A = MatrixWrapper(fg, map!(x-> sqrt(x), dtd, dtd))
-        cglsiter, conv = lsmr!(δx, y, A, u, v, h, hbar; 
-           atol = 1e-8, btol = 1e-8, conlim = 1e8, λ = 0.)
-        iter += cglsiter
-        # predicted residual
-        copy!(ftmp, fcur)
-        A_mul_B!(1.0, fg, δx, -1.0, ftmp)
-        predicted_residual = sumabs2(ftmp)
-        # trial residual
-        axpy!(1.0, δx, x)
-        f!(x, ftrial)
-        trial_residual = sumabs2(ftrial)
-        ρ = (residual - trial_residual) / (residual - predicted_residual)
-        if ρ > GOOD_STEP_QUALITY
-            copy!(fcur, ftrial)
-            scale!(fcur, -1.0)
-            residual = trial_residual
-            # increase trust region radius
-            if ρ > 0.75
-                λ = max(0.1*λ, MIN_λ)
-            end
-            need_jacobian = true
-        else
-            # revert update
-            axpy!(-1.0, δx, x)
-            λ = min(10*λ, MAX_λ)
-        end
-        if maxabs(δx) < tol
-            iterations = iter
-            converged = true
-            break
-        end
-    end
-    return iterations, converged
-end
-
-
-
-
-##############################################################################
 ## LSMR
 ##
 ## Minimize ||Ax-b||^2 + λ^2 ||x||^2
@@ -150,8 +5,8 @@ end
 ## Arguments:
 ## x is initial x0. Will equal the solution.
 ## r is initial b - Ax0
-## u are storage arrays of length size(A, 1) = y
-## v, h, hbar are storage arrays of length size(A, 2) = x
+## u is storage arrays of length size(A, 1) == length(b)
+## v, h, hbar are storage arrays of length size(A, 2) == length(x)
 ## 
 ## Adapted from the BSD-licensed Matlab implementation at
 ##  http://web.stanford.edu/group/SOL/software/lsmr/
@@ -159,11 +14,10 @@ end
 ## A is anything such that
 ## A_mul_B!(α, A, b, β, c) updates c -> α Ab + βc
 ## Ac_mul_B!(α, A, b, β, c) updates c -> α A'b + βc
-##############################################################################
+
 
 function lsmr!(x, r, A, u, v, h, hbar; 
-    atol::Real = 1e-8, btol::Real = 1e-8, conlim::Real = 1e8, 
-    maxiter::Integer = 100, λ::Real = zero(Float64))
+    atol = 1e-10, btol = 1e-10, conlim = 1e10, maxiter::Integer=100, λ::Real = zero(Float64))
 
     conlim > 0.0 ? ctol = 1 / conlim : ctol = zero(Float64)
 
@@ -208,7 +62,7 @@ function lsmr!(x, r, A, u, v, h, hbar;
     # Exit if b = 0 or A'b = zero(Float64).
     normAr = α * β
     if normAr == zero(Float64) 
-        return 1, true
+        return 1
     end
 
     iter = 0
@@ -293,6 +147,7 @@ function lsmr!(x, r, A, u, v, h, hbar;
             minrbar = min(minrbar, ρbarold)
         end
         condA = max(maxrbar, ρtemp) / min(minrbar, ρtemp)
+
         ##############################################################################
         ##
         ## Test for convergence
@@ -325,9 +180,6 @@ function lsmr!(x, r, A, u, v, h, hbar;
         if test2 <= atol istop = 2; break end
         if test1 <= rtol  istop = 1; break end
     end
-    return iter, (istop != 7) && (istop != 3)
+    return iter
 end
-    
-
-
 

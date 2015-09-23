@@ -8,7 +8,7 @@ method = :lm
 result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method = method, save = true)
 
 
-for method in [:ar, :lm]
+for method in [:ar, :lm, :dl]
 	println(method)
 	# 895
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method = method, save = true)
@@ -61,5 +61,6 @@ for method in [:ar, :lm]
 	@test norm(abs(result.augmentdf[:loadings2][1])    /15.551 - 1) < precision
 	@test norm(result.augmentdf[:residuals][1] /-3.8624  - 1) < precision
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
-
 end
+
+
