@@ -65,7 +65,7 @@ function fit!{W, Rid, Rtime}(::Type{Val{:ar}},
 			update!(Val{:ar}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, 
 				timescale, idpoolr)
 			f_x = ssr(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
-			if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
+			if abs(f_x - oldf_x) < tol^2 * f_x
 				iterations[r] = iter
 				converged[r] = true
 				break
@@ -138,7 +138,7 @@ function fit!(::Type{Val{:ar}},
 		# Check convergence
 		BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, res)
 		f_x = sumabs2(res)
-		if f_x == zero(Float64) || abs(f_x - oldf_x)/f_x < tol 
+		if abs(f_x - oldf_x) < tol^2 * f_x
 			converged = true
 			iterations = iter
 			break

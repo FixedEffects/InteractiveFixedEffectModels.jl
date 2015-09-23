@@ -32,7 +32,7 @@ function levenberg_marquardt!(x, fcur, f!, J, g!;
     δx = similar(x)
     dtd = similar(x)
     ftrial = similar(fcur)
-    ftmp = similar(fcur)
+    f_predict = similar(fcur)
 
     # for ls
     alloc = lm_lssolver_alloc(x, fcur, J)
@@ -53,20 +53,26 @@ function levenberg_marquardt!(x, fcur, f!, J, g!;
         fill!(δx, zero(Float64))
         currentiter = lm_lssolver!(δx, mfcur, J, dtd, λ, alloc)
         iter += currentiter
-        # predicted residual
-        A_mul_B!(ftmp, J, δx)
-        axpy!(-1.0, mfcur, ftmp)
-        predicted_residual = sumabs2(ftmp)
+     
         # trial residual
         axpy!(1.0, δx, x)
         f!(x, ftrial)
         trial_residual = sumabs2(ftrial)
+        
+        if abs(residual - trial_residual) <= max(tol^2 * residual, eps()^2)
+            return iter, true
+        end
+
+        # predicted residual
+        A_mul_B!(f_predict, J, δx)
+        axpy!(-1.0, mfcur, f_predict)
+        predicted_residual = sumabs2(f_predict)
         ρ = (residual - trial_residual) / (residual - predicted_residual)
-        if ρ > GOOD_STEP_QUALITY
+        if ρ > MIN_STEP_QUALITY
             scale!(mfcur, ftrial, -1.0)
             residual = trial_residual
             # increase trust region radius
-            if ρ > 0.75
+            if ρ > GOOD_STEP_QUALITY
                 λ = max(0.1 * λ, MIN_λ)
             end
             need_jacobian = true
@@ -74,11 +80,6 @@ function levenberg_marquardt!(x, fcur, f!, J, g!;
             # revert update
             axpy!(-1.0, δx, x)
             λ = min(10 * λ, MAX_λ)
-        end
-        if norm(δx) < max(tol * norm(x), eps()^2)
-            iterations = iter
-            converged = true
-            break
         end
     end
     return iterations, converged
@@ -113,8 +114,11 @@ function lm_lssolver!{T}(δx::Vector{T}, mfcur::Vector{T}, J::Matrix{T}, dtd::Ve
     for i in 1:size(M, 1)
         M[i, i] += dtd[i]
     end
+
     # update rhs as J' fcur
     At_mul_B!(rhs, J, mfcur)
+
+    # solve
     δx[:] = M \ rhs
     return 1
 end
@@ -137,7 +141,7 @@ end
 type MatrixWrapper{TA, Tx}
     A::TA # J
     d::Tx # λ * sqrt(diag(J'J))
-    normalization::Tx # (1 + λ^2 diag(J'J))
+    normalization::Tx # 1/sqrt((1 + λ^2) diag(J'J)))
     tmp::Tx
 end
 
@@ -177,7 +181,7 @@ end
 
 function A_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::Tx, 
                 β::Float64, b::VectorWrapper{Ty, Tx})
-    map!((x, z) -> x / sqrt(z), mw.tmp, a, mw.normalization)
+    map!((x, z) -> x * z, mw.tmp, a, mw.normalization)
     A_mul_B!(α, mw.A, mw.tmp, β, b.y)
     map!((z, x, y)-> β * z + α * x * y, b.x, b.x, mw.tmp, mw.d)
     return b
@@ -187,7 +191,7 @@ function Ac_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::Vector
                 β::Float64, b::Tx)
     Ac_mul_B!(α, mw.A, a.y, 0.0, mw.tmp)
     map!((z, x, y)-> z + α * x * y, mw.tmp, mw.tmp, a.x, mw.d)
-    map!((x, z) -> x / sqrt(z), mw.tmp, mw.tmp, mw.normalization)
+    map!((x, z) -> x * z, mw.tmp, mw.tmp, mw.normalization)
     axpy!(β, b, mw.tmp)
     copy!(b, mw.tmp)
     return b
@@ -195,30 +199,31 @@ end
 
 function lm_lssolver_alloc(x, fcur, J)
     normalization = similar(x)
+    tmp = similar(x)
     zerosvector = similar(x)
     fill!(zerosvector, zero(Float64))
     u = VectorWrapper(similar(fcur), similar(x))
     v = similar(x)
     h = similar(x)
     hbar = similar(x)
-    xtmp = similar(x)
-    return normalization, zerosvector, u, v, h, hbar, xtmp
+    return normalization, tmp, zerosvector, u, v, h, hbar
 end
 
 function lm_lssolver!(δx, mfcur, J, dtd, λ, alloc)
     # we use LSMR with the matrix A = |J         |
     #                                 |diag(dtd) |
     # and 1/sqrt(diag(A'A)) as preconditioner
-    normalization, zerosvector, u, v, h, hbar, xtmp = alloc
+    normalization, tmp, zerosvector, u, v, h, hbar = alloc
     copy!(normalization, dtd)
     clamp!(dtd, MIN_DIAGONAL, Inf)
     scale!(dtd, λ^2)
     axpy!(1.0, dtd, normalization)
+    map!(x -> 1/sqrt(x), normalization, normalization)
     map!(sqrt, dtd, dtd)
     y = VectorWrapper(mfcur, zerosvector)
-    A = MatrixWrapper(J, dtd, normalization, xtmp)
-    iter = lsmr!(δx, y, A, u, v, h, hbar)
-    map!((x, z) -> x / sqrt(z), δx, δx, normalization)
+    A = MatrixWrapper(J, dtd, normalization, tmp)
+    iter = lsmr!(δx, y, A, u, v, h, hbar, btol = 0.5)
+    map!((x, z) -> x * z, δx, δx, normalization)
     return iter
 end
 

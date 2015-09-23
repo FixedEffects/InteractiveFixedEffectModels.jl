@@ -94,10 +94,13 @@ function scale!(fs::FactorSolution{Vector{Float64}}, α::Float64)
     return fs
 end
 function dot(fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})  
-    out = (dot(fs1.b, fs2.b) 
-        + dot(vec(fs1.idpool), vec(fs2.idpool)) 
-        + dot(vec(fs1.timepool), vec(fs2.timepool))
-        )
+    out = dot(fs1.b, fs2.b) 
+    for i in 1:size(fs1.idpool, 2)
+        out += dot(slice(fs1.idpool, :, i), slice(fs1.idpool, :, i)) 
+    end
+    for i in 1:size(fs2.timepool, 2)
+        out += dot(slice(fs1.timepool, :, i), slice(fs1.timepool, :, i)) 
+    end
     return out
 end
 

@@ -141,7 +141,7 @@ function fit(m::SparseFactorModel,
     else 
         # interactive fixed effect
         if method == nothing
-             method = :lm
+             method = :dl
          end
         # initial b
         coef =  cholfact!(At_mul_B(X, X)) \ At_mul_B(X, y)

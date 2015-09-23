@@ -2,7 +2,8 @@
 ##
 ## dogleg method
 ##
-## Reference: Is Levenberg-Marquardt the Most Efficient Optimization Algorithm for Implementing Bundle Adjustment? ## Manolis I.A. Lourakis and Antonis A. Argyros
+## Reference: Is Levenberg-Marquardt the Most Efficient Optimization Algorithm for Implementing Bundle Adjustment? 
+## Manolis I.A. Lourakis and Antonis A. Argyros
 ##
 ## x is any type that implements: norm, sumabs2, dot, similar, fill!, copy!, axpy!, map!
 ## fcur is any type that implements: sumabs2(fcur), scale!(fcur, α), similar(fcur), axpy!
@@ -82,37 +83,33 @@ function dogleg!(x, fcur, f!::Function, J, g!::Function;
             end
 
             # update x
-            if norm(δx) < max(tol * norm(x), eps()^2)
+            axpy!(1.0, δx, x)
+            f!(x, ftrial)
+            trial_residual = sumabs2(ftrial)
+
+            if abs(residual - trial_residual) <= max(tol^2 * residual, eps()^2)
                 return iter, true
-            else           
-                axpy!(1.0, δx, x)
-                f!(x, ftrial)
-                A_mul_B!(ftmp, J, δx)
-                axpy!(-1.0, mfcur, ftmp)
-                predicted_residual = sumabs2(ftmp)
-                trial_residual = sumabs2(ftrial)
-                ρ = (trial_residual - residual) / (predicted_residual - residual)
-                if ρ > 0
-                    # Successful iteration
-                    copy!(fcur, ftrial)
-                    mfcur = scale!(fcur, -1.0)
-                    g!(x, J)
-                    residual = trial_residual
-                else
-                    # unsucessful iteration
-                    axpy!(-1.0, δx, x)
-                end
-                if ρ < 0.25
-                   Δ = max(MIN_Δ, Δ / 2)
-                elseif ρ > 0.75
-                   Δ = min(MAX_Δ, 2 * Δ)
-               end
-                if Δ <= tol * norm(x)
-                    iterations = iter
-                    converged = true
-                    break
-                end
             end
+
+            A_mul_B!(ftmp, J, δx)
+            axpy!(-1.0, mfcur, ftmp)
+            predicted_residual = sumabs2(ftmp)
+            ρ = (trial_residual - residual) / (predicted_residual - residual)
+            if ρ > 0
+                # Successful iteration
+                copy!(fcur, ftrial)
+                mfcur = scale!(fcur, -1.0)
+                g!(x, J)
+                residual = trial_residual
+            else
+                # unsucessful iteration
+                axpy!(-1.0, δx, x)
+            end
+            if ρ < 0.25
+               Δ = max(MIN_Δ, Δ / 2)
+            elseif ρ > 0.75
+               Δ = min(MAX_Δ, 2 * Δ)
+           end          
         end
     end
     return iterations, converged
@@ -153,7 +150,7 @@ end
 
 function A_mul_B!{TA, Tx}(α::Float64, mw::MatrixWrapperDogleg{TA, Tx}, a::Tx, 
                 β::Float64, b)
-    map!((x, z) -> x / sqrt(z), mw.tmp, a, mw.normalization)
+    map!((x, z) -> x * z, mw.tmp, a, mw.normalization)
     A_mul_B!(α, mw.A, mw.tmp, β, b)
     return b
 end
@@ -161,29 +158,29 @@ end
 function Ac_mul_B!{TA, Tx}(α::Float64, mw::MatrixWrapperDogleg{TA, Tx}, a, 
                 β::Float64, b::Tx)
     Ac_mul_B!(α, mw.A, a, 0.0, mw.tmp)
-    map!((x, z) -> x / sqrt(z), mw.tmp, mw.tmp, mw.normalization)
+    map!((x, z) -> x * z, mw.tmp, mw.tmp, mw.normalization)
     axpy!(β, b, mw.tmp)
     copy!(b, mw.tmp)
     return b
 end
 
-
 function dl_lssolver_alloc(x, fcur, J)
     normalization = similar(x)
+    tmp = similar(x)
     u = similar(fcur)
     v = similar(x)
     h = similar(x)
     hbar = similar(x)
-    xtmp = similar(x)
-    return normalization, u, v, h, hbar, xtmp
+    return normalization, tmp, u, v, h, hbar
 end
 
 function dl_lssolver!(δx, mfcur, J, alloc)
-    normalization, u, v, h, hbar, xtmp = alloc
+    normalization, tmp, u, v, h, hbar = alloc
     sumabs21!(normalization, J)
-    A = MatrixWrapperDogleg(J, normalization, xtmp)
+    map!(x -> 1 / sqrt(x), normalization, normalization)
+    A = MatrixWrapperDogleg(J, normalization, tmp)
     iter = lsmr!(δx, mfcur, A, u, v, h, hbar)
-    map!((x, z) -> x / sqrt(z), δx, δx, normalization)
+    map!((x, z) -> x * z, δx, δx, normalization)
     return iter
 end
 

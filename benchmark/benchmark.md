@@ -112,9 +112,10 @@ result.converged = Bool[true]
 ### N x T
 
 ```julia
-for method in [:ar, :lm]
+for method in [:ar, :lm, :dl]
 	println("method : $(method)")
-	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, maxiter = 10000, save = false)
+	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, save = false)
+	@show result.iterations
 	@show result.ess
 	@show result.converged
 end
@@ -122,12 +123,19 @@ end
 
 ```
 method : ar
- 10.577261 seconds (4.33 k allocations: 472.248 MB, 1.46% gc time)
-result.ess = 2.4806926953436593e6
+ 11.239175 seconds (529.78 k allocations: 495.686 MB, 2.98% gc time)
+result.iterations = 112
+result.ess = 2.480692695343655e6
 result.converged = true
 method : lm
- 17.640411 seconds (4.08 k allocations: 492.120 MB, 1.56% gc time)
-result.ess = 2.4806926953443335e6
+ 28.779354 seconds (67.32 M allocations: 1.497 GB, 2.00% gc time)
+result.iterations = 246
+result.ess = 2.480692695343654e6
+result.converged = true
+method : dl
+ 30.524696 seconds (26.62 M allocations: 902.534 MB, 1.19% gc time)
+result.iterations = 234
+result.ess = 2.480692695343654e6
 result.converged = true
 ```
 
@@ -135,9 +143,10 @@ result.converged = true
 
 
 ```julia
-for method in [:ar, :lm]
+for method in [:ar, :lm, :dl]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, unbalanceddf, method = method, maxiter = 10_000, save = false)
+	@show result.iterations
 	@show result.ess
 	@show result.converged
 end
@@ -145,12 +154,19 @@ end
 
 ```
 method : ar
- 13.728202 seconds (6.21 k allocations: 378.094 MB, 1.39% gc time)
-result.ess = 1.9986716476047332e6
+ 14.164756 seconds (6.83 k allocations: 378.363 MB, 1.65% gc time)
+result.iterations = 184
+result.ess = 1.9986716476135303e6
 result.converged = true
 method : lm
- 15.728459 seconds (4.66 k allocations: 394.195 MB, 1.00% gc time)
-result.ess = 1.9976766172148404e6
+ 22.679409 seconds (66.03 M allocations: 1.369 GB, 1.78% gc time)
+result.iterations = 243
+result.ess = 1.997676617223449e6
+result.converged = true
+method : dl
+ 38.026766 seconds (46.86 M allocations: 1.083 GB, 0.83% gc time)
+result.iterations = 421
+result.ess = 1.997676617223449e6
 result.converged = true
 ```
 
@@ -158,9 +174,10 @@ result.converged = true
 
 
 ```julia
-for method in [:ar, :lm]
+for method in [:ar, :lm, :dl]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, sparsedf, method = method, maxiter = 10_000, save = false)
+	@show result.iterations
 	@show result.ess
 	@show result.converged
 end
@@ -168,11 +185,18 @@ end
 
 ```
 method : ar
-  3.476221 seconds (6.27 k allocations: 95.358 MB)
-result.ess = 554512.0500474076
+  1.177007 seconds (2.64 k allocations: 95.489 MB, 1.34% gc time)
+result.iterations = 36
+result.ess = 543565.5890788117
 result.converged = true
 method : lm
-  3.096967 seconds (3.24 k allocations: 99.879 MB, 1.84% gc time)
-result.ess = 542208.1906390274
+ 14.943738 seconds (156.99 M allocations: 2.437 GB, 2.57% gc time)
+result.iterations = 578
+result.ess = 551660.8545273632
+result.converged = true
+method : dl
+ 13.430610 seconds (64.08 M allocations: 1.053 GB, 1.03% gc time)
+result.iterations = 575
+result.ess = 551660.8545273632
 result.converged = true
 ```
