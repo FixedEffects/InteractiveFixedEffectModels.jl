@@ -1,12 +1,15 @@
 using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 
-df = dataset("plm", "Cigar")
-df[:pState] = pool(df[:State])
-df[:pYear] = pool(df[:Year])
 precision = 2e-1
 
 
+
 for method in [:ar, :lm, :dl]
+
+	df = dataset("plm", "Cigar")
+	df[:pState] = pool(df[:State])
+	df[:pYear] = pool(df[:Year])
+
 	println(method)
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method = method, save = true)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
@@ -57,6 +60,17 @@ for method in [:ar, :lm, :dl]
 	@test norm(abs(result.augmentdf[:loadings2][1])    /15.551 - 1) < precision
 	@test norm(result.augmentdf[:residuals][1] /-3.8624  - 1) < precision
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
+
+
+
+	df = dataset("plm", "EmplUK")
+	df[:id1] = df[:Firm]
+	df[:id2] = df[:Year]
+	df[:pid1] = pool(df[:id1])
+	df[:pid2] = pool(df[:id2])
+	df[:y] = df[:Wage]
+	df[:x1] = df[:Emp]
+	df[:w] = df[:Output]
 end
 
 

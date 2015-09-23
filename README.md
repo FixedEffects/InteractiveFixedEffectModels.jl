@@ -16,6 +16,7 @@ To solve the problem above, two minimization methods are available
 
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
 - `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
+- `:dl` This method corresponds to Dogleg Method (adapted for sparse problems).
 
 In contrast to the method described in Bai (2009), these methods accept datasets with more than one observation for a given pair id x time (or weights), and handle cases where both dimensions are large. They also tend to be faster.
 
@@ -128,10 +129,7 @@ For models with fixed effect, an equivalent way to obtain β is to first demean 
 In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
 #### Can I have multiple observations per (id x time) ?
-Yes, unless you use the method `svd`. That being said, be aware of local minima by checking different methods give the same results.
-
-
-
+Yes, but in this case, the problem has local minima. Unfortunately, nothing ensures that the algorithm ends up finding the global minimum.
 
 
 ## References

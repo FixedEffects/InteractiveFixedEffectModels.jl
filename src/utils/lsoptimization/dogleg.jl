@@ -176,7 +176,7 @@ end
 function dl_lssolver!(δx, mfcur, J, alloc)
     normalization, tmp, u, v, h, hbar = alloc
     sumabs21!(normalization, J)
-    map!(x -> 1 / sqrt(x), normalization, normalization)
+    map!(x -> x == 0. ? 0. : 1 / sqrt(x), normalization, normalization)
     A = MatrixWrapperDogleg(J, normalization, tmp)
     iter = lsmr!(δx, mfcur, A, u, v, h, hbar)
     map!((x, z) -> x * z, δx, δx, normalization)
