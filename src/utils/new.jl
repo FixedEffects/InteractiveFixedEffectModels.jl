@@ -1,151 +1,32 @@
-
-##############################################################################
-##
-## 
-##############################################################################
-
-const MAX_λ = 1e16 # minimum trust region radius
-const MIN_λ = 1e-16 # maximum trust region radius
-const MIN_STEP_QUALITY = 1e-3
-const GOOD_STEP_QUALITY = 0.75
-const MIN_DIAGONAL = 1e-6
-
-function levenberg_marquardt!(x, fg, fcur, f!, g!; 
-                              tol::Real = 1e-8, maxiter::Integer = 1000, λ::Real = 10.0)
-    converged = false
-    iterations = maxiter
-    need_jacobian = true
-
-    δx = similar(x)
-    dtd = similar(x)
-    ftrial = similar(fcur)
-    ftmp = similar(fcur)
-
-    # for lsmr
-    alloc = ls_solver_alloc(fg, x, fcur)
-    # initialize
-    f!(x, fcur)
-    mfcur = scale!(fcur, -1.0)
-    residual = sumabs2(mfcur)
-    iter = 0
-    while iter < maxiter 
-        iter += 1
-        if need_jacobian
-            g!(x, fg)
-            need_jacobian = false
-        end
-        sumabs2!(dtd, fg)
-        # solve (J'J + λ * diagm(dtd)) = -J'fcur
-        fill!(δx, zero(Float64))
-        currentiter = ls_solver!(δx, mfcur, fg, dtd, λ, alloc)
-        iter += currentiter
-        # predicted residual
-        copy!(ftmp, mfcur)
-        A_mul_B!(1.0, fg, δx, -1.0, ftmp)
-        predicted_residual = sumabs2(ftmp)
-        # trial residual
-        axpy!(1.0, δx, x)
-        f!(x, ftrial)
-        trial_residual = sumabs2(ftrial)
-        ρ = (residual - trial_residual) / (residual - predicted_residual)
-        if ρ > GOOD_STEP_QUALITY
-            scale!(mfcur, ftrial, -1.0)
-            residual = trial_residual
-            # increase trust region radius
-            if ρ > 0.75
-                λ = max(0.1 * λ, MIN_λ)
-            end
-            need_jacobian = true
-        else
-            # revert update
-            axpy!(-1.0, δx, x)
-            λ = min(10 * λ, MAX_λ)
-        end
-        if maxabs(δx) < tol
-            iterations = iter
-            converged = true
-            break
-        end
-    end
-    return iterations, converged
-end
-
-##############################################################################
-## 
-## Dense Matrix
-##
-##############################################################################
-
-function ls_solver_alloc{T}(fg::Matrix{T}, x::Vector{T}, mfcur::Vector{T})
-    M = Array(T, size(fg, 1), size(fg, 1))
-    rhs = Array(T, size(fg, 1))
-end
-
-function ls_solver!{T}(δx::Vector{T}, mfcur::Vector{T}, fg::Matrix{T}, dtd::Vector{T}, λ, alloc)
-    clamp!(dtd, MIN_DIAGONAL, Inf)
-    scale!(dtd, λ^2)
-    M, rhs = alloc
-
-    # update M as J'J + λ^2dtd
-    At_mul_B(fg, fg, alloc.M)
-    for i in 1:size(alloc.M)
-        alloc.M[i, i] += dtd
-    end
-    # update rhs as J' fcur
-    At_mul_B(alloc.fg, mfcur, alloc.rhs)
-    A_ldiv_B!(δx, alloc.M, alloc.rhs)
-    return 1
-end
-
-##############################################################################
-## 
-## Case where J'J is costly to store: Sparse Matrix, but really anything
-## that defines 
-## A_mul_B(α, A, a, β b) that updates b as α A a + β b 
-## Ac_mul_B(α, A, a, β b) that updates b as α A' a + β b 
-##
-## An Inexact Levenberg Marquardt Method for Large Sparse Nonlinear Least Squares
-## SJ Wright and J.N. Holt
-# we use LSMR with the matrix A = |J         |
-#                                 |diag(dtd) |
-# and 1/sqrt(diag(A'A)) as preconditioner
-##
-##############################################################################
-
-
-# We need to define functions used in LSMR on this augmented space
 type MatrixWrapper{TA, Tx}
-    A::TA # J
-    d::Tx # λ * sqrt(diag(J'J))
-    normalization::Tx # (1 + λ^2 diag(J'J))
-    tmp::Tx
+    A::TA
+    d::Tx
 end
 
 type VectorWrapper{Ty, Tx}
-    y::Ty # dimension of f(x)
-    x::Tx # dimension of x
+    y::Ty
+    x::Tx
 end
 
-# These functions are used in lsmr (ducktyping)
-function copy!{Ty, Tx}(a::VectorWrapper{Ty, Tx}, b::VectorWrapper{Ty, Tx})
+function copy!{Tx, Ty}(a::VectorWrapper{Tx, Ty}, b::VectorWrapper{Tx, Ty})
     copy!(a.y, b.y)
     copy!(a.x, b.x)
     return a
 end
 
-function fill!(a::VectorWrapper, α)
-    fill!(a.y, α)
-    fill!(a.x, α)
+function fill!(a::VectorWrapper, x)
+    fill!(a.y, x)
+    fill!(a.x, x)
     return a
 end
 
-function scale!(a::VectorWrapper, α)
-    scale!(a.y, α)
-    scale!(a.x, α)
+function scale!(a::VectorWrapper, x)
+    scale!(a.y, x)
+    scale!(a.x, x)
     return a
 end
 
-function axpy!{Ty, Tx}(α, a::VectorWrapper{Ty, Tx}, b::VectorWrapper{Ty, Tx})
+function axpy!{Tx, Ty}(α, a::VectorWrapper{Tx, Ty}, b::VectorWrapper{Tx, Ty})
     axpy!(α, a.y, b.y)
     axpy!(α, a.x, b.x)
     return b
@@ -157,51 +38,111 @@ end
 
 function A_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::Tx, 
                 β::Float64, b::VectorWrapper{Ty, Tx})
-    map!((x, z) -> x / sqrt(z), mw.tmp, a, mw.normalization)
-    A_mul_B!(α, mw.A, mw.tmp, β, b.y)
-    map!((z, x, y)-> β * z + α * x * y, b.x, b.x, mw.tmp, mw.d)
+    A_mul_B!(α, mw.A, a, β, b.y)
+    map!((z, x, y)-> β * z + α * x * y, b.x, b.x, a, mw.d)
     return b
 end
 
 function Ac_mul_B!{TA, Tx, Ty}(α::Float64, mw::MatrixWrapper{TA, Tx}, a::VectorWrapper{Ty, Tx}, 
                 β::Float64, b::Tx)
-    Ac_mul_B!(α, mw.A, a.y, 0.0, mw.tmp)
-    map!((z, x, y)-> z + α * x * y, mw.tmp, mw.tmp, a.x, mw.d)
-    map!((x, z) -> x / sqrt(z), mw.tmp, mw.tmp, mw.normalization)
-    axpy!(β, b, mw.tmp)
-    copy!(b, mw.tmp)
+    Ac_mul_B!(α, mw.A, a.y, β, b)
+    map!((z, x, y)-> z + α * x * y, b, b, a.x, mw.d)
     return b
 end
 
-function ls_solver_alloc(fg, x, fcur)
+##############################################################################
+##
+## An Inexact Levenberg Marquardt Method for Large Sparse Nonlinear Least Squares
+## SJ Wright and J.N. Holt
+## 
+##############################################################################
+
+function levenberg_marquardt!(x, fg, fcur, f!, g!; tol =1e-8, maxiter=1000, λ=1.0)
+    const MAX_λ = 1e16 # minimum trust region radius
+    const MIN_λ = 1e-16 # maximum trust region radius
+    const MIN_STEP_QUALITY = 1e-3
+    const GOOD_STEP_QUALITY = 0.75
+    const MIN_DIAGONAL = 1e-6
+
+    converged = false
+    iterations = maxiter
+    need_jacobian = true
+
+    δx = similar(x)
+    dtd = similar(x)
     normalization = similar(x)
+
+    ftrial = similar(fcur)
+    ftmp = similar(fcur)
     zerosvector = similar(x)
     fill!(zerosvector, zero(Float64))
-    u = VectorWrapper(similar(fcur), similar(x))
+
+    # for lsmr
     v = similar(x)
     h = similar(x)
     hbar = similar(x)
-    xtmp = similar(x)
-    return normalization, zerosvector, u, v, h, hbar, xtmp
+    u = VectorWrapper(similar(fcur), similar(x))
+    # initialize
+    f!(x, fcur)
+    scale!(fcur, -1.0)
+    residual = sumabs2(fcur)
+    iter = 0
+    while iter < maxiter 
+        iter += 1
+        if need_jacobian
+            g!(x, fg)
+            need_jacobian = false
+        end
+        # dtd = λ diag(J'J)
+        sumabs2!(dtd, fg)
+        scale!(dtd, λ)
+        clamp!(dtd, MIN_DIAGONAL, Inf)
+        # solve (J'J + diagm(dtd)) = -J'f
+        # we use LSMR with the matrix A = |J         |
+        #                                 |diag(dtd) |
+        # (recommanded by Michael Saunders)
+        fill!(δx, zero(Float64))
+        y = VectorWrapper(fcur, zerosvector)
+        A = MatrixWrapper(fg, map!(x-> sqrt(x), dtd, dtd))
+        cglsiter, conv = lsmr!(δx, y, A, u, v, h, hbar; 
+           atol = 1e-8, btol = 1e-8, conlim = 1e8, λ = 0.)
+        iter += cglsiter
+        # predicted residual
+        copy!(ftmp, fcur)
+        A_mul_B!(1.0, fg, δx, -1.0, ftmp)
+        predicted_residual = sumabs2(ftmp)
+        # trial residual
+        axpy!(1.0, δx, x)
+        f!(x, ftrial)
+        trial_residual = sumabs2(ftrial)
+        ρ = (residual - trial_residual) / (residual - predicted_residual)
+        if ρ > GOOD_STEP_QUALITY
+            copy!(fcur, ftrial)
+            scale!(fcur, -1.0)
+            residual = trial_residual
+            # increase trust region radius
+            if ρ > 0.75
+                λ = max(0.1*λ, MIN_λ)
+            end
+            need_jacobian = true
+        else
+            # revert update
+            axpy!(-1.0, δx, x)
+            λ = min(10*λ, MAX_λ)
+        end
+        if maxabs(δx) < tol
+            iterations = iter
+            converged = true
+            break
+        end
+    end
+    return iterations, converged
 end
 
-function ls_solver!(δx, mfcur, fg, dtd, λ, alloc)
-    # we use LSMR with the matrix A = |J         |
-    #                                 |diag(dtd) |
-    # and 1/sqrt(diag(A'A)) as preconditioner
-    normalization, zerosvector, u, v, h, hbar, xtmp = alloc
-    copy!(normalization, dtd)
-    clamp!(dtd, MIN_DIAGONAL, Inf)
-    scale!(dtd, λ^2)
-    axpy!(1.0, dtd, normalization)
-    map!(sqrt, dtd, dtd)
-    y = VectorWrapper(mfcur, zerosvector)
-    A = MatrixWrapper(fg, dtd, normalization, xtmp)
-    iter = lsmr!(δx, y, A, u, v, h, hbar)
-    map!((x, z) -> x / sqrt(z), δx, δx, normalization)
-    return iter
-end
 
+
+
+##############################################################################
 ## LSMR
 ##
 ## Minimize ||Ax-b||^2 + λ^2 ||x||^2
@@ -209,8 +150,8 @@ end
 ## Arguments:
 ## x is initial x0. Will equal the solution.
 ## r is initial b - Ax0
-## u is storage arrays of length size(A, 1) == length(b)
-## v, h, hbar are storage arrays of length size(A, 2) == length(x)
+## u are storage arrays of length size(A, 1) = y
+## v, h, hbar are storage arrays of length size(A, 2) = x
 ## 
 ## Adapted from the BSD-licensed Matlab implementation at
 ##  http://web.stanford.edu/group/SOL/software/lsmr/
@@ -218,10 +159,11 @@ end
 ## A is anything such that
 ## A_mul_B!(α, A, b, β, c) updates c -> α Ab + βc
 ## Ac_mul_B!(α, A, b, β, c) updates c -> α A'b + βc
-
+##############################################################################
 
 function lsmr!(x, r, A, u, v, h, hbar; 
-    atol = 1e-10, btol = 1e-10, conlim = 1e10, maxiter::Integer=100, λ::Real = zero(Float64))
+    atol::Real = 1e-8, btol::Real = 1e-8, conlim::Real = 1e8, 
+    maxiter::Integer = 100, λ::Real = zero(Float64))
 
     conlim > 0.0 ? ctol = 1 / conlim : ctol = zero(Float64)
 
@@ -383,6 +325,9 @@ function lsmr!(x, r, A, u, v, h, hbar;
         if test2 <= atol istop = 2; break end
         if test1 <= rtol  istop = 1; break end
     end
-    return iter
+    return iter, (istop != 7) && (istop != 3)
 end
-        
+    
+
+
+

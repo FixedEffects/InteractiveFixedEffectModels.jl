@@ -45,6 +45,27 @@ function axpy!(α::Float64, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSol
     return fs2
 end
 
+function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}})
+    map!(f, out.b, fs1.b)
+    map!(f, out.idpool, fs1.idpool)
+    map!(f, out.timepool, fs1.timepool)
+    return out
+end
+
+function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
+    map!(f, out.b, fs1.b, fs2.b)
+    map!(f, out.idpool, fs1.idpool, fs2.idpool)
+    map!(f, out.timepool, fs1.timepool, fs2.timepool)
+    return out
+end
+
+function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}}, fs3::FactorSolution{Vector{Float64}})
+    map!(f, out.b, fs1.b, fs2.b, fs3.b)
+    map!(f, out.idpool, fs1.idpool, fs2.idpool, fs3.idpool)
+    map!(f, out.timepool, fs1.timepool, fs2.timepool, fs3.timepool)
+    return out
+end
+
 function broadcast!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
     broadcast!(f, out.b, fs1.b, fs2.b)
     broadcast!(f, out.idpool, fs1.idpool, fs2.idpool)
@@ -110,42 +131,40 @@ type FactorGradient{W, Rid, Rtime}
     fp::FactorProblem{W, Matrix{Float64}, Rid, Rtime}
 end
 
-function Ac_mul_B!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient, y::AbstractVector{Float64})
+function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, β::Number, fs::FactorSolution{Vector{Float64}})
+    scale!(fs, β)
     for k in 1:length(fs.b)
         out = zero(Float64)
         @inbounds @simd for i in 1:length(y)
             out -= y[i] * fg.fp.X[i, k]
         end
-        fs.b[k] = out
+        fs.b[k] += α * out
     end
-    fill!(fs.idpool, zero(Float64))
     for r in 1:fg.fp.rank
         @inbounds @simd for i in 1:length(y)
-            fs.idpool[fg.fp.idrefs[i], r] -= y[i] * fg.fp.sqrtw[i] * fg.timepool[fg.fp.timerefs[i], r]
+            fs.idpool[fg.fp.idrefs[i], r] -= α * y[i] * fg.fp.sqrtw[i] * fg.timepool[fg.fp.timerefs[i], r]
         end
     end
-    fill!(fs.timepool, zero(Float64))
     for r in 1:fg.fp.rank
         @inbounds @simd for i in 1:length(y)
-          fs.timepool[fg.fp.timerefs[i], r] -= y[i] * fg.fp.sqrtw[i] * fg.idpool[fg.fp.idrefs[i], r]
+          fs.timepool[fg.fp.timerefs[i], r] -= α * y[i] * fg.fp.sqrtw[i] * fg.idpool[fg.fp.idrefs[i], r]
       end
     end
     return fs
 end
 
-function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolution{Vector{Float64}})
-    A_mul_B!(y, fg.fp.X, fs.b)
+function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Float64}}, β::Number, y::AbstractVector{Float64})
+    Base.BLAS.gemm!('N', 'N', -α, fg.fp.X, fs.b, β, y)
     for r in 1:fg.fp.rank
         @inbounds @simd for i in 1:length(y)
-            y[i] += fg.fp.sqrtw[i] * fg.idpool[fg.fp.idrefs[i], r] * fs.timepool[fg.fp.timerefs[i], r] 
+            y[i] -= α * fg.fp.sqrtw[i] * fg.idpool[fg.fp.idrefs[i], r] * fs.timepool[fg.fp.timerefs[i], r] 
         end
     end
     for r in 1:fg.fp.rank
         @inbounds @simd for i in 1:length(y)
-            y[i] += fg.fp.sqrtw[i] * fg.timepool[fg.fp.timerefs[i], r] * fs.idpool[fg.fp.idrefs[i], r] 
+            y[i] -= α * fg.fp.sqrtw[i] * fg.timepool[fg.fp.timerefs[i], r] * fs.idpool[fg.fp.idrefs[i], r] 
         end
     end
-    scale!(y, -1.0)
     return y
 end
 
