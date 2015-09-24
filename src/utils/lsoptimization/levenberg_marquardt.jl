@@ -181,9 +181,16 @@ end
 
 function A_mul_B!{TA, Tx, Ty}(α::Number, mw::MatrixWrapper{TA, Tx}, a::Tx, 
                 β::Number, b::VectorWrapper{Ty, Tx})
+    if β != 1.
+        if β == 0.
+            fill!(b, 0.)
+        else
+            scale!(b, β)
+        end
+    end
     map!((x, z) -> x * z, mw.tmp, a, mw.normalization)
-    A_mul_B!(α, mw.A, mw.tmp, β, b.y)
-    map!((z, x, y)-> β * z + α * x * y, b.x, b.x, mw.tmp, mw.d)
+    A_mul_B!(α, mw.A, mw.tmp, 1.0, b.y)
+    map!((z, x, y)-> z + α * x * y, b.x, b.x, mw.tmp, mw.d)
     return b
 end
 
@@ -192,8 +199,14 @@ function Ac_mul_B!{TA, Tx, Ty}(α::Number, mw::MatrixWrapper{TA, Tx}, a::VectorW
     Ac_mul_B!(α, mw.A, a.y, 0.0, mw.tmp)
     map!((z, x, y)-> z + α * x * y, mw.tmp, mw.tmp, a.x, mw.d)
     map!((x, z) -> x * z, mw.tmp, mw.tmp, mw.normalization)
-    axpy!(β, b, mw.tmp)
-    copy!(b, mw.tmp)
+    if β != 1.
+        if β == 0.
+            fill!(b, 0.)
+        else
+            scale!(b, β)
+        end
+    end
+    axpy!(1.0, mw.tmp, b)
     return b
 end
 

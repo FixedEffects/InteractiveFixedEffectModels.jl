@@ -293,8 +293,8 @@ function fit(m::SparseFactorModel,
              vcov_method::AbstractVcovMethod = VcovSimple();
              method::Symbol = :ar, 
              lambda::Real = 0.0, 
-             subset::Union(AbstractVector{Bool},Nothing) = nothing, 
-             weight::Union(Symbol,Nothing) = nothing, 
+             subset::Union{AbstractVector{Bool}, Void} = nothing, 
+             weight::Union{Symbol,Nothing} = nothing, 
              maxiter::Integer = 10000, 
              tol::Real = 1e-8, 
              save = true)

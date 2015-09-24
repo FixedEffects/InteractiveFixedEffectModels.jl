@@ -157,10 +157,16 @@ end
 
 function Ac_mul_B!{TA, Tx}(α::Float64, mw::MatrixWrapperDogleg{TA, Tx}, a, 
                 β::Float64, b::Tx)
-    Ac_mul_B!(α, mw.A, a, 0.0, mw.tmp)
+    Ac_mul_B!(mw.tmp, mw.A, a)
     map!((x, z) -> x * z, mw.tmp, mw.tmp, mw.normalization)
-    axpy!(β, b, mw.tmp)
-    copy!(b, mw.tmp)
+    if β != 1.
+        if β == 0.
+            fill!(b, 0.)
+        else
+            scale!(b, β)
+        end
+    end
+    axpy!(α, mw.tmp, b)
     return b
 end
 

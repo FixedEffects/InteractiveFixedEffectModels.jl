@@ -128,7 +128,13 @@ type FactorGradient{W, Rid, Rtime}
 end
 
 function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, β::Number, fs::FactorSolution{Vector{Float64}})
-    scale!(fs, β)
+    if β != 1.
+        if β == 0.
+            fill!(fs, 0.)
+        else
+            scale!(fs, β)
+        end
+    end
     for k in 1:length(fs.b)
         out = zero(Float64)
         @inbounds @simd for i in 1:length(y)
@@ -150,12 +156,18 @@ function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, �
 end
 
 function Ac_mul_B!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient, y::AbstractVector{Float64})
-    fill!(fs, zero(Float64))
     Ac_mul_B!(1.0, fg, y, 0.0, fs)
 end
 
 function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Float64}}, β::Number, y::AbstractVector{Float64})
-    Base.BLAS.gemm!('N', 'N', -α, fg.fp.X, fs.b, β, y)
+    if β != 1.
+        if β == 0.
+            fill!(y, 0.)
+        else
+            scale!(y, β)
+        end
+    end
+    Base.BLAS.gemm!('N', 'N', -α, fg.fp.X, fs.b, 1.0, y)
     for r in 1:fg.fp.rank
         @inbounds @simd for i in 1:length(y)
             y[i] -= α * fg.fp.sqrtw[i] * fg.idpool[fg.fp.idrefs[i], r] * fs.timepool[fg.fp.timerefs[i], r] 
@@ -170,7 +182,6 @@ function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Floa
 end
 
 function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolution{Vector{Float64}})
-    fill!(y, zero(Float64))
     A_mul_B!(1.0, fg, fs, 0.0, y)
 end
 
