@@ -94,6 +94,7 @@ function dogleg!(x, fcur, f!::Function, J, g!::Function;
             axpy!(-1.0, mfcur, ftmp)
             predicted_residual = sumabs2(ftmp)
             ρ = (trial_residual - residual) / (predicted_residual - residual)
+
             if ρ >= MIN_STEP_QUALITY
                 # Successful iteration
                 copy!(fcur, ftrial)
@@ -166,6 +167,7 @@ end
 function dl_lssolver_alloc(x, fcur, J)
     normalization = similar(x)
     tmp = similar(x)
+    fill!(tmp, zero(Float64))
     u = similar(fcur)
     v = similar(x)
     h = similar(x)

@@ -49,10 +49,8 @@ function levenberg_marquardt!(x, fcur, f!, J, g!;
         end
         sumabs21!(dtd, J)
         # solve (J'J + λ * diagm(dtd)) = -J'fcur
-        fill!(δx, zero(Float64))
         currentiter = lm_lssolver!(δx, mfcur, J, dtd, λ, alloc)
         iter += currentiter
-     
         # trial residual
         axpy!(1.0, δx, x)
         f!(x, ftrial)
@@ -202,6 +200,7 @@ end
 function lm_lssolver_alloc(x, fcur, J)
     normalization = similar(x)
     tmp = similar(x)
+    fill!(tmp, zero(Float64))
     zerosvector = similar(x)
     fill!(zerosvector, zero(Float64))
     u = VectorWrapper(similar(fcur), similar(x))
@@ -224,6 +223,7 @@ function lm_lssolver!(δx, mfcur, J, dtd, λ, alloc)
     map!(sqrt, dtd, dtd)
     y = VectorWrapper(mfcur, zerosvector)
     A = MatrixWrapper(J, dtd, normalization, tmp)
+    fill!(δx, zero(Float64))
     iter = lsmr!(δx, y, A, u, v, h, hbar, btol = 0.5)
     map!((x, z) -> x * z, δx, δx, normalization)
     return iter

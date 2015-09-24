@@ -20,7 +20,6 @@ function lsmr!(x, r, A, u, v, h, hbar;
     atol = 1e-10, btol = 1e-10, conlim = 1e10, maxiter::Integer=100, λ::Real = zero(Float64))
 
     conlim > 0.0 ? ctol = 1 / conlim : ctol = zero(Float64)
-
     # form the first vectors u and v (satisfy  β*u = b,  α*v = A'u)
     copy!(u, r)
     β = norm(u)

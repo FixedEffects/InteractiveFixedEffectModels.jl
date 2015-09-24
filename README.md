@@ -3,7 +3,7 @@
 
 ## Motivation
 
-This package estimates linear factor models on sparse datasets (i.e. datasets where there is not one observation per (id x time) combination).
+This package estimates sparse factor models (i.e. factor models on datasets where there generally less than one observation per (id x time) combination).
 
 For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
@@ -12,13 +12,13 @@ For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time)
 
 When X is a set of id or time dummies, this problem corresponds to a principal component analysis with missing values. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
 
-To solve the problem above, two minimization methods are available
+To solve the problem above, three minimization methods are available
 
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:lm` This method corresponds to Levenberg Marquardt Method (adapted for sparse problems).
-- `:dl` This method corresponds to Dogleg Method (adapted for sparse problems).
+- `:lm` This method corresponds to Levenberg Marquardt Method 
+- `:dl` This method corresponds to Dogleg Method 
 
-In contrast to the method described in Bai (2009), these methods accept datasets with more than one observation for a given pair id x time (or weights), and handle cases where both dimensions are large. They also tend to be faster.
+All methods are adapted so the sparsity of the problem. In particular, compared to the SVD method, the algorithm does not run out of memory when both dimensions are large. 
 
 To install
 ```julia
@@ -83,15 +83,6 @@ fit(pfm::SparseFactorModel,
 
 
 
-
-
-#### weights
-
-The `weights` option allows to minimize the sum of *weighted* residuals. This option is not available for the option `:svd`. 
-
-When weights are not constant within id or time, the optimization problem has local minima that are not global - all methods may end up on such local minimum. You should therefore use weights that are constant within id or time or expereriment with different `methods`
-
-
 #### errors
 Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
 
@@ -101,6 +92,11 @@ fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pStat
 
 #### save
 The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
+
+
+#### weights and multiple observations
+
+The package handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
 #### When should I use interactive fixed effects?
@@ -128,8 +124,7 @@ In presence of cross or time correlation beyond the factor structure, the estima
 For models with fixed effect, an equivalent way to obtain β is to first demean regressors within groups and then regress `y` on these residuals instead of the original regressors.
 In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
-#### Can I have multiple observations per (id x time) ?
-Yes, but in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
+
 
 
 ## References

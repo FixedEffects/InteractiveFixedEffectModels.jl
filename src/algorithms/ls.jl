@@ -4,7 +4,7 @@
 ##
 ##############################################################################
 
-function fit!{W, Rid, Rtime}(t::Union(Type{Val{:lm}}, Type{Val{:dl}}), 
+function fit!{W, Rid, Rtime}(t::Union{Type{Val{:lm}}, Type{Val{:dl}}}, 
                          fp::FactorProblem{W, Matrix{Float64}, Rid, Rtime},
                          fs::FactorSolution{Vector{Float64}}; 
                          maxiter::Integer = 100_000,
@@ -43,7 +43,7 @@ function copy!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{
     return fs2
 end
 
-function axpy!(α::Float64, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
+function axpy!(α::Number, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
     axpy!(α, fs1.b, fs2.b)
     axpy!(α, fs1.idpool, fs2.idpool)
     axpy!(α, fs1.timepool, fs2.timepool)
@@ -71,13 +71,13 @@ function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vecto
     return out
 end
 
-function scale!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, α::Float64)
+function scale!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, α::Number)
     scale!(fs2.b, fs1.b, α)
     scale!(fs2.idpool, fs1.idpool, α)
     scale!(fs2.timepool, fs1.timepool, α)
     return fs2
 end
-function scale!(fs::FactorSolution{Vector{Float64}}, α::Float64)
+function scale!(fs::FactorSolution{Vector{Float64}}, α::Number)
     scale!(fs.b, α)
     scale!(fs.idpool, α)
     scale!(fs.timepool, α)
@@ -150,9 +150,9 @@ function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, �
 end
 
 function Ac_mul_B!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient, y::AbstractVector{Float64})
+    fill!(fs, zero(Float64))
     Ac_mul_B!(1.0, fg, y, 0.0, fs)
 end
-
 
 function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Float64}}, β::Number, y::AbstractVector{Float64})
     Base.BLAS.gemm!('N', 'N', -α, fg.fp.X, fs.b, β, y)
@@ -170,6 +170,7 @@ function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Floa
 end
 
 function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolution{Vector{Float64}})
+    fill!(y, zero(Float64))
     A_mul_B!(1.0, fg, fs, 0.0, y)
 end
 
