@@ -166,11 +166,11 @@ function fit(m::SparseFactorModel,
             newpfe = FixedEffectProblem(getfactors(fp, fs))
             residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
-            if norm(fs.b - At_mul_B(Xm, Xm) \ At_mul_B(Xm, ym)) <= 0.01 * norm(fs.b)
+            if iterations == maxiter || norm(fs.b - At_mul_B(Xm, Xm) \ At_mul_B(Xm, ym)) <= 0.01 * norm(fs.b)
                 break
             end
-            warn("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
-            fs = FactorSolution(randn!(fs.b), randn!(fs.idpool), randn!(fs.timepool))
+            info("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
+            map!(x -> randn() * x, fs, fs)
             copy!(ym, y)
             copy!(Xm, X)
         end
@@ -199,7 +199,6 @@ function fit(m::SparseFactorModel,
     if !has_regressors
         ess = sumabs2(residuals)
     else
-        newfes = getfactors(fp, fs)
         residualsm = ym .- Xm * fs.b
         crossxm = cholfact!(At_mul_B(Xm, Xm))
         ## compute the right degree of freedom
@@ -216,6 +215,7 @@ function fit(m::SparseFactorModel,
             end
         end
         df_absorb_factors = 0
+        newfes = getfactors(fp, fs)
         for fe in newfes
             df_absorb_factors += 
                 (typeof(vcov_method) == VcovCluster && in(fe.factorname, vcov_vars)) ? 

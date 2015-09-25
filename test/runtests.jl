@@ -1,7 +1,6 @@
 using SparseFactorModels
 
-tests = ["lsoptimization.jl",
-		"factormodel.jl", 
+tests = ["factormodel.jl", 
 		"interactivefixedeffectsmodel.jl"
 		]
 

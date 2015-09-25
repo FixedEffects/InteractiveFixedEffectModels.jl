@@ -13,21 +13,17 @@ function fit!{W, Rid, Rtime}(t::Union{Type{Val{:lm}}, Type{Val{:dl}}},
     scaleb = vec(sumabs2(fp.X, 1))
     fg = FactorGradient(fs.b, fs.idpool, fs.timepool, scaleb, 
                         similar(fs.idpool), similar(fs.timepool), fp)
+    nls = NonLinearLeastSquares(fs, similar(fp.y), (x, out) -> f!(x, out, fp), fg, g!)
     if t == Val{:lm}
-        iterations, converged = levenberg_marquardt!(fs, similar(fp.y), 
-                                    (x, out) -> f!(x, out, fp), 
-                                    fg, g!; 
-                                    tol = tol, maxiter = maxiter)
+        result = optimize!(nls ; method = :levenberg_marquardt,
+            xtol = tol, grtol = 1e-32, ftol = 1e-32,  iterations = maxiter)
     else
-        iterations, converged = dogleg!(fs, similar(fp.y), 
-                                        (x, out) -> f!(x, out, fp), 
-                                        fg, g!; 
-                                        tol = tol, maxiter = maxiter)
+          result = optimize!(nls ;  method = :dogleg,
+          xtol = tol, grtol = 1e-32, ftol = 1e-32,  iterations = maxiter)
     end
-
     # rescale factors and loadings so that factors' * factors = Id
     fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
-    return fs, [iterations], [converged]
+    return fs, [result.mul_calls], [result.converged]
 end
 
 ##############################################################################
@@ -35,6 +31,24 @@ end
 ## Factor Vector
 ##
 ##############################################################################
+
+function similar(fs::FactorSolution{Vector{Float64}})
+    return FactorSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
+end
+
+function fill!(fs::FactorSolution{Vector{Float64}}, α::Number)
+    fill!(fs.b, α)
+    fill!(fs.idpool, α)
+    fill!(fs.timepool, α)
+    return fs
+end
+
+function scale!(fs1::FactorSolution{Vector{Float64}}, α::Number)
+    scale!(fs1.b, α)
+    scale!(fs1.idpool, α)
+    scale!(fs1.timepool, α)
+    return fs1
+end
 
 function copy!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}})
     copy!(fs2.b, fs1.b)
@@ -50,38 +64,11 @@ function axpy!(α::Number, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolu
     return fs2
 end
 
-function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}})
-    map!(f, out.b, fs1.b)
-    map!(f, out.idpool, fs1.idpool)
-    map!(f, out.timepool, fs1.timepool)
+function map!(f, out::FactorSolution{Vector{Float64}},  fs::FactorSolution{Vector{Float64}}...)
+    map!(f, out.b, map(x -> x.b, fs)...)
+    map!(f, out.idpool, map(x -> x.idpool, fs)...)
+    map!(f, out.timepool, map(x -> x.timepool, fs)...)
     return out
-end
-
-function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})
-    map!(f, out.b, fs1.b, fs2.b)
-    map!(f, out.idpool, fs1.idpool, fs2.idpool)
-    map!(f, out.timepool, fs1.timepool, fs2.timepool)
-    return out
-end
-
-function map!(f, out::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}}, fs3::FactorSolution{Vector{Float64}})
-    map!(f, out.b, fs1.b, fs2.b, fs3.b)
-    map!(f, out.idpool, fs1.idpool, fs2.idpool, fs3.idpool)
-    map!(f, out.timepool, fs1.timepool, fs2.timepool, fs3.timepool)
-    return out
-end
-
-function scale!(fs2::FactorSolution{Vector{Float64}}, fs1::FactorSolution{Vector{Float64}}, α::Number)
-    scale!(fs2.b, fs1.b, α)
-    scale!(fs2.idpool, fs1.idpool, α)
-    scale!(fs2.timepool, fs1.timepool, α)
-    return fs2
-end
-function scale!(fs::FactorSolution{Vector{Float64}}, α::Number)
-    scale!(fs.b, α)
-    scale!(fs.idpool, α)
-    scale!(fs.timepool, α)
-    return fs
 end
 
 function dot(fs1::FactorSolution{Vector{Float64}}, fs2::FactorSolution{Vector{Float64}})  
@@ -97,18 +84,7 @@ end
 
 sumabs2(fs::FactorSolution{Vector{Float64}}) = sumabs2(fs.b) + sumabs2(fs.idpool) + sumabs2(fs.timepool)
 norm(fs::FactorSolution{Vector{Float64}}) = sqrt(sumabs2(fs))
-
-function fill!(fs::FactorSolution{Vector{Float64}}, x)
-    fill!(fs.b, x)
-    fill!(fs.idpool, x)
-    fill!(fs.timepool, x)
-    return fs
-end
-
-function similar(fs::FactorSolution{Vector{Float64}})
-    return FactorSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
-end
-
+maxabs(fs::FactorSolution{Vector{Float64}}) = max(maxabs(fs.b), maxabs(fs.idpool), maxabs(fs.timepool))
 
 ##############################################################################
 ##
@@ -128,9 +104,9 @@ type FactorGradient{W, Rid, Rtime}
 end
 
 function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, β::Number, fs::FactorSolution{Vector{Float64}})
-    if β != 1.
-        if β == 0.
-            fill!(fs, 0.)
+    if β != 1
+        if β == 0
+            fill!(fs, 0)
         else
             scale!(fs, β)
         end
@@ -156,7 +132,7 @@ function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, �
 end
 
 function Ac_mul_B!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient, y::AbstractVector{Float64})
-    Ac_mul_B!(1.0, fg, y, 0.0, fs)
+    Ac_mul_B!(1, fg, y, 0, fs)
 end
 
 function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Float64}}, β::Number, y::AbstractVector{Float64})
@@ -167,7 +143,7 @@ function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Floa
             scale!(y, β)
         end
     end
-    Base.BLAS.gemm!('N', 'N', -α, fg.fp.X, fs.b, 1.0, y)
+    Base.BLAS.gemm!('N', 'N', -convert(Float64, α), fg.fp.X, fs.b, 1.0, y)
     for r in 1:fg.fp.rank
         @inbounds @simd for i in 1:length(y)
             y[i] -= α * fg.fp.sqrtw[i] * fg.idpool[fg.fp.idrefs[i], r] * fs.timepool[fg.fp.timerefs[i], r] 
@@ -182,11 +158,11 @@ function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{Vector{Floa
 end
 
 function A_mul_B!(y::AbstractVector{Float64}, fg::FactorGradient, fs::FactorSolution{Vector{Float64}})
-    A_mul_B!(1.0, fg, fs, 0.0, y)
+    A_mul_B!(1, fg, fs, 0, y)
 end
 
 
-function sumabs21!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient) 
+function colsumabs2!(fs::FactorSolution{Vector{Float64}}, fg::FactorGradient) 
     copy!(fs.b, fg.scaleb)
     copy!(fs.idpool, fg.scaleid)
     copy!(fs.timepool, fg.scaletime)

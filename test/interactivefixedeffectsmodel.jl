@@ -3,22 +3,21 @@ using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 precision = 2e-1
 
 
-df = dataset("plm", "Cigar")
-df[:pState] = pool(df[:State])
-df[:pYear] = pool(df[:Year])
-for method in [:ar, :lm, :dl]
 
+for method in [:ar, :lm, :dl]
 	println(method)
+
+	df = dataset("plm", "Cigar")
+	df[:pState] = pool(df[:State])
+	df[:pYear] = pool(df[:Year])
+
+
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method = method, save = true)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
 	@test norm(abs(result.augmentdf[1, :factors1]) / 0.228 - 1) < precision
 	@test norm(abs(result.augmentdf[1, :loadings1]) / 851.514 - 1) < precision
 	@test norm(result.augmentdf[1, :residuals] / -9.7870 - 1) < precision
 	@test result.r2_within > 0.0
-
-	if method == :lm || method == :dl
-		@test result.iterations <= 200
-	end
 
 	show(result)
 	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, method = method, save = true)
@@ -61,15 +60,28 @@ for method in [:ar, :lm, :dl]
 end
 
 
-df = dataset("plm", "EmplUK")
-df[:id1] = df[:Firm]
-df[:id2] = df[:Year]
-df[:pid1] = pool(df[:id1])
-df[:pid2] = pool(df[:id2])
-df[:y] = df[:Wage]
-df[:x1] = df[:Emp]
-df[:w] = df[:Output]
+# local minima
+using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
+precision = 2e-1
+
 for method in [:lm, :dl]
+	println(method)
+
+	df = dataset("plm", "Cigar")
+	df[:pState] = pool(df[:State])
+	df[:pYear] = pool(df[:Year])
+	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price |> pState, df, method = method, 
+	weight = :Pop, save = true)
+	result = fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df, method = method, weight = :Pop, save = true)
+
+	df = dataset("plm", "EmplUK")
+	df[:id1] = df[:Firm]
+	df[:id2] = df[:Year]
+	df[:pid1] = pool(df[:id1])
+	df[:pid2] = pool(df[:id2])
+	df[:y] = df[:Wage]
+	df[:x1] = df[:Emp]
+	df[:w] = df[:Output]
 	result = fit(SparseFactorModel(:pid1, :pid2, 2), y ~ x1, df, method = method, save = true)
 	@test norm(result.coef ./ [4.53965, -0.0160858] - 1) < precision
 	result = fit(SparseFactorModel(:pid1, :pid2, 2), y ~ x1, df, method = method, save = true, weight = :w)
