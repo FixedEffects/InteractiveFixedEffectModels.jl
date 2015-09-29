@@ -3,22 +3,22 @@
 
 ## Motivation
 
-This package estimates sparse factor models (i.e. factor models on datasets where there generally less than one observation per (id x time) combination).
+This package estimates factor models on datasets where there is less or more than one observation per combination of id and time.
 
 For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
 
-When X is a set of id or time dummies, this problem corresponds to a principal component analysis with missing values. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
+When X is a set of id or time dummies, this problem corresponds to a generalized principal component. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
 
 To solve the problem above, three minimization methods are available
 
 - `:levenberg_marquardt` (default)
 - `:dogleg` 
-- `:gauss_seidel`, corresponding to alternative regressions
+- `:gauss_seidel` (corresponds to alternative regressions)
 
-All methods are adapted so the sparsity of the problem. In particular, compared to the SVD method, the algorithm does not run out of memory when both dimensions are large. 
+All methods are adapted to the sparsity of the problem. Compared to the SVD method, the algorithm does not require to construct and factorize a matrix `N x T`
 
 To install
 ```julia
@@ -99,10 +99,10 @@ The option `save = true` saves a new dataframe storing residuals, factors, loadi
 The package handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
-#### When should one use interactive fixed effects?
+#### Why are interactive fixed effects models helpful?
 Time fixed effects allow to control for aggregate shocks that impact individuals in the same way. Interactive fixed effects allow to control for aggregate shocks that impact individuals in different ways, as long as this heterogeneity is constant accross time.
 
-You can find such models in the following articles:
+Below are some applications:
 
 - Eberhardt, Helmers, Strauss (2013) *Do spillovers matter when estimating private returns to R&D?*
 - Hagedorn, Karahan, Movskii (2015) *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
@@ -117,12 +117,11 @@ The `cov` option is passed to a regression of y on x and covariates of the form 
  Moon Weidner (2015) show that overestimating the number of factors returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. 
 
 #### Does this command implement the bias correction term in Bai (2009)?
-In presence of cross or time correlation beyond the factor structure, the estimate for beta is biased (but still consistent): see Theorem 3 in Bai 2009, which derives the correction term in special cases. However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
+In presence of cross or time correlation beyond the factor structure, the estimate for beta, while consistent, is biase (see Theorem 3 in Bai 2009, which derives the correction term in special cases). However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
 
 
 #### Can `β` be estimated by replacing X with the residuals of X on a factor model?
-For models with fixed effect, an equivalent way to obtain β is to first demean regressors within groups and then regress `y` on these residuals instead of the original regressors.
-In contrast, this method does not work with models with interactive fixed effects. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
+No. While this method would work for fixed effect models, it does not work for interactive fixed effect models. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
 
 
 
