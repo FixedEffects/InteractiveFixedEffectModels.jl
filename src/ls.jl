@@ -140,7 +140,6 @@ for t in (FactorSolution{Void}, FactorSolution)
             return fs
         end
 
-
         function copy!(fs2::$t, fs1::$t)
             $(t == FactorSolution ? :(copy!(fs2.b, fs1.b)) : :nothing)
             copy!(fs2.idpool, fs1.idpool)
@@ -191,23 +190,35 @@ type FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}
 end
 
 Base.rank{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(f::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}) = Rank
-
 FactorGradient(idpool, timepool, scaleid, scaletime, fp) = FactorGradient(nothing, idpool, timepool, nothing, scaleid, scaletime, fp)
 
-function size{Tb}(fg::FactorGradient{Tb}, i::Integer)
-    if i == 1
-        length(fg.fp.y)
-    elseif i == 2
-        if Tb != Void
-            length(fg.b) + length(fg.idpool) + length(fg.timepool)
-        else
-            length(fg.idpool) + length(fg.timepool)
+for t in (FactorGradient{Void}, FactorGradient)
+    @eval begin
+        function size(fg::$t, i::Integer)
+            if i == 1
+                length(fg.fp.y)
+            elseif i == 2
+                $(if t == FactorGradient 
+                    :(length(fg.b) + length(fg.idpool) + length(fg.timepool))
+                else
+                    :(length(fg.idpool) + length(fg.timepool))
+                end
+                )
+            end
+        end
+
+        function colsumabs2!(fs::FactorSolution, fg::$t) 
+            out = $(t == FactorGradient ? :(copy!(fs.b, fg.scaleb)) : zero(Float64))
+            copy!(fs.idpool, fg.scaleid)
+            copy!(fs.timepool, fg.scaletime)
+            return fs
         end
     end
 end
-size(fg::FactorGradient) = (size(fg, 1), size(fg, 2))
 
+size(fg::FactorGradient) = (size(fg, 1), size(fg, 2))
 eltype(fg::FactorGradient) = Float64
+
 
 function Ac_mul_B!(α::Number, fg::FactorGradient{Void}, y::AbstractVector{Float64}, β::Number, fs::FactorSolution)
     mα = convert(Float64, -α)
@@ -304,17 +315,7 @@ end
     end
 end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), 
-                (:(FactorSolution), :(copy!(fs.b, fg.scaleb))))
-    @eval begin
-        function colsumabs2!(fs::$t, fg::FactorGradient) 
-            $x
-            copy!(fs.idpool, fg.scaleid)
-            copy!(fs.timepool, fg.scaletime)
-            return fs
-        end
-    end
-end
+
 
 ##############################################################################
 ##
