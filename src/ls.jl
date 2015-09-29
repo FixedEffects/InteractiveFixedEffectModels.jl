@@ -92,11 +92,11 @@ end
 ## Factor Vector
 ##
 ##############################################################################
+eltype(fg::FactorSolution) = Float64
 
 function similar(fs::FactorSolution)
      return FactorSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
  end
-
  function similar(fs::FactorSolution{Void})
     return FactorSolution(similar(fs.idpool), similar(fs.timepool))
 end
@@ -104,16 +104,13 @@ end
 function length(fs::FactorSolution)
     return length(fs.b) + length(fs.idpool) + length(fs.timepool)
 end
-
 function length(fs::FactorSolution{Void})
     return length(fs.idpool) + length(fs.timepool)
 end
-eltype(fg::FactorSolution) = Float64
 
 function sumabs2(fs::FactorSolution)
     sumabs2(fs.b) + sumabs2(fs.idpool) + sumabs2(fs.timepool)
 end
-
 function sumabs2(fs::FactorSolution{Void})
     sumabs2(fs.idpool) + sumabs2(fs.timepool)
 end
@@ -123,76 +120,50 @@ norm(fs::FactorSolution) = sqrt(sumabs2(fs))
 function maxabs(fs::FactorSolution)
     max(maxabs(fs.b), maxabs(fs.idpool), maxabs(fs.timepool))
 end
-
 function maxabs(fs::FactorSolution{Void})
     max(maxabs(fs.idpool), maxabs(fs.timepool))
 end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), 
-                (:(FactorSolution), :(fill!(fs.b, α))))
+for t in (FactorSolution{Void}, FactorSolution)
     @eval begin
         function fill!(fs::$t, α::Number)
-            $x
+            $(t == FactorSolution ? :(fill!(fs.b, α)) : :nothing)
             fill!(fs.idpool, α)
             fill!(fs.timepool, α)
             return fs
         end
-    end
-end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), 
-                (:(FactorSolution), :(scale!(fs.b, α))))
-    @eval begin
         function scale!(fs::$t, α::Number)
-            $x
+            $(t == FactorSolution ? :(scale!(fs.b, α)) : :nothing)
             scale!(fs.idpool, α)
             scale!(fs.timepool, α)
             return fs
         end
-    end
-end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), 
-                (:(FactorSolution), :(copy!(fs2.b, fs1.b))))
-    @eval begin
+
         function copy!(fs2::$t, fs1::$t)
-            $x
+            $(t == FactorSolution ? :(copy!(fs2.b, fs1.b)) : :nothing)
             copy!(fs2.idpool, fs1.idpool)
             copy!(fs2.timepool, fs1.timepool)
             return fs2
         end
-    end
-end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), 
-                (:(FactorSolution), :(axpy!(α, fs1.b, fs2.b))))
-    @eval begin
         function axpy!(α::Number, fs1::$t, fs2::$t)
-            $x
+            $(t == FactorSolution ? :(axpy!(α, fs1.b, fs2.b)) : :nothing)
             axpy!(α, fs1.idpool, fs2.idpool)
             axpy!(α, fs1.timepool, fs2.timepool)
             return fs2
         end
-    end
-end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), 
-                (:(FactorSolution), :(map!(f, out.b, map(x -> x.b, fs)...))))
-    @eval begin
         function map!(f, out::$t,  fs::$t...)
-            $x
+            $(t == FactorSolution ? :(map!(f, out.b, map(x -> x.b, fs)...)) : :nothing)
             map!(f, out.idpool, map(x -> x.idpool, fs)...)
             map!(f, out.timepool, map(x -> x.timepool, fs)...)
             return out
         end
-    end
-end
 
-for (t, x) in ((:(FactorSolution{Void}), :(zero(Float64))), 
-                (:(FactorSolution), :(dot(fs1.b, fs2.b))))
-    @eval begin
         function dot(fs1::$t, fs2::$t)  
-            out = $x 
+            out = $(t == FactorSolution ? :(dot(fs1.b, fs2.b)) : zero(Float64))
             @inbounds @simd for i in eachindex(fs1.idpool)
                 out += fs1.idpool[i] * fs2.idpool[i]
             end
