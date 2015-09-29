@@ -128,7 +128,6 @@ function maxabs(fs::FactorSolution{Void})
     max(maxabs(fs.idpool), maxabs(fs.timepool))
 end
 
-
 for (t, x) in ((:(FactorSolution{Void}), nothing), 
                 (:(FactorSolution), :(fill!(fs.b, α))))
     @eval begin
@@ -165,7 +164,6 @@ for (t, x) in ((:(FactorSolution{Void}), nothing),
     end
 end
 
-
 for (t, x) in ((:(FactorSolution{Void}), nothing), 
                 (:(FactorSolution), :(axpy!(α, fs1.b, fs2.b))))
     @eval begin
@@ -189,7 +187,6 @@ for (t, x) in ((:(FactorSolution{Void}), nothing),
         end
     end
 end
-
 
 for (t, x) in ((:(FactorSolution{Void}), :(zero(Float64))), 
                 (:(FactorSolution), :(dot(fs1.b, fs2.b))))
@@ -223,23 +220,22 @@ type FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}
 end
 
 Base.rank{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(f::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}) = Rank
+
 FactorGradient(idpool, timepool, scaleid, scaletime, fp) = FactorGradient(nothing, idpool, timepool, nothing, scaleid, scaletime, fp)
 
-@generated function size{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(
-    fg::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}, i::Integer)
-    quote
-        if i == 1
-            length(fg.fp.y)
-        elseif i == 2
-            if Tb != Void
-                length(fg.b) + length(fg.idpool) + length(fg.timepool)
-            else
-                length(fg.idpool) + length(fg.timepool)
-            end
+function size{Tb}(fg::FactorGradient{Tb}, i::Integer)
+    if i == 1
+        length(fg.fp.y)
+    elseif i == 2
+        if Tb != Void
+            length(fg.b) + length(fg.idpool) + length(fg.timepool)
+        else
+            length(fg.idpool) + length(fg.timepool)
         end
     end
 end
 size(fg::FactorGradient) = (size(fg, 1), size(fg, 2))
+
 eltype(fg::FactorGradient) = Float64
 
 function Ac_mul_B!(α::Number, fg::FactorGradient{Void}, y::AbstractVector{Float64}, β::Number, fs::FactorSolution)
@@ -260,7 +256,6 @@ function Ac_mul_B!(α::Number, fg::FactorGradient{Void}, y::AbstractVector{Float
     end
     return fs
 end
-
 
 @generated function Ac_mul_B!{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(α::Number, fg::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}, y::AbstractVector{Float64}, β::Number, fs::FactorSolution)
     quote
@@ -312,7 +307,6 @@ function A_mul_B!(α::Number, fg::FactorGradient{Void}, fs::FactorSolution, β::
     return y
 end
 
-
 @generated function A_mul_B!{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(α::Number, fg::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}, fs::FactorSolution, β::Number, y::AbstractVector{Float64})
     quote
         mα = convert(Float64, -α)
@@ -339,8 +333,8 @@ end
     end
 end
 
-
-for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(copy!(fs.b, fg.scaleb))))
+for (t, x) in ((:(FactorSolution{Void}), nothing), 
+                (:(FactorSolution), :(copy!(fs.b, fg.scaleb))))
     @eval begin
         function colsumabs2!(fs::$t, fg::FactorGradient) 
             $x
@@ -356,6 +350,7 @@ end
 ## Functions and Gradient for the function to minimize
 ##
 ##############################################################################
+
 function call(fp::FactorProblem, fs::FactorSolution{Void}, out::Vector{Float64})
     copy!(out, fp.y)
     @fastmath @inbounds @simd for i in 1:length(out)
