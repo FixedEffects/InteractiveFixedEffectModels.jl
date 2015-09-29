@@ -19,21 +19,23 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                          lambda::Real = 0.0)
     # initialize
     iter = 0
+    converged = true
+
     res = deepcopy(fp.y)
     fp = FactorProblem(res, fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
-    idscale = Array(Float64, size(fs.idpool, 1))
-    timescale = Array(Float64, size(fs.timepool, 1))
-    idpool = Array(Float64, size(fs.idpool, 1))
-    timepool = Array(Float64, size(fs.timepool, 1))
-    iterationsv = Int[]
-    convergedv = Bool[]
     idpoolr = slice(fs.idpool, :, 1)
     timepoolr = slice(fs.timepool, :, 1)
-    fstmp = FactorSolution(idpoolr, timepoolr)
-    fg = FactorGradient(idpool, timepool, 
-                        idscale, timescale, fp)
-    nls = NonLinearLeastSquares(fstmp, similar(fp.y), fp, fg, g!)
-
+    fg = FactorGradient(similar(idpoolr), 
+                        similar(timepoolr),
+                        similar(idpoolr), 
+                        similar(timepoolr),
+                        fp)
+    nls = NonLinearLeastSquares(
+                FactorSolution(idpoolr, timepoolr), 
+                similar(fp.y), 
+                fp, 
+                fg, 
+                g!)
     full = NonLinearLeastSquaresProblem(nls, t)
     for r in 1:rank(fp)
         idpoolr = slice(fs.idpool, :, r)
@@ -41,8 +43,8 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
         full.nls.x = FactorSolution(idpoolr, timepoolr)
         result = optimize!(full,
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-        push!(iterationsv, result.mul_calls)
-        push!(convergedv, result.converged)
+        iter += result.mul_calls
+        converged = result.converged && converged
         if r < rank(fp)
             rescale!(idpoolr, timepoolr)
             subtract_factor!(fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
@@ -50,7 +52,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     end
     # rescale factors and loadings so that factors' * factors = Id
     fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
-    return fs, maximum(iterationsv), all(convergedv)
+    return fs, iter, converged
 end
 
 
