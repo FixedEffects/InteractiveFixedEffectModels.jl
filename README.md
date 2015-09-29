@@ -100,7 +100,7 @@ The option `save = true` saves a new dataframe storing residuals, factors, loadi
 The package handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
-#### Why are interactive fixed effects models helpful?
+#### When should one use interactive fixed effects models?
 Time fixed effects allow to control for aggregate shocks that impact individuals in the same way. Interactive fixed effects allow to control for aggregate shocks that impact individuals in different ways, as long as this heterogeneity is constant accross time.
 
 Below are some applications:

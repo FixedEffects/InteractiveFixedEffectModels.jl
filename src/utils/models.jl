@@ -18,10 +18,10 @@ end
 ##############################################################################
 
 function reftype(sz) 
-    sz <= typemax(Uint8)  ? Uint8 :
-    sz <= typemax(Uint16) ? Uint16 :
-    sz <= typemax(Uint32) ? Uint32 :
-    Uint64
+    sz <= typemax(UInt8)  ? UInt8 :
+    sz <= typemax(UInt16) ? UInt16 :
+    sz <= typemax(UInt32) ? UInt32 :
+    UInt64
 end
 function simpleModelFrame(df, t, esample)
     df1 = DataFrame(map(x -> df[x], t.eterms))
