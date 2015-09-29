@@ -15,8 +15,8 @@ When X is a set of id or time dummies, this problem corresponds to a principal c
 To solve the problem above, three minimization methods are available
 
 - `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:lm` This method corresponds to Levenberg Marquardt Method 
-- `:dl` This method corresponds to Dogleg Method 
+- `:levenberg_marquardt` This method corresponds to Levenberg Marquardt Method 
+- `:dogleg` This method corresponds to Dogleg Method 
 
 All methods are adapted so the sparsity of the problem. In particular, compared to the SVD method, the algorithm does not run out of memory when both dimensions are large. 
 
