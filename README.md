@@ -22,6 +22,7 @@ All methods are adapted to the sparsity of the problem. Compared to the SVD meth
 
 To install
 ```julia
+Pkg.clone("https://github.com/matthieugomez/LeastSquares.jl")
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
