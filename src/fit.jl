@@ -14,18 +14,14 @@ function fit(m::SparseFactorModel,
              subset::Union{AbstractVector{Bool}, Void} = nothing, 
              weight::Union{Symbol, Void} = nothing, 
              maxiter::Integer = 10_000, 
-             tol::Real = 1e-8, 
-             save = false)
+             tol::Real = 1e-9, 
+             save::Union{Bool, Void} = nothing)
 
     ##############################################################################
     ##
     ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
-    if method == :svd
-        weight == nothing || error("The svd method does not handle weights")
-    end
-
 
     ## parse formula 
     rf = deepcopy(f)
@@ -37,8 +33,8 @@ function fit(m::SparseFactorModel,
     has_regressors = allvars(rf.rhs) != [] || (rt.intercept == true && !has_absorb)
 
     # change default if has_regressors
-    if !has_regressors
-        save = true
+    if save == nothing 
+        save = !has_regressors
     end
     ## create a dataframe without missing values & negative weights
     vars = allvars(rf)
@@ -82,10 +78,8 @@ function fit(m::SparseFactorModel,
         pfe = nothing
     end
 
-    # initialize iterations and converged
-    iterations = Int[]
-    converged = Bool[]
-
+    iterations = 0
+    converged = false
     # get two dimensions
     id = subdf[m.id]
     time = subdf[m.time]
@@ -103,7 +97,7 @@ function fit(m::SparseFactorModel,
         coef_names = coefnames(mf)
         X = ModelMatrix(mf).m
         broadcast!(*, X, X, sqrtw)
-        residualize!(X, pfe, iterations, converged)
+        residualize!(X, pfe, Int[], Bool[])
     end
 
     # Compute demeaned y
@@ -116,7 +110,7 @@ function fit(m::SparseFactorModel,
     end
     broadcast!(*, y, y, sqrtw)
     oldy = deepcopy(y)
-    residualize!(y, pfe, iterations, converged)
+    residualize!(y, pfe, Int[], Bool[])
 
     ##############################################################################
     ##
@@ -134,7 +128,7 @@ function fit(m::SparseFactorModel,
         fs = FactorSolution(idpool, timepool)
         # factor model 
         if method == nothing
-             method = :ar
+             method = :dl
          end
         (fs, iterations, converged) = 
             fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
@@ -145,10 +139,10 @@ function fit(m::SparseFactorModel,
         end
 
         # initialize fs
-        coef =  cholfact!(At_mul_B(X, X)) \ At_mul_B(X, y)
+        coef = X \ y
         fp = FactorProblem(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
-        fit!(Val{:ar}, fp, fs; maxiter = 100, tol = 1e-3)
+        fit!(Val{:levenberg_marquardt}, fp, fs; maxiter = 100, tol = 1e-3)
         fs = FactorSolution(coef, fs.idpool, fs.timepool)
 
         fp = FactorProblem(y, sqrtw, X, id.refs, time.refs, m.rank)
@@ -157,7 +151,7 @@ function fit(m::SparseFactorModel,
 
         while true 
             # estimate the model
-            (fs, iterations, converged) = 
+           (fs, iterations, converged) = 
                 fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
             # check that I obtain the same coefficient if I solve
             # y ~ x + γ1 x factors + γ2 x loadings
@@ -166,7 +160,8 @@ function fit(m::SparseFactorModel,
             newpfe = FixedEffectProblem(getfactors(fp, fs))
             residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
-            if iterations == maxiter || norm(fs.b - At_mul_B(Xm, Xm) \ At_mul_B(Xm, ym)) <= 0.01 * norm(fs.b)
+            ydiff = Xm * (fs.b - Xm \ ym)
+            if iterations == maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
             end
             info("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
@@ -288,18 +283,9 @@ end
 
 # Symbol to formula Symbol ~ 0
 function fit(m::SparseFactorModel, 
-             variable::Symbol, 
-             df::AbstractDataFrame, 
-             vcov_method::AbstractVcovMethod = VcovSimple();
-             method::Symbol = :ar, 
-             lambda::Real = 0.0, 
-             subset::Union{AbstractVector{Bool}, Void} = nothing, 
-             weight::Union{Symbol,Nothing} = nothing, 
-             maxiter::Integer = 10000, 
-             tol::Real = 1e-8, 
-             save = true)
+             variable::Symbol, args...; kwargs...)
     formula = Formula(variable, 0)
-    fit(m, formula, df, vcov_method, method = method,lambda = lambda,subset = subset,weight = weight,subset = subset, maxiter = maxiter,tol = tol,save = save)
+    fit(m, formula, args...; kwargs...)
 end
 
 

@@ -17,30 +17,34 @@ end
 ##
 ##############################################################################
 
-type FactorProblem{W, TX, Rid, Rtime}
+type FactorProblem{W, TX, Rid, Rtime, Rank}
     y::Vector{Float64}
     sqrtw::W
     X::TX
     idrefs::Vector{Rid}
     timerefs::Vector{Rtime}
-    rank::Int
 end
+
+Base.rank{W, TX, Rid, Rtime, Rank}(f::FactorProblem{W, TX, Rid, Rtime, Rank}) = Rank
+function FactorProblem{W, TX, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::TX, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int)
+    FactorProblem{W, TX, Rid, Rtime, rank}(y, sqrtw, X, idrefs, timerefs)
+end
+
 function FactorProblem(y::Vector{Float64}, sqrtw, idrefs::Vector, timerefs::Vector, rank::Int)
     FactorProblem(y, sqrtw, nothing, idrefs, timerefs, rank)
 end
 
-type FactorSolution{Tb}
+type FactorSolution{Tb, Tid, Ttime}
     b::Tb
-    idpool::Matrix{Float64}
-    timepool::Matrix{Float64}
+    idpool::Tid
+    timepool::Ttime
 end
 FactorSolution(idpool, timepool) = FactorSolution(nothing, idpool, timepool)
-
 
 function getfactors(fp::FactorProblem,fs::FactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
-    for r in 1:fp.rank
+    for r in 1:rank(fp)
         idinteraction = Array(Float64, length(fp.y))
         for i in 1:length(fp.y)
             idinteraction[i] = fs.timepool[fp.timerefs[i], r]
@@ -70,8 +74,8 @@ type SparseFactorResult
     augmentdf::DataFrame
 
     ess::Float64
-    iterations::Vector{Int64}
-    converged::Vector{Bool}
+    iterations::Int64
+    converged::Bool
 end
 
 # object returned when fitting linear model

@@ -2,15 +2,12 @@ using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 
 precision = 2e-1
 
-
-
-for method in [:ar, :lm, :dl]
+for method in [:levenberg_marquardt, :dogleg, :ar]
 	println(method)
 
 	df = dataset("plm", "Cigar")
 	df[:pState] = pool(df[:State])
 	df[:pYear] = pool(df[:Year])
-
 
 	result = fit(SparseFactorModel(:pState, :pYear, 1), Sales ~ Price, df, method = method, save = true)
 	@test norm(result.coef ./ [328.1653237715761, -1.0415042260420706] .- 1)  < precision
@@ -64,7 +61,7 @@ end
 using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 precision = 2e-1
 
-for method in [:lm, :dl]
+for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
 	df = dataset("plm", "Cigar")
