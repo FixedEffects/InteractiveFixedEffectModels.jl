@@ -16,7 +16,6 @@ import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, 
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!
-import Distances: sqeuclidean
 
 ##############################################################################
 ##
@@ -37,7 +36,7 @@ include("types.jl")
 include("utils/models.jl")
 include("utils/factors.jl")
 
-include("ar.jl")
+include("gauss_seidel.jl")
 
 include("ls.jl")
 

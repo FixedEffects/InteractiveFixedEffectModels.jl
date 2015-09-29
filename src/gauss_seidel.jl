@@ -11,7 +11,7 @@
 ##
 ##############################################################################
 
-function fit!(::Type{Val{:ar}}, 
+function fit!(::Type{Val{:gauss_seidel}}, 
     fp::FactorProblem,
     fs::FactorSolution{Void};
     maxiter::Integer  = 100_000,
@@ -35,9 +35,9 @@ function fit!(::Type{Val{:ar}},
         iter = 0
         while iter < maxiter
             iter += 1
-            update!(Val{:ar}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, 
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, 
                 idscale, timepoolr)
-            update!(Val{:ar}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, 
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, 
                 timescale, idpoolr)
             f_x = ssr(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
             if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
@@ -63,7 +63,7 @@ end
 ##
 ##############################################################################
 
-function fit!(::Type{Val{:ar}},
+function fit!(::Type{Val{:gauss_seidel}},
     fp::FactorProblem,
     fs::FactorSolution; 
     maxiter::Integer = 100_000, 
@@ -99,8 +99,8 @@ function fit!(::Type{Val{:ar}},
         for r in 1:rank(fp)
             idpoolr = slice(fs.idpool, :, r)
             timepoolr = slice(fs.timepool, :, r)
-            update!(Val{:ar}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, idscale, timepoolr)
-            update!(Val{:ar}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, timescale, idpoolr)
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, idscale, timepoolr)
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, timescale, idpoolr)
             subtract_factor!(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
         end
 
@@ -131,7 +131,7 @@ end
 ##
 ##############################################################################
 
-function update!{R1, R2}(::Type{Val{:ar}},
+function update!{R1, R2}(::Type{Val{:gauss_seidel}},
     y::Vector{Float64},
     sqrtw::AbstractVector{Float64},
     p1refs::Vector{R1},

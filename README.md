@@ -14,9 +14,9 @@ When X is a set of id or time dummies, this problem corresponds to a principal c
 
 To solve the problem above, three minimization methods are available
 
-- `:ar` This method corresponds to coordinate gradient descent (= Gauss Seidel). 
-- `:levenberg_marquardt` This method corresponds to Levenberg Marquardt Method 
-- `:dogleg` This method corresponds to Dogleg Method 
+- `:levenberg_marquardt` (default)
+- `:dogleg` 
+- `:gauss_seidel`, corresponding to alternative regressions
 
 All methods are adapted so the sparsity of the problem. In particular, compared to the SVD method, the algorithm does not run out of memory when both dimensions are large. 
 
@@ -99,7 +99,7 @@ The option `save = true` saves a new dataframe storing residuals, factors, loadi
 The package handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
-#### When should I use interactive fixed effects?
+#### When should one use interactive fixed effects?
 Time fixed effects allow to control for aggregate shocks that impact individuals in the same way. Interactive fixed effects allow to control for aggregate shocks that impact individuals in different ways, as long as this heterogeneity is constant accross time.
 
 You can find such models in the following articles:
@@ -113,8 +113,8 @@ You can find such models in the following articles:
 The `cov` option is passed to a regression of y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
 
 
-#### What if I don't know the number of factors?
- Moon Weidner (2015) show that overestimating the number of factors still returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. A rule of thumb is to check that your estimate stays constant when you add more factors.
+#### What if the number of factors is unkown?
+ Moon Weidner (2015) show that overestimating the number of factors returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. 
 
 #### Does this command implement the bias correction term in Bai (2009)?
 In presence of cross or time correlation beyond the factor structure, the estimate for beta is biased (but still consistent): see Theorem 3 in Bai 2009, which derives the correction term in special cases. However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
