@@ -129,7 +129,8 @@ function maxabs(fs::FactorSolution{Void})
 end
 
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(fill!(fs.b, α))))
+for (t, x) in ((:(FactorSolution{Void}), nothing), 
+                (:(FactorSolution), :(fill!(fs.b, α))))
     @eval begin
         function fill!(fs::$t, α::Number)
             $x
@@ -140,7 +141,8 @@ for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(fill!(f
     end
 end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(scale!(fs.b, α))))
+for (t, x) in ((:(FactorSolution{Void}), nothing), 
+                (:(FactorSolution), :(scale!(fs.b, α))))
     @eval begin
         function scale!(fs::$t, α::Number)
             $x
@@ -151,7 +153,8 @@ for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(scale!(
     end
 end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(copy!(fs2.b, fs1.b))))
+for (t, x) in ((:(FactorSolution{Void}), nothing), 
+                (:(FactorSolution), :(copy!(fs2.b, fs1.b))))
     @eval begin
         function copy!(fs2::$t, fs1::$t)
             $x
@@ -163,7 +166,8 @@ for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(copy!(f
 end
 
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(axpy!(α, fs1.b, fs2.b))))
+for (t, x) in ((:(FactorSolution{Void}), nothing), 
+                (:(FactorSolution), :(axpy!(α, fs1.b, fs2.b))))
     @eval begin
         function axpy!(α::Number, fs1::$t, fs2::$t)
             $x
@@ -174,7 +178,8 @@ for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(axpy!(�
     end
 end
 
-for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(map!(f, out.b, map(x -> x.b, fs)...))))
+for (t, x) in ((:(FactorSolution{Void}), nothing), 
+                (:(FactorSolution), :(map!(f, out.b, map(x -> x.b, fs)...))))
     @eval begin
         function map!(f, out::$t,  fs::$t...)
             $x
@@ -186,7 +191,8 @@ for (t, x) in ((:(FactorSolution{Void}), nothing), (:(FactorSolution), :(map!(f,
 end
 
 
-for (t, x) in ((:(FactorSolution{Void}), :(zero(Float64))), (:(FactorSolution), :(dot(fs1.b, fs2.b))))
+for (t, x) in ((:(FactorSolution{Void}), :(zero(Float64))), 
+                (:(FactorSolution), :(dot(fs1.b, fs2.b))))
     @eval begin
         function dot(fs1::$t, fs2::$t)  
             out = $x 
