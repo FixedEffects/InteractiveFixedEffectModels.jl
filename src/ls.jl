@@ -40,7 +40,6 @@ function maxabs(fs::FactorSolution)
     max(maxabs(fs.idpool), maxabs(fs.timepool))
 end
 
-
 @generated function fill!(x::AbstractFactorSolution, α::Number)
     vars = [:(fill!(x.$field, α)) for field in fieldnames(x)]
     Expr(:block, vars..., :(return x))
@@ -51,18 +50,15 @@ end
     Expr(:block, vars..., :(return x))
 end
 
-
 @generated function copy!(x1::AbstractFactorSolution, x2::AbstractFactorSolution)
     vars = [:(copy!(x1.$field, x2.$field)) for field in fieldnames(x1)]
     Expr(:block, vars..., :(return x1))
 end
 
-
 @generated function axpy!(α::Number, x1::AbstractFactorSolution, x2::AbstractFactorSolution)
     vars = [:(axpy!(α, x1.$field, x2.$field)) for field in fieldnames(x1)]
     Expr(:block, vars..., :(return x2))
 end
-       
 
 @generated function map!(f, x1::AbstractFactorSolution,  x2::AbstractFactorSolution...)
    vars = [:(map!(f, x1.$field, map(x -> x.$field, x2)...)) for field in fieldnames(x1)]
@@ -82,9 +78,6 @@ end
     vars = [:(out += dot(x1.$field, x2.$field)) for field in fieldnames(x1)]
     Expr(:block, expr1, vars..., :(return out))
 end
-
-
-
 
 ##############################################################################
 ##
