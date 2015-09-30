@@ -6,7 +6,88 @@
 
 ##############################################################################
 ##
-## Common methods
+## Factor Model (no regressors)
+##
+##############################################################################
+
+function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}}, 
+                         fp::FactorModel,
+                         fs::FactorSolution; 
+                         maxiter::Integer = 100_000,
+                         tol::Real = 1e-9,
+                         lambda::Real = 0.0)
+    # initialize
+    iter = 0
+    converged = true
+    fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
+    N = size(fs.idpool, 1)
+    T = size(fs.timepool, 1)
+
+    fg = FactorGradient(fp,
+                        FactorSolution(Array(Float64, N), Array(Float64, T)),
+                        FactorSolution(Array(Float64, N), Array(Float64, T))
+                       )
+    nls = NonLinearLeastSquares(
+                slice(fs, :, 1), 
+                similar(fp.y), 
+                fp, 
+                fg, 
+                g!)
+    full = NonLinearLeastSquaresProblem(nls, t)
+    for r in 1:rank(fp)
+        fsr = slice(fs, :, r)
+        full.nls.x = fsr
+        result = optimize!(full,
+            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+        iter += result.mul_calls
+        converged = result.converged && converged
+        if r < rank(fp)
+            rescale!(fsr)
+            subtract_factor!(fp.y, fp, fsr)
+        end
+    end
+    # rescale factors and loadings so that factors' * factors = Id
+    return rescale(fs), iter, converged
+end
+
+
+##############################################################################
+##
+## Interactive FixedEffectModel
+##
+##############################################################################
+
+function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
+                         fp::InteractiveFixedEffectsModel,
+                         fs::InteractiveFixedEffectsSolution; 
+                         maxiter::Integer = 100_000,
+                         tol::Real = 1e-9,
+                         lambda::Real = 0.0)
+    idpoolT = fs.idpool'
+    timepoolT = fs.timepool'
+    scaleb = vec(sumabs2(fp.X, 1))
+    fs = InteractiveFixedEffectsSolution(fs.b, idpoolT, timepoolT)
+    fg = InteractiveFixedEffectsGradient(fp, 
+                InteractiveFixedEffectsSolution(similar(fs.b), similar(idpoolT), similar(timepoolT)),
+                InteractiveFixedEffectsSolution(scaleb, similar(idpoolT), similar(timepoolT)))
+    nls = NonLinearLeastSquares(fs, similar(fp.y), fp, fg, g!)
+    temp = similar(fp.y)
+    if t == Val{:levenberg_marquardt}
+        result = optimize!(nls ; method = :levenberg_marquardt,
+            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+    else
+          result = optimize!(nls ; method = :dogleg,
+          xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+    end
+    # rescale factors and loadings so that factors' * factors = Id
+    fs = InteractiveFixedEffectsSolution(fs.b, fs.idpool', fs.timepool')
+    return rescale(fs), result.mul_calls, result.converged
+end
+
+
+##############################################################################
+##
+## Methods used in optimize! in LeastSquares
 ##
 ##############################################################################
 eltype(fg::AbstractFactorSolution) = Float64
@@ -79,51 +160,12 @@ end
     Expr(:block, expr1, vars..., :(return out))
 end
 
+
 ##############################################################################
 ##
-## Factor Model (no regressors)
+## Factor Gradient
 ##
 ##############################################################################
-
-function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}}, 
-                         fp::FactorModel,
-                         fs::FactorSolution; 
-                         maxiter::Integer = 100_000,
-                         tol::Real = 1e-9,
-                         lambda::Real = 0.0)
-    # initialize
-    iter = 0
-    converged = true
-    fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
-    N = size(fs.idpool, 1)
-    T = size(fs.timepool, 1)
-
-    fg = FactorGradient(fp,
-                        FactorSolution(Array(Float64, N), Array(Float64, T)),
-                        FactorSolution(Array(Float64, N), Array(Float64, T))
-                       )
-    nls = NonLinearLeastSquares(
-                slice(fs, :, 1), 
-                similar(fp.y), 
-                fp, 
-                fg, 
-                g!)
-    full = NonLinearLeastSquaresProblem(nls, t)
-    for r in 1:rank(fp)
-        fsr = slice(fs, :, r)
-        full.nls.x = fsr
-        result = optimize!(full,
-            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-        iter += result.mul_calls
-        converged = result.converged && converged
-        if r < rank(fp)
-            rescale!(fsr)
-            subtract_factor!(fp.y, fp, fsr)
-        end
-    end
-    # rescale factors and loadings so that factors' * factors = Id
-    return rescale(fs), iter, converged
-end
 
 type FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} 
     fp::FactorModel{Rank, W, Rid, Rtime}
@@ -212,38 +254,12 @@ function g!(fs::FactorSolution, fg::FactorGradient)
     end
     return fg
 end
-##############################################################################
-##
-## Interactive FixedEffectModel
-##
-##############################################################################
 
-function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
-                         fp::InteractiveFixedEffectsModel,
-                         fs::InteractiveFixedEffectsSolution; 
-                         maxiter::Integer = 100_000,
-                         tol::Real = 1e-9,
-                         lambda::Real = 0.0)
-    idpoolT = fs.idpool'
-    timepoolT = fs.timepool'
-    scaleb = vec(sumabs2(fp.X, 1))
-    fs = InteractiveFixedEffectsSolution(fs.b, idpoolT, timepoolT)
-    fg = InteractiveFixedEffectsGradient(fp, 
-                InteractiveFixedEffectsSolution(similar(fs.b), similar(idpoolT), similar(timepoolT)),
-                InteractiveFixedEffectsSolution(scaleb, similar(idpoolT), similar(timepoolT)))
-    nls = NonLinearLeastSquares(fs, similar(fp.y), fp, fg, g!)
-    temp = similar(fp.y)
-    if t == Val{:levenberg_marquardt}
-        result = optimize!(nls ; method = :levenberg_marquardt,
-            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-    else
-          result = optimize!(nls ; method = :dogleg,
-          xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-    end
-    # rescale factors and loadings so that factors' * factors = Id
-    fs = InteractiveFixedEffectsSolution(fs.b, fs.idpool', fs.timepool')
-    return rescale(fs), result.mul_calls, result.converged
-end
+##############################################################################
+##
+## InteractiveFixedEffectsGradient
+##
+##############################################################################
 
 type InteractiveFixedEffectsGradient{Rank, W, Rid, Rtime, Tb, Tid, Ttime, sTb, sTid, sTtime} 
     fp::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}
