@@ -91,10 +91,6 @@ function rescale!{Tid <:AbstractVector{Float64}, Ttime <: AbstractVector{Float64
 end
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)
-    if any(isnan, fs.timepool)
-        copy!(newfs.timepool, fs.timepool)
-        return newfs.idpool, newfs.timepool
-    end
     U = eigfact!(Symmetric(At_mul_B(fs.timepool, fs.timepool)))
     sqrtDx = diagm(sqrt(abs(U[:values])))
     A_mul_B!(newfs.idpool,  fs.idpool,  U[:vectors] * sqrtDx)
@@ -112,16 +108,10 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
-        idinteraction = Array(Float64, length(fp.y))
-        for i in 1:length(fp.y)
-            idinteraction[i] = fs.timepool[fp.timerefs[i], r]
-        end
+        idinteraction = build_interaction(fp.timerefs, slice(fs.timepool, :, r))
         idfe = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, idinteraction, :id, :time, :(idxtime))
         push!(newfes, idfe)
-        timeinteraction = Array(Float64, length(fp.y))
-        for i in 1:length(fp.y)
-            timeinteraction[i] = fs.idpool[fp.idrefs[i], r]
-        end
+        timeinteraction = build_interaction(fp.idrefs, slice(fs.idpool, :, r))
         timefe = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, timeinteraction, :time, :id, :(timexid))
         push!(newfes, timefe)
     end
@@ -129,7 +119,13 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     return newfes
 end
 
-
+function build_interaction(refs::Vector, pool::AbstractVector)
+    interaction = Array(Float64, length(refs))
+    @inbounds @simd for i in 1:length(refs)
+        interaction[i] = pool[refs[i]]
+    end
+    return interaction
+end
 
 function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::BitVector)
     df = DataFrame()
