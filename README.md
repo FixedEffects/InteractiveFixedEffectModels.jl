@@ -34,9 +34,9 @@ fit(pfm::SparseFactorModel,
 	f::Formula, 
     df::AbstractDataFrame, 
     vcov_method::AbstractVcovMethod = VcovSimple();
- 	method::Symbol = :gs
-    weight::Union(Symbol, Nothing) = nothing, 
-    subset::Union(AbstractVector{Bool}, Nothing) = nothing,
+ 	method::Symbol = :dogleg
+    weight::Union{Symbol, Void} = nothing, 
+    subset::Union{AbstractVector{Bool}, Void} = nothing,
     save::Bool = true, 
     maxiter::Int64 = 10000, tol::Float64 = 1e-8
     )

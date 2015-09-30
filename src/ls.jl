@@ -95,21 +95,22 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     iter = 0
     converged = true
     fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
-    idpoolr = slice(fs.idpool, :, 1)
-    timepoolr = slice(fs.timepool, :, 1)
+    N = size(fs.idpool, 1)
+    T = size(fs.timepool, 1)
+
     fg = FactorGradient(fp,
-                        FactorSolution(similar(idpoolr), similar(timepoolr)),
-                        FactorSolution(similar(idpoolr), similar(timepoolr))
+                        FactorSolution(Array(Float64, N), Array(Float64, T)),
+                        FactorSolution(Array(Float64, N), Array(Float64, T))
                        )
     nls = NonLinearLeastSquares(
-                FactorSolution(idpoolr, timepoolr), 
+                slice(fs, :, 1), 
                 similar(fp.y), 
                 fp, 
                 fg, 
                 g!)
     full = NonLinearLeastSquaresProblem(nls, t)
     for r in 1:rank(fp)
-        fsr = FactorSolution(slice(fs.idpool, :, r), slice(fs.timepool, :, r))
+        fsr = slice(fs, :, r)
         full.nls.x = fsr
         result = optimize!(full,
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)

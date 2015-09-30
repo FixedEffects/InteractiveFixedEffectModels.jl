@@ -38,12 +38,16 @@ type FactorSolution{Tid, Ttime} <: AbstractFactorSolution
     timepool::Ttime
 end
 
+function slice(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...)
+    FactorSolution(slice(f.idpool, I...), slice(f.timepool, I...))
+end
+
 similar(fs::FactorSolution) = similar(idpool, timepool)
 
 ## subtract_factor! and subtract_b!
 function subtract_factor!(y, fm::AbstractFactorModel, fs::AbstractFactorSolution)
     for r in 1:rank(fm)
-        subtract_factor!(y, fm, FactorSolution(slice(fs.idpool, :, r), slice(fs.timepool, :, r)))
+        subtract_factor!(y, fm, slice(fs, :, r))
     end
 end
 

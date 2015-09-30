@@ -30,17 +30,15 @@ function fit!(::Type{Val{:gauss_seidel}},
     timescale = Array(Float64, size(fs.timepool, 1))
 
     for r in 1:rank(fp)
-        idpoolr = slice(fs.idpool, :, r)
-        timepoolr = slice(fs.timepool, :, r)
-        fsr = FactorSolution(idpoolr, timepoolr)
+        fsr = slice(fs, :, r)
         oldf_x = ssr(fp, fsr)
         iter = 0
         while iter < maxiter
             iter += 1
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, 
-                idscale, timepoolr)
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, 
-                timescale, idpoolr)
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, 
+                idscale, fsr.timepool)
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, 
+                timescale, fsr.idpool)
             f_x = ssr(fp, fsr)
             if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
                 iterations[r] = iter
@@ -98,11 +96,10 @@ function fit!(::Type{Val{:gauss_seidel}},
         copy!(res, fp.y)
         BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, res)
         for r in 1:rank(fp)
-            idpoolr = slice(fs.idpool, :, r)
-            timepoolr = slice(fs.timepool, :, r)
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, idscale, timepoolr)
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, timescale, idpoolr)
-            subtract_factor!(res, fp, FactorSolution(idpoolr, timepoolr))
+            fsr = slice(fs, :, r)
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, idscale, fsr.timepool)
+            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, timescale, fsr.idpool)
+            subtract_factor!(res, fp, fsr)
         end
 
         # Given factor model, compute beta
