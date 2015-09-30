@@ -12,8 +12,8 @@
 ##############################################################################
 
 function fit!(::Type{Val{:gauss_seidel}}, 
-    fp::FactorProblem,
-    fs::FactorSolution{Void};
+    fp::FactorModel,
+    fs::FactorSolution;
     maxiter::Integer  = 100_000,
     tol::Real = 1e-9,
     lambda::Real = 0.0
@@ -25,13 +25,15 @@ function fit!(::Type{Val{:gauss_seidel}},
     converged = fill(false, rank(fp))
     iter = 0
     res = deepcopy(fp.y)
+    fp = FactorModel(res, fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
     idscale = Array(Float64, size(fs.idpool, 1))
     timescale = Array(Float64, size(fs.timepool, 1))
 
     for r in 1:rank(fp)
         idpoolr = slice(fs.idpool, :, r)
         timepoolr = slice(fs.timepool, :, r)
-        oldf_x = ssr(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
+        fsr = FactorSolution(idpoolr, timepoolr)
+        oldf_x = ssr(fp, fsr)
         iter = 0
         while iter < maxiter
             iter += 1
@@ -39,7 +41,7 @@ function fit!(::Type{Val{:gauss_seidel}},
                 idscale, timepoolr)
             update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, 
                 timescale, idpoolr)
-            f_x = ssr(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
+            f_x = ssr(fp, fsr)
             if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
                 iterations[r] = iter
                 converged[r] = true
@@ -49,12 +51,11 @@ function fit!(::Type{Val{:gauss_seidel}},
             end
         end
         if r < rank(fp)
-            rescale!(idpoolr, timepoolr)
-            subtract_factor!(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
+            rescale!(fsr)
+            subtract_factor!(res, fp, fsr)
         end
     end
-    fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
-    return fs, maximum(iterations), all(converged)
+    return rescale(fs), maximum(iterations), all(converged)
 end
 
 ##############################################################################
@@ -64,8 +65,8 @@ end
 ##############################################################################
 
 function fit!(::Type{Val{:gauss_seidel}},
-    fp::FactorProblem,
-    fs::FactorSolution; 
+    fp::InteractiveFixedEffectsModel,
+    fs::InteractiveFixedEffectsSolution; 
     maxiter::Integer = 100_000, 
     tol::Real = 1e-9,
     lambda::Real = 0.0)
@@ -101,12 +102,12 @@ function fit!(::Type{Val{:gauss_seidel}},
             timepoolr = slice(fs.timepool, :, r)
             update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, idscale, timepoolr)
             update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, timepoolr, timescale, idpoolr)
-            subtract_factor!(res, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
+            subtract_factor!(res, fp, FactorSolution(idpoolr, timepoolr))
         end
 
         # Given factor model, compute beta
         copy!(res, fp.y)
-        subtract_factor!(res, fp.sqrtw, fp.idrefs, fp.timerefs, fs.idpool, fs.timepool)
+        subtract_factor!(res, fp, fs)
         ## corresponds to Gauss Niedel with acceleration
         scale!(fs.b, -0.5)
         BLAS.gemm!('N', 'N', 1.5, M, res, 1.0, fs.b)
@@ -120,9 +121,7 @@ function fit!(::Type{Val{:gauss_seidel}},
             break
         end
     end
-
-    fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
-    return fs, iterations, converged
+    return rescale(fs), iterations, converged
 end
 
 ##############################################################################

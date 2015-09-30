@@ -11,37 +11,100 @@ type SparseFactorModel
     rank::Int64
 end
 
+abstract AbstractFactorModel
+abstract AbstractFactorSolution
+
 ##############################################################################
 ##
-## Internally
+## Factor Model
 ##
 ##############################################################################
 
-type FactorProblem{W, TX, Rid, Rtime, Rank}
+type FactorModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
     y::Vector{Float64}
     sqrtw::W
-    X::TX
     idrefs::Vector{Rid}
     timerefs::Vector{Rtime}
 end
 
-Base.rank{W, TX, Rid, Rtime, Rank}(f::FactorProblem{W, TX, Rid, Rtime, Rank}) = Rank
-function FactorProblem{W, TX, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::TX, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int)
-    FactorProblem{W, TX, Rid, Rtime, rank}(y, sqrtw, X, idrefs, timerefs)
+function FactorModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int)
+    FactorModel{rank, W, Rid, Rtime}(y, sqrtw, idrefs, timerefs)
 end
 
-function FactorProblem(y::Vector{Float64}, sqrtw, idrefs::Vector, timerefs::Vector, rank::Int)
-    FactorProblem(y, sqrtw, nothing, idrefs, timerefs, rank)
-end
+rank{Rank}(::FactorModel{Rank}) = Rank
 
-type FactorSolution{Tb, Tid, Ttime}
-    b::Tb
+type FactorSolution{Tid, Ttime} <: AbstractFactorSolution
     idpool::Tid
     timepool::Ttime
 end
-FactorSolution(idpool, timepool) = FactorSolution(nothing, idpool, timepool)
 
-function getfactors(fp::FactorProblem,fs::FactorSolution)
+similar(fs::FactorSolution) = similar(idpool, timepool)
+
+## subtract_factor! and subtract_b!
+function subtract_factor!(y, fm::AbstractFactorModel, fs::AbstractFactorSolution)
+    for r in 1:rank(fm)
+        subtract_factor!(y, fm, FactorSolution(slice(fs.idpool, :, r), slice(fs.timepool, :, r)))
+    end
+end
+
+function subtract_factor!{Tid <: AbstractVector, Ttime <: AbstractVector}(y, fm::AbstractFactorModel, fs::FactorSolution{Tid, Ttime})
+    @inbounds @simd for i in 1:length(y)
+        y[i] -= fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]]
+    end
+end
+
+## compute sum of squared residuals
+function ssr(fm::FactorModel, fs::FactorSolution)
+    out = zero(Float64)
+    @inbounds @simd for i in 1:length(fm.y)
+        out += abs2(fm.y[i] - fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]])
+    end 
+    return out
+end
+
+
+## rescale a factor model
+function reverse{R}(m::Matrix{R})
+    out = similar(m)
+    for j in 1:size(m, 2)
+        invj = size(m, 2) + 1 - j 
+        @inbounds @simd for i in 1:size(m, 1)
+            out[i, j] = m[i, invj]
+        end
+    end
+    return out
+end
+function rescale!{Tid <:AbstractVector{Float64}, Ttime <: AbstractVector{Float64}}(
+    fs::FactorSolution{Tid, Ttime})
+    out = norm(fs.timepool)
+    @inbounds @simd for i in eachindex(fs.idpool)
+        fs.idpool[i] *= out
+    end
+    invout = 1 / out
+    @inbounds @simd for i in eachindex(fs.timepool)
+        fs.timepool[i] *= invout
+    end
+end
+# normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
+function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)
+    if any(isnan, fs.timepool)
+        copy!(newfs.timepool, fs.timepool)
+        return newfs.idpool, newfs.timepool
+    end
+    U = eigfact!(Symmetric(At_mul_B(fs.timepool, fs.timepool)))
+    sqrtDx = diagm(sqrt(abs(U[:values])))
+    A_mul_B!(newfs.idpool,  fs.idpool,  U[:vectors] * sqrtDx)
+    V = eigfact!(At_mul_B(newfs.idpool, newfs.idpool))
+    A_mul_B!(newfs.idpool, fs.idpool, reverse(U[:vectors] * sqrtDx * V[:vectors]))
+    A_mul_B!(newfs.timepool, fs.timepool, reverse(U[:vectors] * (sqrtDx \ V[:vectors])))
+    return newfs
+end
+
+rescale(fs::FactorSolution) = rescale!(similar(fs), fs)
+
+
+## Create dataframe from pooledfactors
+function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
@@ -62,14 +125,71 @@ function getfactors(fp::FactorProblem,fs::FactorSolution)
     return newfes
 end
 
+
+
+function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::BitVector)
+    df = DataFrame()
+    anyNA = all(esample)
+    for r in 1:rank(fp)
+        # loadings
+        df[convert(Symbol, "loadings$r")] = build_column(fp.idrefs, fs.idpool[:, r], esample)
+        df[convert(Symbol, "factors$r")] = build_column(fp.timerefs, fs.timepool[:, r], esample)
+    end
+    return df
+end
+function build_column(refs::Vector, pool::Vector, esample::BitVector)
+    T = eltype(refs)
+    newrefs = fill(zero(T), length(esample))
+    newrefs[esample] = refs
+    return PooledDataArray(RefArray(newrefs), pool)
+end
+
+
+
 ##############################################################################
 ##
-## Result type
+## Interactive Fixed Effect Models
 ##
 ##############################################################################
 
-# object returned when fitting variable
-type SparseFactorResult 
+type InteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
+    y::Vector{Float64}
+    sqrtw::W
+    X::Matrix{Float64}
+    idrefs::Vector{Rid}
+    timerefs::Vector{Rtime}
+end
+
+function InteractiveFixedEffectsModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int)
+    InteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs)
+end
+
+rank{Rank}(::InteractiveFixedEffectsModel{Rank}) = Rank
+
+
+type InteractiveFixedEffectsSolution{Tb, Tid, Ttime} <: AbstractFactorSolution
+    b::Tb
+    idpool::Tid
+    timepool::Ttime
+end
+
+convert{Rank, W, Rid, Rtime}(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) = FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
+convert(::Type{FactorSolution}, f::InteractiveFixedEffectsSolution) = FactorSolution(f.idpool, f.timepool)
+
+function rescale(fs::InteractiveFixedEffectsSolution)
+    fss = FactorSolution(fs.idpool, fs.timepool)
+    newfss = similar(fss)
+    rescale!(newfss, fss)
+    InteractiveFixedEffectsSolution(fs.b, newfss.idpool, newfss.timepool)
+end
+
+##############################################################################
+##
+## Results
+##
+##############################################################################'
+
+type FactorResult 
     esample::BitVector
     augmentdf::DataFrame
 
@@ -78,8 +198,9 @@ type SparseFactorResult
     converged::Bool
 end
 
-# object returned when fitting linear model
-type RegressionFactorResult <: AbstractRegressionResult
+
+# result
+type InteractiveFixedEffectsResult <: AbstractRegressionResult
     coef::Vector{Float64}   # Vector of coefficients
     vcov::Matrix{Float64}   # Covariance matrix
 
@@ -103,10 +224,10 @@ type RegressionFactorResult <: AbstractRegressionResult
 
 end
 
-predict(::RegressionFactorResult, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
-residuals(::RegressionFactorResult, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
-title(::RegressionFactorResult) = "Linear Factor Model"
-top(x::RegressionFactorResult) = [
+predict(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
+residuals(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
+title(::InteractiveFixedEffectsResult) = "Linear Factor Model"
+top(x::InteractiveFixedEffectsResult) = [
             "Number of obs" sprint(showcompact, nobs(x));
             "Degree of freedom" sprint(showcompact, nobs(x) - df_residual(x));
             "R2"  @sprintf("%.3f", x.r2);
@@ -114,8 +235,6 @@ top(x::RegressionFactorResult) = [
             "Iterations" sprint(showcompact, x.iterations);
             "Converged" sprint(showcompact, x.converged)
             ]
-
-
 
 
 

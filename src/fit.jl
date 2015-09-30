@@ -4,12 +4,11 @@
 ##
 ##############################################################################
 
-
 function fit(m::SparseFactorModel, 
              f::Formula, 
              df::AbstractDataFrame, 
              vcov_method::AbstractVcovMethod = VcovSimple(); 
-             method::Union{Symbol, Void} = nothing, 
+             method::Symbol = :dogleg, 
              lambda::Real = 0.0, 
              subset::Union{AbstractVector{Bool}, Void} = nothing, 
              weight::Union{Symbol, Void} = nothing, 
@@ -122,30 +121,22 @@ function fit(m::SparseFactorModel,
     idpool = fill(0.1, length(id.pool), m.rank)
     timepool = fill(0.1, length(time.pool), m.rank)
   
-
     if !has_regressors
-        fp = FactorProblem(y, sqrtw, id.refs, time.refs, m.rank)
+        fp = FactorModel(y, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
         # factor model 
-        if method == nothing
-             method = :dl
-         end
         (fs, iterations, converged) = 
             fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
     else 
         # interactive fixed effect
-        if method == nothing
-             method = :dl
-        end
-
         # initialize fs
         coef = X \ y
-        fp = FactorProblem(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
+        fp = FactorModel(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
         fit!(Val{:levenberg_marquardt}, fp, fs; maxiter = 100, tol = 1e-3)
-        fs = FactorSolution(coef, fs.idpool, fs.timepool)
 
-        fp = FactorProblem(y, sqrtw, X, id.refs, time.refs, m.rank)
+        fs = InteractiveFixedEffectsSolution(coef, fs.idpool, fs.timepool)
+        fp = InteractiveFixedEffectsModel(y, sqrtw, X, id.refs, time.refs, m.rank)
         ym = deepcopy(y)
         Xm = deepcopy(X)
 
@@ -182,7 +173,7 @@ function fit(m::SparseFactorModel,
     if has_regressors
         BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, residuals)
     end
-    subtract_factor!(residuals, sqrtw, id.refs, time.refs, fs.idpool, fs.timepool)
+    subtract_factor!(residuals, fp, fs)
     broadcast!(/, residuals, residuals, sqrtw)
 
     ##############################################################################
@@ -234,8 +225,6 @@ function fit(m::SparseFactorModel,
         r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
     end
 
-
-
     ##############################################################################
     ##
     ## Save factors and loadings in a dataframe
@@ -245,7 +234,7 @@ function fit(m::SparseFactorModel,
     if !save 
         augmentdf = DataFrame()
     else
-        augmentdf = DataFrame(id.refs, time.refs, fs.idpool, fs.timepool, esample)
+        augmentdf = DataFrame(fp, fs, esample)
         # save residuals in a dataframe
         if all(esample)
             augmentdf[:residuals] = residuals
@@ -263,7 +252,7 @@ function fit(m::SparseFactorModel,
                 oldX = ModelMatrix(mf).m
                 BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
             end
-            subtract_factor!(oldresiduals, sqrtw, id.refs, time.refs, fs.idpool, fs.timepool)
+            subtract_factor!(oldresiduals, fp, fs)
             b = oldresiduals - residuals
             # get fixed effect
             augmentdf = hcat(augmentdf, getfe!(pfe, b, esample))
@@ -272,9 +261,9 @@ function fit(m::SparseFactorModel,
 
 
     if !has_regressors
-        return SparseFactorResult(esample, augmentdf, ess, iterations, converged)
+        return FactorResult(esample, augmentdf, ess, iterations, converged)
     else
-        return RegressionFactorResult(fs.b, matrix_vcov, esample, augmentdf, 
+        return InteractiveFixedEffectsResult(fs.b, matrix_vcov, esample, augmentdf, 
             coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, 
             ess, sum(iterations), all(converged))
     end

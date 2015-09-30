@@ -4,6 +4,87 @@
 ##
 ##############################################################################
 
+##############################################################################
+##
+## Common methods
+##
+##############################################################################
+eltype(fg::AbstractFactorSolution) = Float64
+ function similar(fs::FactorSolution)
+    return FactorSolution(similar(fs.idpool), similar(fs.timepool))
+end
+function similar(fs::InteractiveFixedEffectsSolution)
+     return InteractiveFixedEffectsSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
+ end
+
+function length(fs::InteractiveFixedEffectsSolution)
+    return length(fs.b) + length(fs.idpool) + length(fs.timepool)
+end
+function length(fs::FactorSolution)
+    return length(fs.idpool) + length(fs.timepool)
+end
+
+function sumabs2(fs::InteractiveFixedEffectsSolution)
+    sumabs2(fs.b) + sumabs2(fs.idpool) + sumabs2(fs.timepool)
+end
+function sumabs2(fs::FactorSolution)
+    sumabs2(fs.idpool) + sumabs2(fs.timepool)
+end
+
+norm(fs::AbstractFactorSolution) = sqrt(sumabs2(fs))
+
+function maxabs(fs::InteractiveFixedEffectsSolution)
+    max(maxabs(fs.b), maxabs(fs.idpool), maxabs(fs.timepool))
+end
+function maxabs(fs::FactorSolution)
+    max(maxabs(fs.idpool), maxabs(fs.timepool))
+end
+
+
+@generated function fill!(x::AbstractFactorSolution, α::Number)
+    vars = [:(fill!(x.$field, α)) for field in fieldnames(x)]
+    Expr(:block, vars..., :(return x))
+end
+
+@generated function scale!(x::AbstractFactorSolution, α::Number)
+    vars = [:(scale!(x.$field, α)) for field in fieldnames(x)]
+    Expr(:block, vars..., :(return x))
+end
+
+
+@generated function copy!(x1::AbstractFactorSolution, x2::AbstractFactorSolution)
+    vars = [:(copy!(x1.$field, x2.$field)) for field in fieldnames(x1)]
+    Expr(:block, vars..., :(return x1))
+end
+
+
+@generated function axpy!(α::Number, x1::AbstractFactorSolution, x2::AbstractFactorSolution)
+    vars = [:(axpy!(α, x1.$field, x2.$field)) for field in fieldnames(x1)]
+    Expr(:block, vars..., :(return x2))
+end
+       
+
+@generated function map!(f, x1::AbstractFactorSolution,  x2::AbstractFactorSolution...)
+   vars = [:(map!(f, x1.$field, map(x -> x.$field, x2)...)) for field in fieldnames(x1)]
+    Expr(:block, vars..., :(return x1))
+end
+
+function dot{T}(fs1::AbstractArray{T}, fs2::AbstractArray{T})  
+    out = zero(T)
+    @inbounds @simd for i in eachindex(fs1)
+        out += fs1[i] * fs2[i]
+    end
+    return out
+end
+
+@generated function dot(x1::AbstractFactorSolution, x2::AbstractFactorSolution)
+    expr1 = :(out = zero(eltype(x1)))
+    vars = [:(out += dot(x1.$field, x2.$field)) for field in fieldnames(x1)]
+    Expr(:block, expr1, vars..., :(return out))
+end
+
+
+
 
 ##############################################################################
 ##
@@ -12,24 +93,21 @@
 ##############################################################################
 
 function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}}, 
-                         fp::FactorProblem,
-                         fs::FactorSolution{Void}; 
+                         fp::FactorModel,
+                         fs::FactorSolution; 
                          maxiter::Integer = 100_000,
                          tol::Real = 1e-9,
                          lambda::Real = 0.0)
     # initialize
     iter = 0
     converged = true
-
-    res = deepcopy(fp.y)
-    fp = FactorProblem(res, fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
+    fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
     idpoolr = slice(fs.idpool, :, 1)
     timepoolr = slice(fs.timepool, :, 1)
-    fg = FactorGradient(similar(idpoolr), 
-                        similar(timepoolr),
-                        similar(idpoolr), 
-                        similar(timepoolr),
-                        fp)
+    fg = FactorGradient(fp,
+                        FactorSolution(similar(idpoolr), similar(timepoolr)),
+                        FactorSolution(similar(idpoolr), similar(timepoolr))
+                       )
     nls = NonLinearLeastSquares(
                 FactorSolution(idpoolr, timepoolr), 
                 similar(fp.y), 
@@ -38,191 +116,45 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                 g!)
     full = NonLinearLeastSquaresProblem(nls, t)
     for r in 1:rank(fp)
-        idpoolr = slice(fs.idpool, :, r)
-        timepoolr = slice(fs.timepool, :, r)
-        full.nls.x = FactorSolution(idpoolr, timepoolr)
+        fsr = FactorSolution(slice(fs.idpool, :, r), slice(fs.timepool, :, r))
+        full.nls.x = fsr
         result = optimize!(full,
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
         iter += result.mul_calls
         converged = result.converged && converged
         if r < rank(fp)
-            rescale!(idpoolr, timepoolr)
-            subtract_factor!(fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, idpoolr, timepoolr)
+            rescale!(fsr)
+            subtract_factor!(fp.y, fp, fsr)
         end
     end
     # rescale factors and loadings so that factors' * factors = Id
-    fs.idpool, fs.timepool = rescale(fs.idpool, fs.timepool)
-    return fs, iter, converged
+    return rescale(fs), iter, converged
 end
 
-
-##############################################################################
-##
-## Interactive FixedEffectModel
-##
-##############################################################################
-
-function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
-                         fp::FactorProblem,
-                         fs::FactorSolution; 
-                         maxiter::Integer = 100_000,
-                         tol::Real = 1e-9,
-                         lambda::Real = 0.0)
-    idpoolT = fs.idpool'
-    timepoolT = fs.timepool'
-    scaleb = vec(sumabs2(fp.X, 1))
-    fs = FactorSolution(fs.b, idpoolT, timepoolT)
-    fg = FactorGradient(similar(fs.b), similar(idpoolT), similar(timepoolT), scaleb, 
-                        similar(idpoolT), similar(timepoolT), fp)
-    nls = NonLinearLeastSquares(fs, similar(fp.y), fp, fg, g!)
-
-    temp = similar(fp.y)
-    if t == Val{:levenberg_marquardt}
-        result = optimize!(nls ; method = :levenberg_marquardt,
-            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-    else
-          result = optimize!(nls ; method = :dogleg,
-          xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-    end
-    # rescale factors and loadings so that factors' * factors = Id
-    fs.idpool, fs.timepool = rescale(fs.idpool', fs.timepool')
-    return fs, result.mul_calls, result.converged
+type FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} 
+    fp::FactorModel{Rank, W, Rid, Rtime}
+    fs::FactorSolution{Tid, Ttime}
+    scalefs::FactorSolution{sTid, sTtime}
 end
+Base.rank{Rank}(f::FactorGradient{Rank}) = Rank
 
-##############################################################################
-##
-## Factor Vector
-##
-##############################################################################
-eltype(fg::FactorSolution) = Float64
 
-function similar(fs::FactorSolution)
-     return FactorSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool))
- end
- function similar(fs::FactorSolution{Void})
-    return FactorSolution(similar(fs.idpool), similar(fs.timepool))
-end
-
-function length(fs::FactorSolution)
-    return length(fs.b) + length(fs.idpool) + length(fs.timepool)
-end
-function length(fs::FactorSolution{Void})
-    return length(fs.idpool) + length(fs.timepool)
-end
-
-function sumabs2(fs::FactorSolution)
-    sumabs2(fs.b) + sumabs2(fs.idpool) + sumabs2(fs.timepool)
-end
-function sumabs2(fs::FactorSolution{Void})
-    sumabs2(fs.idpool) + sumabs2(fs.timepool)
-end
-
-norm(fs::FactorSolution) = sqrt(sumabs2(fs))
-
-function maxabs(fs::FactorSolution)
-    max(maxabs(fs.b), maxabs(fs.idpool), maxabs(fs.timepool))
-end
-function maxabs(fs::FactorSolution{Void})
-    max(maxabs(fs.idpool), maxabs(fs.timepool))
-end
-
-for t in (FactorSolution{Void}, FactorSolution)
-    @eval begin
-        function fill!(fs::$t, α::Number)
-            $(t == FactorSolution ? :(fill!(fs.b, α)) : :nothing)
-            fill!(fs.idpool, α)
-            fill!(fs.timepool, α)
-            return fs
-        end
-
-        function scale!(fs::$t, α::Number)
-            $(t == FactorSolution ? :(scale!(fs.b, α)) : :nothing)
-            scale!(fs.idpool, α)
-            scale!(fs.timepool, α)
-            return fs
-        end
-
-        function copy!(fs2::$t, fs1::$t)
-            $(t == FactorSolution ? :(copy!(fs2.b, fs1.b)) : :nothing)
-            copy!(fs2.idpool, fs1.idpool)
-            copy!(fs2.timepool, fs1.timepool)
-            return fs2
-        end
-
-        function axpy!(α::Number, fs1::$t, fs2::$t)
-            $(t == FactorSolution ? :(axpy!(α, fs1.b, fs2.b)) : :nothing)
-            axpy!(α, fs1.idpool, fs2.idpool)
-            axpy!(α, fs1.timepool, fs2.timepool)
-            return fs2
-        end
-
-        function map!(f, out::$t,  fs::$t...)
-            $(t == FactorSolution ? :(map!(f, out.b, map(x -> x.b, fs)...)) : :nothing)
-            map!(f, out.idpool, map(x -> x.idpool, fs)...)
-            map!(f, out.timepool, map(x -> x.timepool, fs)...)
-            return out
-        end
-
-        function dot(fs1::$t, fs2::$t)  
-            out = $(t == FactorSolution ? :(dot(fs1.b, fs2.b)) : zero(Float64))
-            @inbounds @simd for i in eachindex(fs1.idpool)
-                out += fs1.idpool[i] * fs2.idpool[i]
-            end
-            @inbounds @simd for i in eachindex(fs1.timepool)
-                out += fs1.timepool[i] * fs2.timepool[i]
-            end
-            return out
-        end
+function size(fg::FactorGradient, i::Integer)
+    if i == 1
+        length(fg.fp.y)
+    elseif i == 2
+      length(fg.fs.idpool) + length(fg.fs.timepool)
     end
 end
-
-##############################################################################
-##
-## Factor Gradient
-##
-##############################################################################
-type FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank} 
-    b::Tb
-    idpool::Tid
-    timepool::Ttime
-    scaleb::sTb
-    scaleid::sTid
-    scaletime::sTtime
-    fp::FactorProblem{W, TX, Rid, Rtime, Rank}
-end
-
-Base.rank{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(f::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}) = Rank
-FactorGradient(idpool, timepool, scaleid, scaletime, fp) = FactorGradient(nothing, idpool, timepool, nothing, scaleid, scaletime, fp)
-
-for t in (FactorGradient{Void}, FactorGradient)
-    @eval begin
-        function size(fg::$t, i::Integer)
-            if i == 1
-                length(fg.fp.y)
-            elseif i == 2
-                $(if t == FactorGradient 
-                    :(length(fg.b) + length(fg.idpool) + length(fg.timepool))
-                else
-                    :(length(fg.idpool) + length(fg.timepool))
-                end
-                )
-            end
-        end
-
-        function colsumabs2!(fs::FactorSolution, fg::$t) 
-            out = $(t == FactorGradient ? :(copy!(fs.b, fg.scaleb)) : zero(Float64))
-            copy!(fs.idpool, fg.scaleid)
-            copy!(fs.timepool, fg.scaletime)
-            return fs
-        end
-    end
-end
-
 size(fg::FactorGradient) = (size(fg, 1), size(fg, 2))
 eltype(fg::FactorGradient) = Float64
 
 
-function Ac_mul_B!(α::Number, fg::FactorGradient{Void}, y::AbstractVector{Float64}, β::Number, fs::FactorSolution)
+function colsumabs2!(fs::FactorSolution, fg::FactorGradient) 
+    copy!(fs, fg.scalefs)
+end
+
+function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, β::Number, fs::FactorSolution)
     mα = convert(Float64, -α)
     if β != 1
         if β == 0
@@ -235,13 +167,114 @@ function Ac_mul_B!(α::Number, fg::FactorGradient{Void}, y::AbstractVector{Float
         sqrtwi = mα * y[i] * fg.fp.sqrtw[i]
         idi = fg.fp.idrefs[i]
         timei = fg.fp.timerefs[i]
-        fs.idpool[idi] += sqrtwi * fg.timepool[timei]
-        fs.timepool[timei] += sqrtwi * fg.idpool[idi]
+        fs.idpool[idi] += sqrtwi * fg.fs.timepool[timei]
+        fs.timepool[timei] += sqrtwi * fg.fs.idpool[idi]
     end
     return fs
 end
 
-@generated function Ac_mul_B!{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(α::Number, fg::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}, y::AbstractVector{Float64}, β::Number, fs::FactorSolution)
+function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution, β::Number, y::AbstractVector{Float64})
+    mα = convert(Float64, -α)
+    if β != 1
+        if β == 0
+            fill!(y, 0)
+        else
+            scale!(y, β)
+        end
+    end
+    @fastmath @inbounds @simd for i in 1:length(y)
+        timei = fg.fp.timerefs[i]
+        idi = fg.fp.idrefs[i]
+        out = (fg.fs.idpool[idi] * fs.timepool[timei] 
+                               + fg.fs.timepool[timei] * fs.idpool[idi]
+                               )
+        y[i] += mα * fg.fp.sqrtw[i] * out
+    end
+    return y
+end
+
+function call(fp::FactorModel, fs::FactorSolution, out::Vector{Float64})
+    copy!(out, fp.y)
+    @fastmath @inbounds @simd for i in 1:length(out)
+        sqrtwi = fp.sqrtw[i]
+        idi = fp.idrefs[i]
+        timei = fp.timerefs[i]
+        out[i] -= sqrtwi * fs.idpool[idi] * fs.timepool[timei]
+    end
+    return out
+end
+
+function g!(fs::FactorSolution, fg::FactorGradient)
+    copy!(fg.fs.idpool, fs.idpool)
+    copy!(fg.fs.timepool, fs.timepool)
+    fill!(fg.scalefs.idpool, zero(Float64))
+    fill!(fg.scalefs.timepool, zero(Float64))
+    @inbounds @simd for i in 1:length(fg.fp.y)
+        sqrtwi = fg.fp.sqrtw[i]
+        idi = fg.fp.idrefs[i]
+        timei = fg.fp.timerefs[i] 
+        fg.scalefs.idpool[idi] += abs2(sqrtwi * fg.fs.timepool[timei])
+        fg.scalefs.timepool[timei] += abs2(sqrtwi * fg.fs.idpool[idi])
+    end
+    return fg
+end
+##############################################################################
+##
+## Interactive FixedEffectModel
+##
+##############################################################################
+
+function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
+                         fp::InteractiveFixedEffectsModel,
+                         fs::InteractiveFixedEffectsSolution; 
+                         maxiter::Integer = 100_000,
+                         tol::Real = 1e-9,
+                         lambda::Real = 0.0)
+    idpoolT = fs.idpool'
+    timepoolT = fs.timepool'
+    scaleb = vec(sumabs2(fp.X, 1))
+    fs = InteractiveFixedEffectsSolution(fs.b, idpoolT, timepoolT)
+    fg = InteractiveFixedEffectsGradient(fp, 
+                InteractiveFixedEffectsSolution(similar(fs.b), similar(idpoolT), similar(timepoolT)),
+                InteractiveFixedEffectsSolution(scaleb, similar(idpoolT), similar(timepoolT)))
+    nls = NonLinearLeastSquares(fs, similar(fp.y), fp, fg, g!)
+    temp = similar(fp.y)
+    if t == Val{:levenberg_marquardt}
+        result = optimize!(nls ; method = :levenberg_marquardt,
+            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+    else
+          result = optimize!(nls ; method = :dogleg,
+          xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+    end
+    # rescale factors and loadings so that factors' * factors = Id
+    fs = InteractiveFixedEffectsSolution(fs.b, fs.idpool', fs.timepool')
+    return rescale(fs), result.mul_calls, result.converged
+end
+
+type InteractiveFixedEffectsGradient{Rank, W, Rid, Rtime, Tb, Tid, Ttime, sTb, sTid, sTtime} 
+    fp::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}
+    fs::InteractiveFixedEffectsSolution{Tb, Tid, Ttime}
+    scalefs::InteractiveFixedEffectsSolution{sTb, sTid, sTtime}
+end
+
+rank{Rank}(f::InteractiveFixedEffectsGradient{Rank}) = Rank
+
+function size(fg::InteractiveFixedEffectsGradient, i::Integer)
+    if i == 1
+        length(fg.fp.y)
+    elseif i == 2
+      length(fg.fs.b) + length(fg.fs.idpool) + length(fg.fs.timepool)
+    end
+end
+size(fg::InteractiveFixedEffectsGradient) = (size(fg, 1), size(fg, 2))
+
+eltype(fg::InteractiveFixedEffectsGradient) = Float64
+
+function colsumabs2!(fs::InteractiveFixedEffectsSolution, fg::InteractiveFixedEffectsGradient) 
+    copy!(fs, fg.scalefs)
+end
+
+@generated function Ac_mul_B!{Rank}(α::Number, fg::InteractiveFixedEffectsGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::InteractiveFixedEffectsSolution)
     quote
         mα = convert(Float64, -α)
         if β != 1
@@ -263,35 +296,15 @@ end
             idi = fg.fp.idrefs[i]
             timei = fg.fp.timerefs[i]
             @nexprs $Rank r -> begin
-                fs.idpool[r, idi] += sqrtwi * fg.timepool[r, timei]
-                fs.timepool[r, timei] += sqrtwi * fg.idpool[r, idi]
+                fs.idpool[r, idi] += sqrtwi * fg.fs.timepool[r, timei]
+                fs.timepool[r, timei] += sqrtwi * fg.fs.idpool[r, idi]
             end
         end
         return fs
     end
 end
 
-function A_mul_B!(α::Number, fg::FactorGradient{Void}, fs::FactorSolution, β::Number, y::AbstractVector{Float64})
-    mα = convert(Float64, -α)
-    if β != 1
-        if β == 0
-            fill!(y, 0)
-        else
-            scale!(y, β)
-        end
-    end
-    @fastmath @inbounds @simd for i in 1:length(y)
-        timei = fg.fp.timerefs[i]
-        idi = fg.fp.idrefs[i]
-        out = (fg.idpool[idi] * fs.timepool[timei] 
-                               + fg.timepool[timei] * fs.idpool[idi]
-                               )
-        y[i] += mα * fg.fp.sqrtw[i] * out
-    end
-    return y
-end
-
-@generated function A_mul_B!{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(α::Number, fg::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}, fs::FactorSolution, β::Number, y::AbstractVector{Float64})
+@generated function A_mul_B!{Rank}(α::Number, fg::InteractiveFixedEffectsGradient{Rank}, fs::InteractiveFixedEffectsSolution, β::Number, y::AbstractVector{Float64})
     quote
         mα = convert(Float64, -α)
         if β != 1
@@ -307,8 +320,8 @@ end
             idi = fg.fp.idrefs[i]
             out = 0.0
             @nexprs $Rank r -> begin
-                 out += (fg.idpool[r, idi] * fs.timepool[r, timei] 
-                         + fg.timepool[r, timei] * fs.idpool[r, idi]
+                 out += (fg.fs.idpool[r, idi] * fs.timepool[r, timei] 
+                         + fg.fs.timepool[r, timei] * fs.idpool[r, idi]
                          )
              end
             y[i] += mα * fg.fp.sqrtw[i] * out
@@ -317,26 +330,8 @@ end
     end
 end
 
-
-
-##############################################################################
-##
-## Functions and Gradient for the function to minimize
-##
-##############################################################################
-
-function call(fp::FactorProblem, fs::FactorSolution{Void}, out::Vector{Float64})
-    copy!(out, fp.y)
-    @fastmath @inbounds @simd for i in 1:length(out)
-        sqrtwi = fp.sqrtw[i]
-        idi = fp.idrefs[i]
-        timei = fp.timerefs[i]
-        out[i] -= sqrtwi * fs.idpool[idi] * fs.timepool[timei]
-    end
-    return out
-end
-
-@generated function call{W, TX, Rid, Rtime, Rank, Tb}(fp::FactorProblem{W, TX, Rid, Rtime, Rank}, fs::FactorSolution{Tb}, out::Vector{Float64})
+@generated function call{Rank}(fp::InteractiveFixedEffectsModel{Rank}, 
+    fs::InteractiveFixedEffectsSolution, out::Vector{Float64})
     quote
         copy!(out, fp.y)
         BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, out)
@@ -352,39 +347,24 @@ end
     end
 end
 
-function g!(fs::FactorSolution, fg::FactorGradient{Void})
-    copy!(fg.idpool, fs.idpool)
-    copy!(fg.timepool, fs.timepool)
-
-    # fill scale
-    fill!(fg.scaleid, zero(Float64))
-    fill!(fg.scaletime, zero(Float64))
-    @inbounds @simd for i in 1:length(fg.fp.y)
-        sqrtwi = fg.fp.sqrtw[i]
-        idi = fg.fp.idrefs[i]
-        timei = fg.fp.timerefs[i] 
-        fg.scaleid[idi] += abs2(sqrtwi * fg.timepool[timei])
-        fg.scaletime[timei] += abs2(sqrtwi * fg.idpool[idi])
-    end
-end
-
-@generated function g!{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank}(fs::FactorSolution, fg::FactorGradient{Tb, Tid, Ttime, sTb, sTid, sTtime, W, TX, Rid, Rtime, Rank})
+@generated function g!{Rank}(fs::InteractiveFixedEffectsSolution, fg::InteractiveFixedEffectsGradient{Rank})
     quote
-        copy!(fg.b, fs.b)
-        copy!(fg.idpool, fs.idpool)
-        copy!(fg.timepool, fs.timepool)
+        copy!(fg.fs.b, fs.b)
+        copy!(fg.fs.idpool, fs.idpool)
+        copy!(fg.fs.timepool, fs.timepool)
 
         # fill scale
-        fill!(fg.scaleid, zero(Float64))
-        fill!(fg.scaletime, zero(Float64))
+        fill!(fg.scalefs.idpool, zero(Float64))
+        fill!(fg.scalefs.timepool, zero(Float64))
         @inbounds @simd for i in 1:length(fg.fp.y)
             sqrtwi = fg.fp.sqrtw[i]
             idi = fg.fp.idrefs[i]
             timei = fg.fp.timerefs[i] 
             @nexprs $Rank r -> begin
-                fg.scaleid[r, idi] += abs2(sqrtwi * fg.timepool[r, timei])
-                fg.scaletime[r, timei] += abs2(sqrtwi * fg.idpool[r, idi])
+                fg.scalefs.idpool[r, idi] += abs2(sqrtwi * fg.fs.timepool[r, timei])
+                fg.scalefs.timepool[r, timei] += abs2(sqrtwi * fg.fs.idpool[r, idi])
             end
         end
     end
 end
+
