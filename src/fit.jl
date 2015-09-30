@@ -1,3 +1,4 @@
+ssr
 ##############################################################################
 ##
 ## Fit is the only exported function
@@ -9,7 +10,7 @@ function fit(m::SparseFactorModel,
              df::AbstractDataFrame, 
              vcov_method::AbstractVcovMethod = VcovSimple(); 
              method::Symbol = :dogleg, 
-             lambda::Real = 0.0, 
+             lambda::Number = 0.0, 
              subset::Union{AbstractVector{Bool}, Void} = nothing, 
              weight::Union{Symbol, Void} = nothing, 
              maxiter::Integer = 10_000, 
@@ -125,6 +126,7 @@ function fit(m::SparseFactorModel,
         fp = FactorModel(y, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
         # factor model 
+
         (fs, iterations, converged) = 
             fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
     else 
@@ -133,7 +135,7 @@ function fit(m::SparseFactorModel,
         coef = X \ y
         fp = FactorModel(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
-        fit!(Val{:levenberg_marquardt}, fp, fs; maxiter = 100, tol = 1e-3)
+        fit!(Val{:levenberg_marquardt}, fp, fs; maxiter = 100, tol = 1e-3, lambda = lambda)
 
         fs = InteractiveFixedEffectsSolution(coef, fs.idpool, fs.timepool)
         fp = InteractiveFixedEffectsModel(y, sqrtw, X, id.refs, time.refs, m.rank)

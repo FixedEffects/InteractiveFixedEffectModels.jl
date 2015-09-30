@@ -40,9 +40,9 @@ sparsedf = df[subset, :]
 
 ### N x T
 ```julia
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println("method : $(method)")
-	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, df, method = method, maxiter = 100_000, save = false)
+	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, df, method = method, save = false)
 	@show result.iterations
 	@show result.ess
 	@show result.converged
@@ -52,22 +52,27 @@ end
 Result
 ```
 method : levenberg_marquardt
-  0.901253 seconds (1.41 M allocations: 244.388 MB, 10.53% gc time)
-result.iterations = 12
-result.ess = 3.7333837192913985e8
+  7.668749 seconds (19.03 M allocations: 513.302 MB, 2.82% gc time)
+result.iterations = 188
+result.ess = 1.404830098859686e8
 result.converged = true
 method : dogleg
-  0.760176 seconds (330.66 k allocations: 228.066 MB, 12.98% gc time)
-result.iterations = 16
-result.ess = 3.733383719362705e8
+  1.048312 seconds (477.81 k allocations: 230.311 MB, 11.47% gc time)
+result.iterations = 22
+result.ess = 3.7333837177100134e8
+result.converged = true
+method : gauss_seidel
+  0.831421 seconds (984 allocations: 146.277 MB, 3.18% gc time)
+result.iterations = 18
+result.ess = 1.4048300982167023e8
 result.converged = true
 ```
 
 ### N x T x 4/5
 ```julia
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println("method : $(method)")
-	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, unbalanceddf, method = method, maxiter = 100_000, save = false)
+	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, unbalanceddf, method = method, save = false)
 	@show result.iterations
 	@show result.ess
 	@show result.converged
@@ -77,23 +82,28 @@ end
 Result
 ```
 method : levenberg_marquardt
-  1.559850 seconds (4.41 M allocations: 245.819 MB, 6.27% gc time)
-result.iterations = 44
-result.ess = 2.986821436455046e8
+  5.529451 seconds (17.50 M allocations: 445.647 MB, 3.76% gc time)
+result.iterations = 194
+result.ess = 1.123447290001289e8
 result.converged = true
 method : dogleg
-  5.488896 seconds (6.96 M allocations: 284.876 MB, 3.19% gc time)
-result.iterations = 286
-result.ess = 1.123447295629448e8
+  6.351485 seconds (7.42 M allocations: 291.833 MB, 2.84% gc time)
+result.iterations = 304
+result.ess = 1.1234472899117553e8
+result.converged = true
+method : gauss_seidel
+  0.665716 seconds (961 allocations: 117.137 MB, 0.80% gc time)
+result.iterations = 15
+result.ess = 1.123447289365168e8
 result.converged = true
 ```
 
 
 ### N x T x 1/5
 ```julia
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println("method : $(method)")
-	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, sparsedf, method = method, maxiter = 100_000, save = false)
+	@time result = fit(SparseFactorModel(:id, :time, 1), y ~ 1|> id + time, sparsedf, method = method, save = false)
 	@show result.iterations
 	@show result.ess
 	@show result.converged
@@ -103,14 +113,19 @@ end
 Result
 ```
 method : levenberg_marquardt
-  1.963581 seconds (22.06 M allocations: 381.892 MB, 3.12% gc time)
-result.iterations = 260
-result.ess = 2.8100350265781414e7
+  2.411380 seconds (26.65 M allocations: 451.970 MB, 2.91% gc time)
+result.iterations = 322
+result.ess = 2.810035008926143e7
 result.converged = true
 method : dogleg
-  1.310983 seconds (5.15 M allocations: 123.958 MB, 8.35% gc time)
-result.iterations = 248
-result.ess = 2.8100350234330516e7
+  1.555647 seconds (5.78 M allocations: 133.536 MB, 6.08% gc time)
+result.iterations = 272
+result.ess = 2.810035008495609e7
+result.converged = true
+method : gauss_seidel
+  0.210676 seconds (994 allocations: 29.688 MB, 0.66% gc time)
+result.iterations = 19
+result.ess = 2.810035006800005e7
 result.converged = true
 ```
 
@@ -121,7 +136,7 @@ result.converged = true
 ### N x T
 
 ```julia
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, df, method = method, save = false)
 	@show result.iterations
@@ -132,14 +147,19 @@ end
 
 ```
 method : levenberg_marquardt
- 11.712379 seconds (37.41 M allocations: 1.281 GB, 4.72% gc time)
-result.iterations = 245
-result.ess = 2.480692695345996e6
+ 12.515678 seconds (35.65 M allocations: 1.273 GB, 3.60% gc time)
+result.iterations = 224
+result.ess = 2.4806926953467345e6
 result.converged = true
 method : dogleg
- 11.925921 seconds (16.14 M allocations: 987.386 MB, 4.22% gc time)
-result.iterations = 290
-result.ess = 2.480692695382266e6
+ 10.653673 seconds (11.77 M allocations: 939.787 MB, 4.96% gc time)
+result.iterations = 222
+result.ess = 2.4806926954198824e6
+result.converged = true
+method : gauss_seidel
+  8.087318 seconds (3.91 k allocations: 644.233 MB, 4.22% gc time)
+result.iterations = 62
+result.ess = 2.48069270035986e6
 result.converged = true
 ```
 
@@ -147,7 +167,7 @@ result.converged = true
 
 
 ```julia
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, unbalanceddf, method = method, maxiter = 10_000, save = false)
 	@show result.iterations
@@ -158,14 +178,19 @@ end
 
 ```
 method : levenberg_marquardt
- 18.711958 seconds (74.18 M allocations: 1.685 GB, 3.44% gc time)
-result.iterations = 483
-result.ess = 1.9976766172393495e6
+ 20.928472 seconds (74.36 M allocations: 1.702 GB, 3.32% gc time)
+result.iterations = 472
+result.ess = 1.9976766172168502e6
 result.converged = true
 method : dogleg
- 17.717442 seconds (31.69 M allocations: 1.052 GB, 2.71% gc time)
-result.iterations = 588
-result.ess = 1.9976766172565985e6
+ 39.458185 seconds (66.72 M allocations: 1.589 GB, 1.58% gc time)
+result.iterations = 1256
+result.ess = 1.9976766172250109e6
+result.converged = true
+method : gauss_seidel
+  9.025863 seconds (4.64 k allocations: 515.717 MB, 2.99% gc time)
+result.iterations = 82
+result.ess = 1.9986716371922768e6
 result.converged = true
 ```
 
@@ -173,7 +198,7 @@ result.converged = true
 
 
 ```julia
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, sparsedf, method = method, maxiter = 10_000, save = false)
 	@show result.iterations
@@ -183,19 +208,19 @@ end
 ```
 
 ```
-method : ar
-  1.177007 seconds (2.64 k allocations: 95.489 MB, 1.34% gc time)
-result.iterations = 36
-result.ess = 543565.5890788117
+method : levenberg_marquardt
+  5.687987 seconds (62.94 M allocations: 1.088 GB, 5.60% gc time)
+result.iterations = 414
+result.ess = 542208.1913574268
 result.converged = true
-method : lm
- 14.943738 seconds (156.99 M allocations: 2.437 GB, 2.57% gc time)
-result.iterations = 578
-result.ess = 551660.8545273632
+method : dogleg
+  7.166447 seconds (46.32 M allocations: 861.144 MB, 2.89% gc time)
+result.iterations = 862
+result.ess = 542208.1913257103
 result.converged = true
-method : dl
- 13.430610 seconds (64.08 M allocations: 1.053 GB, 1.03% gc time)
-result.iterations = 575
-result.ess = 551660.8545273632
+method : gauss_seidel
+  1.212241 seconds (2.51 k allocations: 129.907 MB, 2.48% gc time)
+result.iterations = 21
+result.ess = 543565.5891925972
 result.converged = true
 ```

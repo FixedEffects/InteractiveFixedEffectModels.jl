@@ -33,9 +33,14 @@ end
 
 rank{Rank}(::FactorModel{Rank}) = Rank
 
-type FactorSolution{Tid, Ttime} <: AbstractFactorSolution
+type FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution
     idpool::Tid
     timepool::Ttime
+end
+function FactorSolution{Tid, Ttime}(idpool::Tid, timepool::Ttime)
+    r = size(idpool, 2)
+    @assert r == size(timepool, 2)
+    FactorSolution{r, Tid, Ttime}(idpool, timepool)
 end
 
 function slice(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...)
@@ -51,21 +56,11 @@ function subtract_factor!(y, fm::AbstractFactorModel, fs::AbstractFactorSolution
     end
 end
 
-function subtract_factor!{Tid <: AbstractVector, Ttime <: AbstractVector}(y, fm::AbstractFactorModel, fs::FactorSolution{Tid, Ttime})
+function subtract_factor!(y, fm::AbstractFactorModel, fs::FactorSolution{1})
     @inbounds @simd for i in 1:length(y)
         y[i] -= fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]]
     end
 end
-
-## compute sum of squared residuals
-function ssr(fm::FactorModel, fs::FactorSolution)
-    out = zero(Float64)
-    @inbounds @simd for i in 1:length(fm.y)
-        out += abs2(fm.y[i] - fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]])
-    end 
-    return out
-end
-
 
 ## rescale a factor model
 function reverse{R}(m::Matrix{R})
@@ -78,16 +73,10 @@ function reverse{R}(m::Matrix{R})
     end
     return out
 end
-function rescale!{Tid <:AbstractVector{Float64}, Ttime <: AbstractVector{Float64}}(
-    fs::FactorSolution{Tid, Ttime})
+function rescale!(fs::FactorSolution{1})
     out = norm(fs.timepool)
-    @inbounds @simd for i in eachindex(fs.idpool)
-        fs.idpool[i] *= out
-    end
-    invout = 1 / out
-    @inbounds @simd for i in eachindex(fs.timepool)
-        fs.timepool[i] *= invout
-    end
+    scale!(fs.idpool, out)
+    scale!(fs.timepool, 1/out)
 end
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)

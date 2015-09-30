@@ -151,3 +151,12 @@ function update!{R1, R2}(::Type{Val{:gauss_seidel}},
         end
     end
 end
+
+## compute sum of squared residuals
+function ssr(fm::FactorModel, fs::FactorSolution{1})
+    out = zero(Float64)
+    @inbounds @simd for i in 1:length(fm.y)
+        out += abs2(fm.y[i] - fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]])
+    end 
+    return out
+end
