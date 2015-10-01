@@ -43,7 +43,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
         converged = result.converged && converged
         if r < rank(fp)
             rescale!(fsr)
-            subtract_factor!(fp.y, fp, fsr)
+            subtract_factor!(fp, fsr)
         end
     end
     # rescale factors and loadings so that factors' * factors = Id
@@ -91,9 +91,8 @@ end
 ##
 ##############################################################################
 
-
 function dot{T}(fs1::AbstractArray{T}, fs2::AbstractArray{T})  
-    out = zero(typeof(one(T)*one(T)))
+    out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(fs1)
         out += fs1[i] * fs2[i]
     end
@@ -219,13 +218,7 @@ end
 
 function Ac_mul_B!(α::Number, fg::FactorGradient, y::AbstractVector{Float64}, β::Number, fs::FactorSolution{1})
     mα = convert(Float64, -α)
-    if β != 1
-        if β == 0
-            fill!(fs, 0)
-        else
-            scale!(fs, β)
-        end
-    end
+    β == 0 ? fill!(fs, 0) : scale!(fs, β)
     @inbounds @simd for i in 1:length(y)
         sqrtwi = mα * y[i] * fg.fp.sqrtw[i]
         idi = fg.fp.idrefs[i]
@@ -238,19 +231,12 @@ end
 
 function A_mul_B!(α::Number, fg::FactorGradient, fs::FactorSolution{1}, β::Number, y::AbstractVector{Float64})
     mα = convert(Float64, -α)
-    if β != 1
-        if β == 0
-            fill!(y, 0)
-        else
-            scale!(y, β)
-        end
-    end
+    β == 0 ? fill!(y, 0) : scale!(y, β)
     @fastmath @inbounds @simd for i in 1:length(y)
         timei = fg.fp.timerefs[i]
         idi = fg.fp.idrefs[i]
         out = (fg.fs.idpool[idi] * fs.timepool[timei] 
-                               + fg.fs.timepool[timei] * fs.idpool[idi]
-                               )
+            + fg.fs.timepool[timei] * fs.idpool[idi])
         y[i] += mα * fg.fp.sqrtw[i] * out
     end
 end
@@ -311,16 +297,10 @@ end
 @generated function Ac_mul_B!{Rank}(α::Number, fg::InteractiveFixedEffectsGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::InteractiveFixedEffectsSolution)
     quote
         mα = convert(Float64, -α)
-        if β != 1
-            if β == 0
-                fill!(fs, 0)
-            else
-                scale!(fs, β)
-            end
-        end
-        for k in 1:length(fs.b)
+        β == 0 ? fill!(fs, 0) : scale!(fs, β)
+        @inbounds @simd for k in 1:length(fs.b)
             out = zero(Float64)
-            @inbounds @simd for i in 1:length(y)
+             for i in 1:length(y)
                 out += y[i] * fg.fp.X[i, k]
             end
             fs.b[k] += mα * out
@@ -341,13 +321,7 @@ end
 @generated function A_mul_B!{Rank}(α::Number, fg::InteractiveFixedEffectsGradient{Rank}, fs::InteractiveFixedEffectsSolution, β::Number, y::AbstractVector{Float64})
     quote
         mα = convert(Float64, -α)
-        if β != 1
-            if β == 0
-                fill!(y, 0)
-            else
-                scale!(y, β)
-            end
-        end
+        β == 0 ? fill!(y, 0) : scale!(y, β)
         Base.BLAS.gemm!('N', 'N', mα, fg.fp.X, fs.b, 1.0, y)
         @fastmath @inbounds @simd for i in 1:length(y)
             timei = fg.fp.timerefs[i]
@@ -355,8 +329,7 @@ end
             out = 0.0
             @nexprs $Rank r -> begin
                  out += (fg.fs.idpool[r, idi] * fs.timepool[r, timei] 
-                         + fg.fs.timepool[r, timei] * fs.idpool[r, idi]
-                         )
+                         + fg.fs.timepool[r, timei] * fs.idpool[r, idi])
              end
             y[i] += mα * fg.fp.sqrtw[i] * out
         end

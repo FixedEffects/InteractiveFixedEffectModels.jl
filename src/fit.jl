@@ -171,13 +171,13 @@ function fit(m::SparseFactorModel,
     ##############################################################################
 
     # compute residuals
-    residuals = deepcopy(y)
+    fp = FactorModel(deepcopy(y), sqrtw, id.refs, time.refs, m.rank)
     if has_regressors
-        BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, residuals)
+        BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
     end
-    subtract_factor!(residuals, fp, fs)
-    broadcast!(/, residuals, residuals, sqrtw)
-
+    subtract_factor!(fp, fs)
+    broadcast!(/, fp.y, fp.y, sqrtw)
+    residuals = fp.y
     ##############################################################################
     ##
     ## Compute errors
@@ -254,10 +254,11 @@ function fit(m::SparseFactorModel,
                 oldX = ModelMatrix(mf).m
                 BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
             end
-            subtract_factor!(oldresiduals, fp, fs)
-            b = oldresiduals - residuals
+            fp = FactorModel(oldresiduals, sqrtw, id.refs, time.refs, m.rank)
+            subtract_factor!(fp, fs)
+            axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
-            augmentdf = hcat(augmentdf, getfe!(pfe, b, esample))
+            augmentdf = hcat(augmentdf, getfe!(pfe, oldresiduals, esample))
         end
     end
 

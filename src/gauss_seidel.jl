@@ -21,39 +21,38 @@ function fit!(::Type{Val{:gauss_seidel}},
     lambda == 0.0 || error("The alternative regression method only works with lambda = 0.0")
 
     # initialize
-    iterations = fill(maxiter, rank(fp))
-    converged = fill(false, rank(fp))
     iter = 0
-    res = deepcopy(fp.y)
-    fp = FactorModel(res, fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
+    converged = true
+
+    fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
     idscale = Array(Float64, size(fs.idpool, 1))
     timescale = Array(Float64, size(fs.timepool, 1))
 
     for r in 1:rank(fp)
         fsr = slice(fs, :, r)
         oldf_x = ssr(fp, fsr)
-        iter = 0
-        while iter < maxiter
-            iter += 1
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, 
+        iter_inner = 0
+        while iter_inner < maxiter
+            iter_inner += 1
+            update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, 
                 idscale, fsr.timepool)
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, 
+            update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, 
                 timescale, fsr.idpool)
             f_x = ssr(fp, fsr)
             if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
-                iterations[r] = iter
-                converged[r] = true
                 break
             else
                 oldf_x = f_x
             end
         end
+        iter = max(iter_inner, iter)
+        converged = (iter_inner < maxiter) && converged
         if r < rank(fp)
             rescale!(fsr)
-            subtract_factor!(res, fp, fsr)
+            subtract_factor!(fp, fsr)
         end
     end
-    return rescale(fs), maximum(iterations), all(converged)
+    return rescale(fs), iter, converged
 end
 
 ##############################################################################
@@ -70,14 +69,16 @@ function fit!(::Type{Val{:gauss_seidel}},
     lambda::Real = 0.0)
     lambda == 0.0 || error("The alternative regression method only works with lambda = 0.0")
 
-    #qr fact factorization cannot divide in place for now
-    crossx = cholfact!(At_mul_B(fp.X, fp.X))
-    M = crossx \ fp.X'
 
     N = size(fs.idpool, 1)
     T = size(fs.timepool, 1)
 
-    res = deepcopy(fp.y)
+    #qr fact factorization cannot divide in place for now
+    crossx = cholfact!(At_mul_B(fp.X, fp.X))
+    M = crossx \ fp.X'
+
+    yoriginal = deepcopy(fp.y)
+    fp = InteractiveFixedEffectsModel(deepcopy(fp.y), fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
 
     idscale = Array(Float64, size(fs.idpool, 1))
     timescale = Array(Float64, size(fs.timepool, 1))
@@ -93,25 +94,25 @@ function fit!(::Type{Val{:gauss_seidel}},
         (f_x, oldf_x) = (oldf_x, f_x)
 
         # Given beta, compute incrementally an approximate factor model
-        copy!(res, fp.y)
-        BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, res)
+        copy!(fp.y, yoriginal)
+        BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
         for r in 1:rank(fp)
             fsr = slice(fs, :, r)
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, idscale, fsr.timepool)
-            update!(Val{:gauss_seidel}, res, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, timescale, fsr.idpool)
-            subtract_factor!(res, fp, fsr)
+            update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, idscale, fsr.timepool)
+            update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, timescale, fsr.idpool)
+            subtract_factor!(fp, fsr)
         end
 
         # Given factor model, compute beta
-        copy!(res, fp.y)
-        subtract_factor!(res, fp, fs)
+        copy!(fp.y, yoriginal)
+        subtract_factor!(fp, fs)
         ## corresponds to Gauss Niedel with acceleration
         scale!(fs.b, -0.5)
-        BLAS.gemm!('N', 'N', 1.5, M, res, 1.0, fs.b)
+        BLAS.gemm!('N', 'N', 1.5, M, fp.y, 1.0, fs.b)
 
         # Check convergence
-        BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, res)
-        f_x = sumabs2(res)
+        BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
+        f_x = sumabs2(fp.y)
         if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
             converged = true
             iterations = iter

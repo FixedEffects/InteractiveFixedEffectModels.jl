@@ -50,15 +50,15 @@ end
 similar(fs::FactorSolution) = similar(idpool, timepool)
 
 ## subtract_factor! and subtract_b!
-function subtract_factor!(y, fm::AbstractFactorModel, fs::AbstractFactorSolution)
+function subtract_factor!(fm::AbstractFactorModel, fs::AbstractFactorSolution)
     for r in 1:rank(fm)
-        subtract_factor!(y, fm, slice(fs, :, r))
+        subtract_factor!(fm, slice(fs, :, r))
     end
 end
 
-function subtract_factor!(y, fm::AbstractFactorModel, fs::FactorSolution{1})
-    @inbounds @simd for i in 1:length(y)
-        y[i] -= fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]]
+function subtract_factor!(fm::AbstractFactorModel, fs::FactorSolution{1})
+    @inbounds @simd for i in 1:length(fm.y)
+        fm.y[i] -= fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]]
     end
 end
 
