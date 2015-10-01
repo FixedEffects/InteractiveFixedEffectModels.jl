@@ -63,13 +63,12 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                          maxiter::Integer = 10_000,
                          tol::Real = 1e-9,
                          lambda::Number = 0.0)
-    idpoolT = fs.idpool'
-    timepoolT = fs.timepool'
+    timepoolT = 
     scaleb = vec(sumabs2(fp.X, 1))
-    fs = InteractiveFixedEffectsSolution(fs.b, idpoolT, timepoolT)
+    fs = InteractiveFixedEffectsSolution(fs.b, fs.idpool', fs.timepool')
     fg = InteractiveFixedEffectsGradient(fp, 
-                InteractiveFixedEffectsSolution(similar(fs.b), similar(idpoolT), similar(timepoolT)),
-                InteractiveFixedEffectsSolution(scaleb, similar(idpoolT), similar(timepoolT)))
+                InteractiveFixedEffectsSolution(similar(fs.b), similar(fs.idpool), similar(fs.timepool)),
+                InteractiveFixedEffectsSolution(scaleb, similar(fs.idpool), similar(fs.timepool)))
     nls = NonLinearLeastSquares(fs, similar(fp.y), fp, fg, g!)
     temp = similar(fp.y)
     if t == Val{:levenberg_marquardt}
@@ -99,7 +98,7 @@ function dot{T}(fs1::AbstractArray{T}, fs2::AbstractArray{T})
     return out
 end
 
-for t in (FactorSolution, InteractiveFixedEffectsSolution)
+for t in (FactorSolution, InteractiveFixedEffectsSolution, HalfInteractiveFixedEffectsSolution)
     vars = [:(fill!(x.$field, α)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin

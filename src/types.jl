@@ -172,6 +172,25 @@ function rescale(fs::InteractiveFixedEffectsSolution)
     InteractiveFixedEffectsSolution(fs.b, newfss.idpool, newfss.timepool)
 end
 
+
+type HalfInteractiveFixedEffectsSolution{Tb, Tid} <: AbstractFactorSolution
+    b::Tb
+    idpool::Tid
+end
+
+type HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
+    y::Vector{Float64}
+    sqrtw::W
+    X::Matrix{Float64}
+    idrefs::Vector{Rid}
+    timerefs::Vector{Rtime}
+    timepool::Matrix{Float64}
+    size::Tuple{Int, Int}
+end
+function HalfInteractiveFixedEffectsModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, timepool::Matrix{Float64}, size, rank::Int)
+    HalfInteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs, timepool, size)
+end
+
 ##############################################################################
 ##
 ## Results

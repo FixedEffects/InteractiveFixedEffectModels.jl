@@ -10,8 +10,9 @@ using Reexport
 using Base.Cartesian
 @reexport using FixedEffectModels
 import FixedEffectModels: title, top
+import Distances: chebyshev
 using Compat
-import LeastSquares: optimize!, colsumabs2!, NonLinearLeastSquares,  NonLinearLeastSquaresProblem
+import LeastSquares: optimize!, colsumabs2!, NonLinearLeastSquares,  NonLinearLeastSquaresProblem, LinearLeastSquares,  LinearLeastSquaresProblem
 import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, slice
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
@@ -38,6 +39,7 @@ include("utils/models.jl")
 include("gauss_seidel.jl")
 
 include("ls.jl")
+include("regar.jl")
 
 include("fit.jl")
 

@@ -154,7 +154,7 @@ function fit(m::SparseFactorModel,
             residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             ydiff = Xm * (fs.b - Xm \ ym)
-            if iterations == maxiter || norm(ydiff)  <= 0.01 * norm(y)
+            if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
             end
             info("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
