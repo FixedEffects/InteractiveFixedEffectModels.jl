@@ -19,21 +19,21 @@ function fit!(t::Type{Val{:regar}},
                          lambda::Number = 0.0)
 
     scaleb = vec(sumabs2(fp.X, 1))
-    fs = InteractiveFixedEffectsSolution(fs.b,  fs.idpool',fs.timepool')
+    fsT = InteractiveFixedEffectsSolutionT(fs.b,  fs.idpool',fs.timepool')
 
     res = deepcopy(fp.y)
 
-    fsid = HalfInteractiveFixedEffectsSolution(fs.b, fs.idpool)
+    fsid = HalfInteractiveFixedEffectsSolution(fsT.b, fsT.idpool)
     solveid = NTuple((similar(fsid), similar(fsid), similar(fsid), similar(fsid), similar(fsid)))
-    fpid = HalfInteractiveFixedEffectsModel(fp.y, fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, fs.timepool, (length(fp.y), size(fs.idpool, 2) * size(fs.idpool, 1) + length(fs.b)), rank(fp))
+    fpid = HalfInteractiveFixedEffectsModel(fp.y, fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, fsT.timepool, (length(fp.y), size(fsT.idpool, 2) * size(fsT.idpool, 1) + length(fsT.b)), rank(fp))
 
-    fstime = HalfInteractiveFixedEffectsSolution(fs.b, fs.timepool)
+    fstime = HalfInteractiveFixedEffectsSolution(fsT.b, fsT.timepool)
     solvetime = NTuple((similar(fstime), similar(fstime), similar(fstime), similar(fstime), similar(fstime)))
-    fptime = HalfInteractiveFixedEffectsModel(fp.y, fp.sqrtw, fp.X, fp.timerefs, fp.idrefs, fs.idpool, (length(fp.y), size(fs.timepool, 2) * size(fs.timepool, 1) + length(fs.b)), rank(fp))
+    fptime = HalfInteractiveFixedEffectsModel(fp.y, fp.sqrtw, fp.X, fp.timerefs, fp.idrefs, fsT.idpool, (length(fp.y), size(fsT.timepool, 2) * size(fsT.timepool, 1) + length(fsT.b)), rank(fp))
     iter = 0
 
 
-    oldb = deepcopy(fs.b)
+    oldb = deepcopy(fsT.b)
     while iter <= maxiter
         iter += 1
         # regress on X and factors
@@ -48,13 +48,13 @@ function fit!(t::Type{Val{:regar}},
             solvetime)
         x, ch = optimize!(lstime)
         iter += ch.mvps
-        if chebyshev(fs.b, oldb) <= tol
+        if chebyshev(fsT.b, oldb) <= tol
             break
         end
-        copy!(oldb, fs.b)
+        copy!(oldb, fsT.b)
     end
     # rescale factors and loadings so that factors' * factors = Id
-    fs = InteractiveFixedEffectsSolution(fs.b, fs.idpool', fs.timepool')
+    fs = InteractiveFixedEffectsSolution(fsT.b, fsT.idpool', fsT.timepool')
     return rescale(fs), iter, iter < maxiter
 end
 

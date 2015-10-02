@@ -202,8 +202,8 @@ abstract AbstractFactorGradient{T}
 
 type FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} <: AbstractFactorGradient{Rank}
     fp::FactorModel{Rank, W, Rid, Rtime}
-    fs::FactorSolution{1, Tid, Ttime}
-    scalefs::FactorSolution{1, sTid, sTtime}
+    fs::FactorSolution{Rank, Tid, Ttime}
+    scalefs::FactorSolution{Rank, sTid, sTtime}
 end
 
 function size(fg::FactorGradient, i::Integer)
@@ -216,8 +216,8 @@ end
 
 type InteractiveFixedEffectsGradientT{Rank, W, Rid, Rtime, Tb, Tid, Ttime, sTb, sTid, sTtime} <: AbstractFactorGradient{Rank}
     fp::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}
-    fs::InteractiveFixedEffectsSolutionT{Tb, Tid, Ttime}
-    scalefs::InteractiveFixedEffectsSolutionT{sTb, sTid, sTtime}
+    fs::InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime}
+    scalefs::InteractiveFixedEffectsSolutionT{Rank, sTb, sTid, sTtime}
 end
 
 function size(fg::InteractiveFixedEffectsGradientT, i::Integer)
@@ -239,7 +239,7 @@ colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, 
 ##
 ##############################################################################
 
-@generated function A_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64})
+@generated function A_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64})
     quote
         mα = convert(Float64, -α)
         A_mul_B!_X(mα, fg.fp, fs, β, y)
@@ -273,7 +273,9 @@ end
 function A_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, fs::InteractiveFixedEffectsSolutionT, β::Number, y::AbstractVector{Float64})
     Base.BLAS.gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
 end
-A_mul_B!_X(::Number, ::FactorModel, ::FactorSolution, β::Number, y::AbstractVector{Float64}) = safe_scale!(y, β)
+function A_mul_B!_X(::Number, ::FactorModel, ::FactorSolution, β::Number, y::AbstractVector{Float64})
+    safe_scale!(y, β)
+end
 
 ##############################################################################
 ##
@@ -281,7 +283,7 @@ A_mul_B!_X(::Number, ::FactorModel, ::FactorSolution, β::Number, y::AbstractVec
 ##
 ##############################################################################
 
-@generated function Ac_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank})
+@generated function Ac_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank})
     quote
         mα = convert(Float64, -α)
         Ac_mul_B!_X(mα, fg.fp, y, β, fs)
@@ -365,7 +367,7 @@ end
 ##
 ##############################################################################
 
-@generated function g!{Rank}(fs::AbstractFactorSolution{Rank}, fg::AbstractFactorGradient)
+@generated function g!{Rank}(fs::AbstractFactorSolution{Rank}, fg::AbstractFactorGradient{Rank})
     quote
         copy!(fg.fs, fs)
         fill!(fg.scalefs.idpool, zero(Float64))
