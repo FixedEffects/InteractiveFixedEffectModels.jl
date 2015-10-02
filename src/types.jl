@@ -11,16 +11,15 @@ type SparseFactorModel
     rank::Int64
 end
 
-abstract AbstractFactorModel
-abstract AbstractFactorSolution
-
+abstract AbstractFactorModel{T}
+abstract AbstractFactorSolution{T}
 ##############################################################################
 ##
 ## Factor Model
 ##
 ##############################################################################
 
-type FactorModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
+type FactorModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
     y::Vector{Float64}
     sqrtw::W
     idrefs::Vector{Rid}
@@ -33,10 +32,11 @@ end
 
 rank{Rank}(::FactorModel{Rank}) = Rank
 
-type FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution
+type FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution{Rank}
     idpool::Tid
     timepool::Ttime
 end
+
 function FactorSolution{Tid, Ttime}(idpool::Tid, timepool::Ttime)
     r = size(idpool, 2)
     @assert r == size(timepool, 2)
@@ -48,6 +48,7 @@ function slice(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...
 end
 
 similar(fs::FactorSolution) = similar(idpool, timepool)
+
 
 ## subtract_factor! and subtract_b!
 function subtract_factor!(fm::AbstractFactorModel, fs::AbstractFactorSolution)
@@ -61,6 +62,7 @@ function subtract_factor!(fm::AbstractFactorModel, fs::FactorSolution{1})
         fm.y[i] -= fm.sqrtw[i] * fs.idpool[fm.idrefs[i]] * fs.timepool[fm.timerefs[i]]
     end
 end
+
 
 ## rescale a factor model
 function reverse{R}(m::Matrix{R})
@@ -141,7 +143,7 @@ end
 ##
 ##############################################################################
 
-type InteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
+type InteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
     y::Vector{Float64}
     sqrtw::W
     X::Matrix{Float64}
@@ -155,15 +157,33 @@ end
 
 rank{Rank}(::InteractiveFixedEffectsModel{Rank}) = Rank
 
+convert{Rank, W, Rid, Rtime}(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) = FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
 
-type InteractiveFixedEffectsSolution{Tb, Tid, Ttime} <: AbstractFactorSolution
+
+type InteractiveFixedEffectsSolution{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
     b::Tb
     idpool::Tid
     timepool::Ttime
 end
-
-convert{Rank, W, Rid, Rtime}(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) = FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
+function InteractiveFixedEffectsSolution{Tb, Tid, Ttime}(b::Tb, idpool::Tid, timepool::Ttime)
+    r = size(idpool, 2)
+    r == size(timepool, 2) || throw("factors and loadings don't have same dimension")
+    InteractiveFixedEffectsSolution{r, Tb, Tid, Ttime}(b, idpool, timepool)
+end
 convert(::Type{FactorSolution}, f::InteractiveFixedEffectsSolution) = FactorSolution(f.idpool, f.timepool)
+
+
+type InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
+    b::Tb
+    idpool::Tid
+    timepool::Ttime
+end
+function InteractiveFixedEffectsSolutionT{Tb, Tid, Ttime}(b::Tb, idpool::Tid, timepool::Ttime)
+    r = size(idpool, 1)
+    r == size(timepool, 1) || throw("factors and loadings don't have same dimension")
+    InteractiveFixedEffectsSolutionT{r, Tb, Tid, Ttime}(b, idpool, timepool)
+end
+
 
 function rescale(fs::InteractiveFixedEffectsSolution)
     fss = FactorSolution(fs.idpool, fs.timepool)
@@ -173,10 +193,7 @@ function rescale(fs::InteractiveFixedEffectsSolution)
 end
 
 
-type HalfInteractiveFixedEffectsSolution{Tb, Tid} <: AbstractFactorSolution
-    b::Tb
-    idpool::Tid
-end
+
 
 type HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
     y::Vector{Float64}
@@ -189,6 +206,11 @@ type HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorMode
 end
 function HalfInteractiveFixedEffectsModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, timepool::Matrix{Float64}, size, rank::Int)
     HalfInteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs, timepool, size)
+end
+
+type HalfInteractiveFixedEffectsSolution{Tb, Tid} <: AbstractFactorSolution
+    b::Tb
+    idpool::Tid
 end
 
 ##############################################################################

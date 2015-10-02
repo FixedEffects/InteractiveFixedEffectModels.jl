@@ -92,7 +92,7 @@ end
 @generated function Ac_mul_B!{Rank}(α::Number, fp::HalfInteractiveFixedEffectsModel{Rank}, y::AbstractVector{Float64}, β::Number, fs::HalfInteractiveFixedEffectsSolution)
     quote
         mα = convert(Float64, α)
-        β == 0 ? fill!(fs, 0) : scale!(fs, β)
+        safe_scale!(fs, β)
         @inbounds @simd for k in 1:length(fs.b)
             out = zero(Float64)
              for i in 1:length(y)
@@ -115,7 +115,7 @@ end
 @generated function A_mul_B!{Rank}(α::Number, fp::HalfInteractiveFixedEffectsModel{Rank}, fs::HalfInteractiveFixedEffectsSolution, β::Number, y::AbstractVector{Float64})
     quote
         mα = convert(Float64, α)
-        β == 0 ? fill!(y, 0) : scale!(y, β)
+        safe_scale!(y, β)
         Base.BLAS.gemm!('N', 'N', mα, fp.X, fs.b, 1.0, y)
         @fastmath @inbounds @simd for i in 1:length(y)
             timei = fp.timerefs[i]
