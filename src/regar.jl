@@ -66,7 +66,6 @@ end
 ##############################################################################
 
 rank{Rank}(f::HalfInteractiveFixedEffectsModel{Rank}) = Rank
-
 size(fg::HalfInteractiveFixedEffectsModel) = fg.size
 size(fg::HalfInteractiveFixedEffectsModel, i::Integer) = fg.size[i]
 eltype(fg::HalfInteractiveFixedEffectsModel) = Float64
@@ -76,7 +75,6 @@ eltype(fg::HalfInteractiveFixedEffectsModel) = Float64
         for i in 1:length(fs.b)
             fs.b[i] = sumabs2(slice(fp.X, :, i))
         end
-
         fill!(fs.idpool, zero(Float64))
         @inbounds @simd for i in 1:length(fp.y)
             sqrtwi = fp.sqrtw[i]

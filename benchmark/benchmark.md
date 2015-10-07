@@ -167,7 +167,7 @@ result.converged = true
 
 
 ```julia
-for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel, :regar]
 	println("method : $(method)")
 	@time result = fit(SparseFactorModel(:id, :time, 2), y ~ x1 |> id + time, unbalanceddf, method = method, save = false)
 	@show result.iterations

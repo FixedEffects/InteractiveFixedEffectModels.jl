@@ -34,7 +34,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                 fp, 
                 fg, 
                 g!)
-    full = NonLinearLeastSquaresProblem(nls, t)
+    full = NonLinearLeastSquaresProblem(nls, method = t.parameters[1], solver = :lsmr)
     for r in 1:fullrank
         fsr = slice(fs, :, r)
         full.nls.x = fsr
@@ -64,21 +64,16 @@ function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}
                          maxiter::Integer = 10_000,
                          tol::Real = 1e-9,
                          lambda::Number = 0.0)
-    timepoolT = 
     scaleb = vec(sumabs2(fp.X, 1))
     fsT = InteractiveFixedEffectsSolutionT(fs.b, fs.idpool', fs.timepool')
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
     nls = NonLinearLeastSquares(fsT, similar(fp.y), fp, fg, g!)
+    full = NonLinearLeastSquaresProblem(nls; method = t.parameters[1], solver = :lsmr)
     temp = similar(fp.y)
-    if t == Val{:levenberg_marquardt}
-        result = optimize!(nls ; method = :levenberg_marquardt,
+    result = optimize!(full;
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-    else
-          result = optimize!(nls ; method = :dogleg,
-          xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
-    end
     # rescale factors and loadings so that factors' * factors = Id
     fs = InteractiveFixedEffectsSolution(fsT.b, fsT.idpool', fsT.timepool')
     return rescale(fs), result.mul_calls, result.converged
@@ -240,6 +235,19 @@ colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, 
 ##############################################################################
 
 @generated function A_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64})
+    if Rank == 1
+        ex = quote
+            out += (fg.fs.idpool[idi] * fs.timepool[timei] 
+                + fg.fs.timepool[timei] * fs.idpool[idi])
+        end
+    else
+        ex = quote
+            @nexprs $Rank r -> begin
+                out += (fg.fs.idpool[r, idi] * fs.timepool[r, timei] 
+                         + fg.fs.timepool[r, timei] * fs.idpool[r, idi])
+            end
+        end
+    end
     quote
         mα = convert(Float64, -α)
         A_mul_B!_X(mα, fg.fp, fs, β, y)
@@ -247,28 +255,13 @@ colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, 
             timei = fg.fp.timerefs[i]
             idi = fg.fp.idrefs[i]
             out = 0.0
-            $(A_mul_B!_expr(Rank))
+            $ex
             y[i] += mα * fg.fp.sqrtw[i] * out
         end
         return y
     end
 end
 
-function A_mul_B!_expr(Rank)
-    if Rank == 1
-        quote
-            out += (fg.fs.idpool[idi] * fs.timepool[timei] 
-                + fg.fs.timepool[timei] * fs.idpool[idi])
-        end
-    else
-        quote
-            @nexprs $Rank r -> begin
-                out += (fg.fs.idpool[r, idi] * fs.timepool[r, timei] 
-                         + fg.fs.timepool[r, timei] * fs.idpool[r, idi])
-            end
-        end
-    end
-end
 
 function A_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, fs::InteractiveFixedEffectsSolutionT, β::Number, y::AbstractVector{Float64})
     Base.BLAS.gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
@@ -284,6 +277,19 @@ end
 ##############################################################################
 
 @generated function Ac_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank})
+    if Rank == 1
+        ex = quote
+           fs.idpool[idi] += sqrtwi * fg.fs.timepool[timei]
+           fs.timepool[timei] += sqrtwi * fg.fs.idpool[idi]
+        end
+    else
+        ex = quote
+            @nexprs $Rank r -> begin
+                fs.idpool[r, idi] += sqrtwi * fg.fs.timepool[r, timei]
+                fs.timepool[r, timei] += sqrtwi * fg.fs.idpool[r, idi]
+            end
+        end
+    end
     quote
         mα = convert(Float64, -α)
         Ac_mul_B!_X(mα, fg.fp, y, β, fs)
@@ -291,27 +297,11 @@ end
             sqrtwi = mα * y[i] * fg.fp.sqrtw[i]
             idi = fg.fp.idrefs[i]
             timei = fg.fp.timerefs[i]
-            $(Ac_mul_B!_expr(Rank))
+            $ex
         end
         return fs
     end
 end   
-
-function Ac_mul_B!_expr(Rank)
-    if Rank == 1
-        quote
-           fs.idpool[idi] += sqrtwi * fg.fs.timepool[timei]
-           fs.timepool[timei] += sqrtwi * fg.fs.idpool[idi]
-        end
-    else
-        quote
-            @nexprs $Rank r -> begin
-                fs.idpool[r, idi] += sqrtwi * fg.fs.timepool[r, timei]
-                fs.timepool[r, timei] += sqrtwi * fg.fs.idpool[r, idi]
-            end
-        end
-    end
-end
 
 function Ac_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, y::AbstractVector{Float64}, β::Number, fs::InteractiveFixedEffectsSolutionT)
     safe_scale!(fs, β)
@@ -323,7 +313,9 @@ function Ac_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, y::AbstractVe
         fs.b[k] += α * out
     end
 end
-Ac_mul_B!_X(::Number, ::FactorModel, ::AbstractVector{Float64}, β::Number, fs::FactorSolution) = safe_scale!(fs, β)
+
+function Ac_mul_B!_X(::Number, ::FactorModel, ::AbstractVector{Float64}, β::Number, fs::FactorSolution) safe_scale!(fs, β)
+end
 
 
 ##############################################################################
@@ -334,6 +326,17 @@ Ac_mul_B!_X(::Number, ::FactorModel, ::AbstractVector{Float64}, β::Number, fs::
 
 @generated function call{Rank}(fp::AbstractFactorModel{Rank}, 
     fs::AbstractFactorSolution{Rank}, out::Vector{Float64})
+    if Rank == 1
+        ex = quote
+            out[i] -= sqrtwi * fs.idpool[idi] * fs.timepool[timei]
+        end
+    else
+        ex = quote
+           @nexprs $Rank r -> begin
+               out[i] -= sqrtwi * fs.idpool[r, idi] * fs.timepool[r, timei]
+           end
+        end
+    end
     quote
         copy!(out, fp.y)
         A_mul_B!_X(-1.0, fp, fs, 1.0, out)
@@ -341,23 +344,9 @@ Ac_mul_B!_X(::Number, ::FactorModel, ::AbstractVector{Float64}, β::Number, fs::
             sqrtwi = fp.sqrtw[i]
             idi = fp.idrefs[i]
             timei = fp.timerefs[i]
-            $(f_expr!(Rank))
+            $ex
         end
         return out
-    end
-end
-
-function f_expr!(Rank::Int)
-    if Rank == 1
-        quote
-            out[i] -= sqrtwi * fs.idpool[idi] * fs.timepool[timei]
-        end
-    else
-        quote
-           @nexprs $Rank r -> begin
-               out[i] -= sqrtwi * fs.idpool[r, idi] * fs.timepool[r, timei]
-           end
-        end
     end
 end
 
@@ -368,6 +357,19 @@ end
 ##############################################################################
 
 @generated function g!{Rank}(fs::AbstractFactorSolution{Rank}, fg::AbstractFactorGradient{Rank})
+    if Rank == 1
+        ex = quote
+            fg.scalefs.idpool[idi] += abs2(sqrtwi * fg.fs.timepool[timei])
+            fg.scalefs.timepool[timei] += abs2(sqrtwi * fg.fs.idpool[idi])
+        end
+    else
+        ex = quote
+            @nexprs $Rank r -> begin
+                fg.scalefs.idpool[r, idi] += abs2(sqrtwi * fg.fs.timepool[r, timei])
+                fg.scalefs.timepool[r, timei] += abs2(sqrtwi * fg.fs.idpool[r, idi])
+            end
+        end
+    end
     quote
         copy!(fg.fs, fs)
         fill!(fg.scalefs.idpool, zero(Float64))
@@ -376,26 +378,11 @@ end
             sqrtwi = fg.fp.sqrtw[i]
             idi = fg.fp.idrefs[i]
             timei = fg.fp.timerefs[i] 
-            $(g_expr!(Rank))
+            $ex
         end
     end
 end
 
-function g_expr!(Rank::Int)
-    if Rank == 1
-        quote
-            fg.scalefs.idpool[idi] += abs2(sqrtwi * fg.fs.timepool[timei])
-            fg.scalefs.timepool[timei] += abs2(sqrtwi * fg.fs.idpool[idi])
-        end
-    else
-        quote
-            @nexprs $Rank r -> begin
-                fg.scalefs.idpool[r, idi] += abs2(sqrtwi * fg.fs.timepool[r, timei])
-                fg.scalefs.timepool[r, timei] += abs2(sqrtwi * fg.fs.idpool[r, idi])
-            end
-        end
-    end
-end
 
 
 

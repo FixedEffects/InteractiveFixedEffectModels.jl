@@ -73,7 +73,7 @@ function fit(m::SparseFactorModel,
         if any([typeof(f.interaction) <: Ones for f in fes]) 
             rt.intercept = false
         end
-        pfe = FixedEffectProblem(fes)
+        pfe = FixedEffectProblem(fes, Val{:lsmr})
     else
         pfe = nothing
     end
@@ -150,7 +150,7 @@ function fit(m::SparseFactorModel,
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newpfe = FixedEffectProblem(getfactors(fp, fs))
+            newpfe = FixedEffectProblem(getfactors(fp, fs), Val{:lsmr})
             residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             ydiff = Xm * (fs.b - Xm \ ym)
