@@ -52,17 +52,17 @@ end
 Result
 ```
 method : levenberg_marquardt
-  7.668749 seconds (19.03 M allocations: 513.302 MB, 2.82% gc time)
-result.iterations = 188
-result.ess = 1.404830098859686e8
+  7.158471 seconds (17.20 M allocations: 485.516 MB, 4.69% gc time)
+result.iterations = 167
+result.ess = 1.404830098782482e8
 result.converged = true
 method : dogleg
-  1.048312 seconds (477.81 k allocations: 230.311 MB, 11.47% gc time)
+  1.018161 seconds (477.79 k allocations: 230.311 MB, 10.54% gc time)
 result.iterations = 22
-result.ess = 3.7333837177100134e8
+result.ess = 3.733383717783933e8
 result.converged = true
 method : gauss_seidel
-  0.831421 seconds (984 allocations: 146.277 MB, 3.18% gc time)
+  0.915646 seconds (979 allocations: 146.277 MB, 2.69% gc time)
 result.iterations = 18
 result.ess = 1.4048300982167023e8
 result.converged = true
@@ -82,17 +82,17 @@ end
 Result
 ```
 method : levenberg_marquardt
-  5.529451 seconds (17.50 M allocations: 445.647 MB, 3.76% gc time)
+  5.654294 seconds (17.82 M allocations: 450.500 MB, 4.51% gc time)
 result.iterations = 194
-result.ess = 1.123447290001289e8
+result.ess = 1.1234472896726151e8
 result.converged = true
 method : dogleg
-  6.351485 seconds (7.42 M allocations: 291.833 MB, 2.84% gc time)
+  6.152005 seconds (7.63 M allocations: 295.067 MB, 3.09% gc time)
 result.iterations = 304
-result.ess = 1.1234472899117553e8
+result.ess = 1.1234472900029576e8
 result.converged = true
 method : gauss_seidel
-  0.665716 seconds (961 allocations: 117.137 MB, 0.80% gc time)
+  0.676153 seconds (956 allocations: 117.137 MB, 1.54% gc time)
 result.iterations = 15
 result.ess = 1.123447289365168e8
 result.converged = true
@@ -113,17 +113,17 @@ end
 Result
 ```
 method : levenberg_marquardt
-  2.411380 seconds (26.65 M allocations: 451.970 MB, 2.91% gc time)
-result.iterations = 322
-result.ess = 2.810035008926143e7
+  2.631778 seconds (27.99 M allocations: 472.447 MB, 6.44% gc time)
+result.iterations = 338
+result.ess = 2.8100350091434512e7
 result.converged = true
 method : dogleg
-  1.555647 seconds (5.78 M allocations: 133.536 MB, 6.08% gc time)
-result.iterations = 272
-result.ess = 2.810035008495609e7
+  1.509616 seconds (6.41 M allocations: 143.238 MB, 1.30% gc time)
+result.iterations = 286
+result.ess = 2.810035007889424e7
 result.converged = true
 method : gauss_seidel
-  0.210676 seconds (994 allocations: 29.688 MB, 0.66% gc time)
+  0.207979 seconds (989 allocations: 29.687 MB, 0.56% gc time)
 result.iterations = 19
 result.ess = 2.810035006800005e7
 result.converged = true
