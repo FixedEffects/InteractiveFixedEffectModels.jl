@@ -2,7 +2,7 @@ using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 
 precision = 2e-1
 
-for method in [:levenberg_marquardt, :dogleg, :gauss_seidel, :regar]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println(method)
 
 	df = dataset("plm", "Cigar")
@@ -61,7 +61,7 @@ end
 using RDatasets, DataFrames, SparseFactorModels, Distances, Base.Test
 precision = 2e-1
 
-for method in [:levenberg_marquardt, :dogleg, :regar]
+for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
 	df = dataset("plm", "Cigar")

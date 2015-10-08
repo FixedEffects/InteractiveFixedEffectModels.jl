@@ -28,13 +28,13 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                         FactorSolution(Array(Float64, N), Array(Float64, T)),
                         FactorSolution(Array(Float64, N), Array(Float64, T))
                        )
-    nls = NonLinearLeastSquares(
+    nls = LeastSquaresProblem(
                 slice(fs, :, 1), 
                 similar(fp.y), 
                 fp, 
                 fg, 
                 g!)
-    full = NonLinearLeastSquaresAllocated(nls, method = t.parameters[1])
+    full = LeastSquaresProblemAllocated(nls, method = t.parameters[1])
     for r in 1:fullrank
         fsr = slice(fs, :, r)
         full.nls.x = fsr
@@ -69,8 +69,8 @@ function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
-    nls = NonLinearLeastSquares(fsT, similar(fp.y), fp, fg, g!)
-    full = NonLinearLeastSquaresAllocated(nls; method = t.parameters[1])
+    nls = LeastSquaresProblem(fsT, similar(fp.y), fp, fg, g!)
+    full = LeastSquaresProblemAllocated(nls; method = t.parameters[1])
     temp = similar(fp.y)
     result = optimize!(full;
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)

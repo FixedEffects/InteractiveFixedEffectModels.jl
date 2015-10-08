@@ -12,7 +12,7 @@ using Base.Cartesian
 import FixedEffectModels: title, top
 import Distances: chebyshev
 using Compat
-import LeastSquares: optimize!, colsumabs2!, NonLinearLeastSquares,  NonLinearLeastSquaresAllocated, LinearLeastSquares,  LinearLeastSquaresAllocated
+import LeastSquaresOptim: optimize!, colsumabs2!, LeastSquaresProblem,  LeastSquaresProblemAllocated
 import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, slice
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
@@ -38,7 +38,6 @@ include("utils/models.jl")
 
 include("methods/gauss_seidel.jl")
 include("methods/ls.jl")
-include("methods/regar.jl")
 
 include("fit.jl")
 

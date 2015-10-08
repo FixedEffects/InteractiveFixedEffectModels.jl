@@ -4,7 +4,7 @@ julia:
 - nightly
 script:
 - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-- julia --check-bounds=yes -e 'Pkg.update() ; Pkg.clone("https://github.com/matthieugomez/LeastSquares.jl") ; Pkg.clone("https://github.com/matthieugomez/FixedEffectModels.jl") ; Pkg.clone(pwd()); Pkg.build("SparseFactorModels"); Pkg.test("SparseFactorModels"; coverage=true)'
+- julia --check-bounds=yes -e 'Pkg.update() ; Pkg.clone("https://github.com/matthieugomez/LeastSquaresOptim.jl") ; Pkg.clone("https://github.com/matthieugomez/FixedEffectModels.jl") ; Pkg.clone(pwd()); Pkg.build("SparseFactorModels"); Pkg.test("SparseFactorModels"; coverage=true)'
 after_success:
 - julia -e 'cd(Pkg.dir("SparseFactorModels")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
 notifications:
