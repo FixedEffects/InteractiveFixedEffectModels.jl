@@ -37,13 +37,13 @@ function fit!(t::Type{Val{:regar}},
     while iter <= maxiter
         iter += 1
         # regress on X and factors
-        lsid = LinearLeastSquaresProblem(
+        lsid = LinearLeastSquaresAllocated(
             LinearLeastSquares(fsid, copy!(res, fp.y), fpid),
             solveid)
         x, ch = optimize!(lsid)
         iter += ch.mvps
         # regress on X and loadings
-        lstime = LinearLeastSquaresProblem(
+        lstime = LinearLeastSquaresAllocated(
             LinearLeastSquares(fstime, copy!(res, fp.y), fptime),
             solvetime)
         x, ch = optimize!(lstime)
