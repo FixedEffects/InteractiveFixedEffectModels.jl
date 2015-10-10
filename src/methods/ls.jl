@@ -94,6 +94,15 @@ function dot{T}(fs1::AbstractArray{T}, fs2::AbstractArray{T})
     return out
 end
 
+function dot{T}(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T})
+    out = zero(typeof(one(T) * one(T)))
+    @inbounds @simd for i in eachindex(x)
+        out += w[i] * x[i] * y[i]
+    end
+    return out
+end
+
+
 for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffectsSolutionT, HalfInteractiveFixedEffectsSolution)
     vars = [:(fill!(x.$field, α)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
@@ -112,6 +121,16 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
             return x
         end
     end
+
+    vars = [:(clamp!(x.$field, α, β)) for field in fieldnames(t)]
+    expr = Expr(:block, vars...)
+    @eval begin
+        function clamp!(x::$t, α::Number, β::Number)
+            $expr
+            return x
+        end
+    end
+
 
     vars = [:(copy!(x1.$field, x2.$field)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
@@ -143,6 +162,14 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     expr = Expr(:call, :+, vars...)
     @eval begin
         function dot(x1::$t, x2::$t)
+            $expr
+        end
+    end
+
+    vars = [:(dot(x1.$field, x2.$field, w.$field)) for field in fieldnames(t)]
+    expr = Expr(:call, :+, vars...)
+    @eval begin
+        function dot(x1::$t, x2::$t, w::$t)
             $expr
         end
     end
@@ -188,6 +215,10 @@ function safe_scale!(x, β)
         β == 0 ? fill!(x, zero(eltype(x))) : scale!(x, β)
     end
 end
+
+
+
+
 ##############################################################################
 ##
 ## Factor Gradient

@@ -279,6 +279,3 @@ function fit(m::SparseFactorModel,
     formula = Formula(variable, 0)
     fit(m, formula, args...; kwargs...)
 end
-
-
-
