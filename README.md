@@ -3,14 +3,14 @@
 
 ## Motivation
 
-This package estimates factor models on datasets where there is less or more than one observation per combination of id and time.
 
 For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
+In particular, there may be less or more than one observation per combination of id and time.
 
-When X is a set of id or time dummies, this problem corresponds to a generalized principal component. When X is a general set of regressors, this problem corresponds to a linear model with interactive fixed effects as described in Bai (2009).
+When X is a set of id or time dummies, this problem corresponds to a generalized svd / principal component. When X is a general set of regressors, this problem corresponds to a generalization of the Bai (2009) linear model with interactive fixed effect.
 
 To solve the problem above, three minimization methods are available
 
@@ -21,8 +21,8 @@ To solve the problem above, three minimization methods are available
 All methods are adapted to the sparsity of the problem. Compared to the SVD method, the algorithm does not require to construct and factorize a matrix `N x T`
 
 To install
+
 ```julia
-Pkg.clone("https://github.com/matthieugomez/LeastSquares.jl")
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
