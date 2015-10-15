@@ -3,16 +3,18 @@
 
 ## Motivation
 
-Denote `(id(i), time(i))` the combination associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+
+
+This problem estimates factor models, generalized according to two dimensions:
+
+- You can estimate models with multiple observations by combination id x time (for instance group level factors) or missing combinations (as in the Netflix problem, with ratings by user x movies). In contrast, a usual PCA requires one and only one observation per combination id x time.
+
+- You can add linear regressors beyond factors and loadings. This corresponds to the Bai (2009) linear model with interactive fixed effect. The idea is that the interaction between factors and loadings allows to control for aggregate shocks with heterogeneous impacts, as long as this heterogeneity is constant accross some other dimension (like time).
+
+Formally, denote `(id(i), time(i))` the combination associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
-
-This problem corresponds to factor models, generalized according to two dimensions:
-
-- You can add linear regressors beyond factors and loadings. This corresponds to the Bai (2009) linear model with interactive fixed effect. The idea is that the interaction between factors and loadings allows to control for aggregate shocks with heterogeneous impacts, as long as this heterogeneity is constant accross some other dimension (generally time).
-
-- You can estimate models with multiple observations by combination id x time (for instance group level factors) or missing combinations (as in the Netflix problem, with ratings by user x movies). In contrast, a usual PCA has one and only one observation per combination id x time.
 
 
 Threee minimization methods are available:
