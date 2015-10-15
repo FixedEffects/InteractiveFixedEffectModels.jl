@@ -10,7 +10,7 @@ Denote `(id(i), time(i))` the combination associated to an observation `i`.  Thi
 
 This problem corresponds to factor models, generalized according to two dimensions:
 
-- You can add linear regressors beyond factors and loadings. This corresponds to the Bai (2009) linear model with interactive fixed effect.
+- You can add linear regressors beyond factors and loadings. This corresponds to the Bai (2009) linear model with interactive fixed effect. The idea is that the interaction between factors and loadings allows to control for aggregate shocks with heterogeneous impacts, as long as this heterogeneity is constant accross some other dimension (generally time).
 
 - You can estimate models with multiple observations by combination id x time (for instance group level factors) or missing combinations (as in the Netflix problem, with ratings by user x movies). In contrast, a usual PCA has one and only one observation per combination id x time.
 
@@ -101,8 +101,6 @@ The package handles situations with weights that are not constant within id or t
 
 ## FAQ
 #### When should one use interactive fixed effects models?
-Time fixed effects allow to control for aggregate shocks that impact individuals in the same way. Interactive fixed effects allow to control for aggregate shocks that impact individuals in different ways, as long as this heterogeneity is constant accross time.
-
 Below are some applications:
 
 - Eberhardt, Helmers, Strauss (2013) *Do spillovers matter when estimating private returns to R&D?*
