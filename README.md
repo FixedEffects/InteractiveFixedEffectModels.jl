@@ -3,22 +3,21 @@
 
 ## Motivation
 
+This package estimates generalized factor models in two directions:
 
-For an observation `i`, denote `(jλ(i), jf(i))` the associated pair (id x time).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+- The package allows linear regressors beyond factors and loadings. This corresponds the Bai (2009) linear model with interactive fixed effect..
+
+- While in a usual PCA, there is one and only one observation per combination of id and time, this package allows to estimate models with  multiple observations by combination (for instance group level factors) or missing combinations (for instance the Netflix problem of ratings by user x movies). In the latter case, contrary to the usual SVD method, the algorithm does not require to construct and factorize a matrix `N x T`.
+
+Formally, denote `(id(i), time(i))` the combination associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
-
-In particular, there may be less or more than one observation per combination of id and time.
-
-When X is a set of id or time dummies, this problem corresponds to a generalized svd / principal component. When X is a general set of regressors, this problem corresponds to a generalization of the Bai (2009) linear model with interactive fixed effect.
 
 To solve the problem above, three minimization methods are available
 
 - `:levenberg_marquardt` (default)
 - `:dogleg` 
 - `:gauss_seidel` (corresponds to alternative regressions)
-
-All methods are adapted to the sparsity of the problem. Compared to the SVD method, the algorithm does not require to construct and factorize a matrix `N x T`
 
 To install
 
