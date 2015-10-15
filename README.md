@@ -3,21 +3,22 @@
 
 ## Motivation
 
-This package estimates generalized factor models in two directions:
-
-- The package allows linear regressors beyond factors and loadings. This corresponds the Bai (2009) linear model with interactive fixed effect..
-
-- While in a usual PCA, there is one and only one observation per combination of id and time, this package allows to estimate models with  multiple observations by combination (for instance group level factors) or missing combinations (for instance the Netflix problem of ratings by user x movies). In the latter case, contrary to the usual SVD method, the algorithm does not require to construct and factorize a matrix `N x T`.
-
-Formally, denote `(id(i), time(i))` the combination associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+Denote `(id(i), time(i))` the combination associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
-To solve the problem above, three minimization methods are available
 
-- `:levenberg_marquardt` (default)
+This problem corresponds to factor models, generalized according to two dimensions:
+
+- Beyond factors and loadings, the package also allows linear regressors . This corresponds to the Bai (2009) linear model with interactive fixed effect.
+
+- In a usual PCA, there is one and only one observation per combination idxtime. This package allows to estimate models with multiple observations by combination (for instance group level factors) or missing combinations (as in the Netflix problem, with ratings by user x movies).
+
+
+Threee minimization methods
+- `:gauss_seidel` (corresponds to coordinate gradient descent)
+- `:levenberg_marquardt`
 - `:dogleg` 
-- `:gauss_seidel` (corresponds to alternative regressions)
 
 To install
 
