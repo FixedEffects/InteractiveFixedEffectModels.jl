@@ -10,12 +10,12 @@ Denote `(id(i), time(i))` the combination associated to an observation `i`.  Thi
 
 This problem corresponds to factor models, generalized according to two dimensions:
 
-- Beyond factors and loadings, the package also allows linear regressors . This corresponds to the Bai (2009) linear model with interactive fixed effect.
+- The package also allows to add linear regressors beyon factors and loadings. This corresponds to the Bai (2009) linear model with interactive fixed effect.
 
-- In a usual PCA, there is one and only one observation per combination idxtime. This package allows to estimate models with multiple observations by combination (for instance group level factors) or missing combinations (as in the Netflix problem, with ratings by user x movies).
+- This package allows to estimate models with multiple observations by combination id x time (for instance group level factors) or missing combinations (as in the Netflix problem, with ratings by user x movies).
 
 
-Threee minimization methods
+Threee minimization methods are available:
 - `:gauss_seidel` (corresponds to coordinate gradient descent)
 - `:levenberg_marquardt`
 - `:dogleg` 
