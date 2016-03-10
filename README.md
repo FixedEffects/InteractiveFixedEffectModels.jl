@@ -103,7 +103,7 @@ The package handles situations with weights that are not constant within id or t
 
 ## FAQ
 #### When should one use interactive fixed effects models?
-Below are some applications:
+Some litterature using this estimation procedure::
 
 - Eberhardt, Helmers, Strauss (2013) *Do spillovers matter when estimating private returns to R&D?*
 - Hagedorn, Karahan, Movskii (2015) *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
@@ -111,18 +111,18 @@ Below are some applications:
 - Totty (2015) *The Effect of Minimum Wages on Employment: A Factor Model Approach*
 
 #### How are standard errors computed?
-The `cov` option is passed to a regression of y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
+Errors are obtained by regressing y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
 
 
 #### What if the number of factors is unkown?
  Moon Weidner (2015) show that overestimating the number of factors returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. 
 
 #### Does this command implement the bias correction term in Bai (2009)?
-In presence of cross or time correlation beyond the factor structure, the estimate for beta, while consistent, is biase (see Theorem 3 in Bai 2009, which derives the correction term in special cases). However, this package does not implement any correction. You may want to add enough factors until residuals are approximately i.i.d.
+In presence of cross or time correlation beyond the factor structure, the estimate for beta is consistent but biased (see Theorem 3 in Bai 2009, which derives the correction term in special cases). However, this package does not implement any correction. You may want to check that your residuals are approximately i.i.d.
 
 
-#### Can `β` be estimated by replacing X with the residuals of X on a factor model?
-No. While this method would work for fixed effect models, it does not work for interactive fixed effect models. While fixed effects are linear projections (so that the Frisch-Waugh-Lovell theorem holds), factor models are non linear projections.
+#### Can't the model be estimated by replacing X with the residuals of X on a factor model?
+No. This two-step method works for fixed effect models (Frisch-Waugh-Lovell theorem), but does not work for interactive fixed effect models. Factor models are not linear projections.
 
 
 
