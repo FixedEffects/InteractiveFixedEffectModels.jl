@@ -11,16 +11,11 @@ This packagage estimates factor models, generalized along two dimensions:
 
 - This package allows models with linear regressors, as inBai (2009) linear model with interactive fixed effect. The model can be seen as a OLS, controlling for shocks heterogeneous impacts accross ids.
 
-Formally, denote `(id(i), time(i))` the combination associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+Formally, denote `(j_f(i), j_lambda(i))` the factor and loading id associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
 
 ![minimization](img/minimization.png)
 
 
-
-Threee minimization methods are available:
-- `:gauss_seidel` (corresponds to coordinate gradient descent)
-- `:levenberg_marquardt`
-- `:dogleg` 
 
 To install
 
@@ -84,6 +79,11 @@ fit(pfm::SparseFactorModel,
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
 		```
 
+
+- Threee minimization methods are available:
+	- `:gauss_seidel` (corresponds to coordinate gradient descent)
+	- `:levenberg_marquardt`
+	- `:dogleg` 
 
 
 #### errors
