@@ -24,7 +24,7 @@ import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms,
 ##
 ##############################################################################
 if VERSION > v"0.5.0-dev+961"
-	Base.shape{T}(o::Ones{T}) = (length(o),)
+	Base.size(O::Ones) = (O.length,)
 end
 ##############################################################################
 ##
