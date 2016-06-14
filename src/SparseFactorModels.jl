@@ -9,7 +9,7 @@ module SparseFactorModels
 using Reexport
 using Base.Cartesian
 @reexport using FixedEffectModels
-import FixedEffectModels: title, top
+import FixedEffectModels: title, top, Ones
 import Distances: chebyshev
 using Compat
 import LeastSquaresOptim: optimize!, colsumabs2!, LeastSquaresProblem,  LeastSquaresProblemAllocated
@@ -18,6 +18,14 @@ import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, Regressi
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!, pool
 
+##############################################################################
+##
+## Temporary Fix
+##
+##############################################################################
+if VERSION > v"0.5.0-"
+	Base.shape{T}(o::Ones{T}) = Tuple{Int}(length(o))
+end
 ##############################################################################
 ##
 ## Exported methods and types 
