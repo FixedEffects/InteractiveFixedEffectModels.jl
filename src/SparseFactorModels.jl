@@ -23,7 +23,7 @@ import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms,
 ## Temporary Fix
 ##
 ##############################################################################
-if VERSION > v"0.5.0-"
+if VERSION > v"0.5.0-dev+961"
 	Base.shape{T}(o::Ones{T}) = (length(o),)
 end
 ##############################################################################
