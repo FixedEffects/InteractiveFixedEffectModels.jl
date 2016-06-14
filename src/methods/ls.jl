@@ -23,7 +23,6 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, 1)
     N = size(fs.idpool, 1)
     T = size(fs.timepool, 1)
-
     fg = FactorGradient(fp,
                         FactorSolution(Array(Float64, N), Array(Float64, T)),
                         FactorSolution(Array(Float64, N), Array(Float64, T))
@@ -31,7 +30,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     nls = LeastSquaresProblem(
                 slice(fs, :, 1), 
                 similar(fp.y), 
-                fp, 
+                (x,y) -> f!(fp, x, y), 
                 fg, 
                 g!)
     full = LeastSquaresProblemAllocated(nls, method = t.parameters[1])
@@ -69,7 +68,7 @@ function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
-    nls = LeastSquaresProblem(fsT, similar(fp.y), fp, fg, g!)
+    nls = LeastSquaresProblem(fsT, similar(fp.y), (x,y) -> f!(fp, x, y), fg, g!)
     full = LeastSquaresProblemAllocated(nls; method = t.parameters[1])
     temp = similar(fp.y)
     result = optimize!(full;
@@ -224,6 +223,7 @@ end
 ## Factor Gradient
 ##
 ##############################################################################
+
 abstract AbstractFactorGradient{T}
 
 type FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} <: AbstractFactorGradient{Rank}
@@ -259,12 +259,6 @@ size(fg::AbstractFactorGradient) = (size(fg, 1), size(fg, 2))
 eltype(fg::AbstractFactorGradient) = Float64
 colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, fg.scalefs)
 
-##############################################################################
-##
-## A_mul_B!
-##
-##############################################################################
-
 @generated function A_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64})
     if Rank == 1
         ex = quote
@@ -293,19 +287,12 @@ colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, 
     end
 end
 
-
 function A_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, fs::InteractiveFixedEffectsSolutionT, β::Number, y::AbstractVector{Float64})
     Base.BLAS.gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
 end
 function A_mul_B!_X(::Number, ::FactorModel, ::FactorSolution, β::Number, y::AbstractVector{Float64})
     safe_scale!(y, β)
 end
-
-##############################################################################
-##
-## Ac_mul_B!
-##
-##############################################################################
 
 @generated function Ac_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank})
     if Rank == 1
@@ -351,11 +338,11 @@ end
 
 ##############################################################################
 ##
-## f
+## f! for LeastSquaresOptim
 ##
 ##############################################################################
 
-@generated function call{Rank}(fp::AbstractFactorModel{Rank}, 
+@generated function f!{Rank}(fp::AbstractFactorModel{Rank}, 
     fs::AbstractFactorSolution{Rank}, out::Vector{Float64})
     if Rank == 1
         ex = quote
@@ -383,7 +370,7 @@ end
 
 ##############################################################################
 ##
-## g
+## g! for LeastSquaresOptim
 ##
 ##############################################################################
 
