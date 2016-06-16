@@ -33,7 +33,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                 (x,y) -> f!(fp, x, y), 
                 fg, 
                 g!)
-    full = LeastSquaresProblemAllocated(nls, method = t.parameters[1])
+    full = LeastSquaresProblemAllocated(nls, optimizer = t.parameters[1])
     for r in 1:fullrank
         fsr = slice(fs, :, r)
         full.nls.x = fsr
@@ -69,7 +69,7 @@ function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}
                 similar(fsT),
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
     nls = LeastSquaresProblem(fsT, similar(fp.y), (x,y) -> f!(fp, x, y), fg, g!)
-    full = LeastSquaresProblemAllocated(nls; method = t.parameters[1])
+    full = LeastSquaresProblemAllocated(nls; optimizer = t.parameters[1])
     temp = similar(fp.y)
     result = optimize!(full;
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
