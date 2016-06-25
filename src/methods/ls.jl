@@ -27,17 +27,22 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                         FactorSolution(Array(Float64, N), Array(Float64, T)),
                         FactorSolution(Array(Float64, N), Array(Float64, T))
                        )
-    nls = LeastSquaresProblem(
+    nls = LeastSquaresOptim.LeastSquaresProblem(
                 slice(fs, :, 1), 
                 similar(fp.y), 
                 (x,y) -> f!(fp, x, y), 
                 fg, 
                 g!)
-    full = LeastSquaresProblemAllocated(nls, optimizer = t.parameters[1])
+    if t == Val{:levenberg_marquardt}
+        optimizer = LeastSquaresOptim.LevenbergMarquardt()
+    else
+        optimizer = LeastSquaresOptim.Dogleg()
+    end
+    full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer, LeastSquaresOptim.LSMR())
     for r in 1:fullrank
         fsr = slice(fs, :, r)
-        full.nls.x = fsr
-        result = optimize!(full,
+        full.x = fsr
+        result = LeastSquaresOptim.optimize!(full,
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
         iter += result.mul_calls
         converged = result.converged && converged
@@ -68,10 +73,15 @@ function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
-    nls = LeastSquaresProblem(fsT, similar(fp.y), (x,y) -> f!(fp, x, y), fg, g!)
-    full = LeastSquaresProblemAllocated(nls; optimizer = t.parameters[1])
+    nls = LeastSquaresOptim.LeastSquaresProblem(fsT, similar(fp.y), (x,y) -> f!(fp, x, y), fg, g!)
+    if t == Val{:levenberg_marquardt}
+        optimizer = LeastSquaresOptim.LevenbergMarquardt()
+    else
+        optimizer = LeastSquaresOptim.Dogleg()
+    end
+    full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer, LeastSquaresOptim.LSMR())
     temp = similar(fp.y)
-    result = optimize!(full;
+    result = LeastSquaresOptim.optimize!(full;
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
     # rescale factors and loadings so that factors' * factors = Id
     fs = InteractiveFixedEffectsSolution(fsT.b, fsT.idpool', fsT.timepool')
@@ -257,7 +267,7 @@ end
 Base.rank{Rank}(f::AbstractFactorGradient{Rank}) = Rank
 size(fg::AbstractFactorGradient) = (size(fg, 1), size(fg, 2))
 eltype(fg::AbstractFactorGradient) = Float64
-colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, fg.scalefs)
+LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, fg.scalefs)
 
 @generated function A_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64})
     if Rank == 1
