@@ -20,6 +20,7 @@ Formally, denote `(j_f(i), j_lambda(i))` the factor and loading id associated to
 To install
 
 ```julia
+Pkg.clone("https://github.com/matthieugomez/LeastSquaresOptim.jl")
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
