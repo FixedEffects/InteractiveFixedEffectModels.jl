@@ -40,7 +40,7 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 0, df)
 		```
 
-		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl).
+		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl). Use only the variables specified in the factor model.
 
 		```julia
 		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pState, df)
