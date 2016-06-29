@@ -5,13 +5,7 @@
 
 
 
-This packagage estimates factor models, generalized along two dimensions:
-
--  This package can estimate models with multiple observations by combination id x time (for instance state x year factors) or with missing combinations id x time (for instance user x movies).
-
-- This package allows models with linear regressors, as inBai (2009) linear model with interactive fixed effect. The model can be seen as a OLS, controlling for shocks heterogeneous impacts accross ids.
-
-Formally, denote `(j_f(i), j_lambda(i))` the factor and loading id associated to an observation `i`.  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` that solve
+This packagage estimates factor models and interactive fixed effect models. Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
 
 ![minimization](img/minimization.png)
 
@@ -25,20 +19,6 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
 ## Syntax
-
-The general syntax is
-```julia
-fit(pfm::SparseFactorModel,
-	f::Formula, 
-    df::AbstractDataFrame, 
-    vcov_method::AbstractVcovMethod = VcovSimple();
- 	method::Symbol = :dogleg
-    weight::Union{Symbol, Void} = nothing, 
-    subset::Union{AbstractVector{Bool}, Void} = nothing,
-    save::Bool = true, 
-    maxiter::Int64 = 10000, tol::Float64 = 1e-8
-    )
-```
 
 
 - The first argument of `fit` is an object of type `SparseFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model. Both the id and time variable must be of type `PooledDataVector`.
@@ -87,20 +67,34 @@ fit(pfm::SparseFactorModel,
 	- `:dogleg` 
 
 
-#### errors
-Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
+- Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
 
 ```julia
 fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
 ```
 
-#### save
-The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
+- The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
+
+The general syntax is
+```julia
+fit(pfm::SparseFactorModel,
+	f::Formula, 
+    df::AbstractDataFrame, 
+    vcov_method::AbstractVcovMethod = VcovSimple();
+ 	method::Symbol = :dogleg
+    weight::Union{Symbol, Void} = nothing, 
+    subset::Union{AbstractVector{Bool}, Void} = nothing,
+    save::Bool = true, 
+    maxiter::Int64 = 10000, tol::Float64 = 1e-8
+    )
+```
 
 
 #### weights and multiple observations
 
-The package handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
+The package handles situations with missing observations per id x time pair.
+
+The package also handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
 #### When should one use interactive fixed effects models?
