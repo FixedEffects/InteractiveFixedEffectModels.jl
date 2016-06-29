@@ -73,7 +73,7 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
 ```
 
-- The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the new dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
+- The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
 The general syntax is
 ```julia
@@ -90,9 +90,9 @@ fit(pfm::SparseFactorModel,
 ```
 
 
-#### weights and multiple observations
+## Weights and multiple observations
 
-The package handles situations with missing observations per id x time pair.
+The package handles situations with missing observations per id x time pair (as in Bai (2009))
 
 The package also handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
