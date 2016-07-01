@@ -10,6 +10,7 @@ This packagage estimates factor models and interactive fixed effect models. Form
 ![minimization](img/minimization.png)
 
 
+The package handles situations with missing observations per id x time, multiple observations per id x time, and weights. 
 
 To install
 
@@ -19,12 +20,11 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
 
-The package handles situations with missing observations per id x time pair, multiple observations per id x time pair, and weights. 
 
 ## Syntax
 
 
-- The first argument of `fit` is an object of type `SparseFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model. Both the id and time variable must be of type `PooledDataVector`.
+- The first argument of `fit` is an object of type `SparseFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model (`r` in the model above). Both the id and time variable must be of type `PooledDataVector`.
 
 	```julia
 	using RDatasets, DataFrames, SparseFactorModels
