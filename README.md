@@ -18,6 +18,9 @@ Pkg.clone("https://github.com/matthieugomez/LeastSquaresOptim.jl")
 Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ```
 
+
+The package handles situations with missing observations per id x time pair, multiple observations per id x time pair, and weights. 
+
 ## Syntax
 
 
@@ -91,10 +94,7 @@ fit(pfm::SparseFactorModel,
 
 
 ## Weights and multiple observations
-
-The package handles situations with missing observations per id x time pair (as in Bai (2009))
-
-The package also handles situations with weights that are not constant within id or time or/and multiple observations per id x time pair. However, in this case, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
+With multiple observations per id x time, or with weights non constant within id or time, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
 #### When should one use interactive fixed effects models?
