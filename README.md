@@ -109,17 +109,8 @@ Some litterature using this estimation procedure::
 Errors are obtained by regressing y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
 
 
-#### What if the number of factors is unkown?
- Moon Weidner (2015) show that overestimating the number of factors returns consistent estimates: irrelevant factors behave similarly to irrelevant covariates in a traditional OLS. 
-
 #### Does this command implement the bias correction term in Bai (2009)?
 In presence of cross or time correlation beyond the factor structure, the estimate for beta is consistent but biased (see Theorem 3 in Bai 2009, which derives the correction term in special cases). However, this package does not implement any correction. You may want to check that your residuals are approximately i.i.d.
-
-
-#### Can't the model be estimated by replacing X with the residuals of X on a factor model?
-No. This two-step method works for fixed effect models (Frisch-Waugh-Lovell theorem), but does not work for interactive fixed effect models. Factor models are not linear projections.
-
-
 
 
 ## References
