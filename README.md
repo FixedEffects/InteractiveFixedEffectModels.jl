@@ -1,23 +1,24 @@
 [![Build Status](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl)
 [![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
 
+## Install
+
+```
+Pkg.add("InteractiveFixedEffectModels.jl")
+```
+
+
 ## Motivation
+This package estimates factor models and interactive fixed effect models (Bai 2009). 
+
+The algorithm implements a novel and robust algorithm to estimate models with interactive fixed effects. It is much faster than the one proposed in (Bai 2009). It can also estimate more general models: the package can estimate models with missing observations per id x time, multiple observations per id x time, and weights (see below).
 
 
-
-This packagage estimates factor models and interactive fixed effect models. Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
+Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
 
 ![minimization](img/minimization.png)
 
 
-The package handles situations with missing observations per id x time, multiple observations per id x time, and weights. 
-
-To install
-
-```julia
-Pkg.clone("https://github.com/matthieugomez/LeastSquaresOptim.jl")
-Pkg.clone("https://github.com/matthieugomez/InteractiveFixedEffectModels.jl")
-```
 
 
 
@@ -93,7 +94,7 @@ fit(pfm::InteractiveFixedEffectModel,
 
 
 ## Weights and multiple observations
-With multiple observations per id x time, or with weights non constant within id or time, the optimization problem tends to have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
+With multiple observations per id x time, or with weights non constant within id or time, the optimization problem may have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
 #### When should one use interactive fixed effects models?
