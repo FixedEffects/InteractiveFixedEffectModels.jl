@@ -1,4 +1,4 @@
-using SparseFactorModels
+using InteractiveFixedEffectModels
 
 tests = ["factormodel.jl", 
 		"interactivefixedeffectsmodel.jl"

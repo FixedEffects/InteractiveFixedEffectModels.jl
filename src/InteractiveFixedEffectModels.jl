@@ -1,4 +1,4 @@
-module SparseFactorModels
+module InteractiveFixedEffectModels
 
 ##############################################################################
 ##
@@ -26,8 +26,8 @@ import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms,
 ##
 ##############################################################################
 
-export SparseFactorModel,
-SparseFactorResult
+export InteractiveFixedEffectModel,
+InteractiveFixedEffectResult
 
 ##############################################################################
 ##

@@ -1,10 +1,9 @@
-julia 0.5
+julia 0.5-
 DataArrays
 DataFrames 0.6
 Distances  0.1.1
-FixedEffectModels 0.2.2
-LeastSquaresOptim
-Optim
+FixedEffectModels 0.3.0
+LeastSquaresOptim 0.2.0
 Reexport
 StatsBase 0.7.1
 

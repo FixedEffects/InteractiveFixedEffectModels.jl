@@ -5,7 +5,7 @@ ssr
 ##
 ##############################################################################
 
-function fit(m::SparseFactorModel, 
+function fit(m::InteractiveFixedEffectModel, 
              f::Formula, 
              df::AbstractDataFrame, 
              vcov_method::AbstractVcovMethod = VcovSimple(); 
@@ -274,7 +274,7 @@ end
 
 
 # Symbol to formula Symbol ~ 0
-function fit(m::SparseFactorModel, 
+function fit(m::InteractiveFixedEffectModel, 
              variable::Symbol, args...; kwargs...)
     formula = Formula(variable, 0)
     fit(m, formula, args...; kwargs...)

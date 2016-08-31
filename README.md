@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/matthieugomez/SparseFactorModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/SparseFactorModels.jl)
-[![Coverage Status](https://coveralls.io/repos/matthieugomez/SparseFactorModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/SparseFactorModels.jl?branch=master)
+[![Build Status](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl)
+[![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
 
 ## Motivation
 
@@ -16,7 +16,7 @@ To install
 
 ```julia
 Pkg.clone("https://github.com/matthieugomez/LeastSquaresOptim.jl")
-Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
+Pkg.clone("https://github.com/matthieugomez/InteractiveFixedEffectModels.jl")
 ```
 
 
@@ -24,48 +24,47 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 ## Syntax
 
 
-- The first argument of `fit` is an object of type `SparseFactorModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model (`r` in the model above). Both the id and time variable must be of type `PooledDataVector`.
+- The first argument of `fit` is an object of type `InteractiveFixedEffectModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model (`r` in the model above). Both the id and time variable must be of type `PooledDataVector`.
 
 	```julia
-	using RDatasets, DataFrames, SparseFactorModels
+	using RDatasets, DataFrames, InteractiveFixedEffectModels
 	df = dataset("plm", "Cigar")
 	# create PooledDataVector
 	df[:pState] =  pool(df[:State])
 	df[:pYear] =  pool(df[:Year])
-	# create SparseFactorModel in state, year, and rank 2
-	factormodel = SparseFactorModel(:pState, :pYear, 2)
+	# create InteractiveFixedEffectModel in state, year, and rank 2
+	factormodel = InteractiveFixedEffectModel(:pState, :pYear, 2)
 	```
 
 - The second argument of `fit` is a formula
 	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
 
 		```julia
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 0, df)
+		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 0, df)
 		```
 
 		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl). Use only the variables specified in the factor model.
 
 		```julia
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pState, df)
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pYear, df)
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ 1 |> pState + pYear, df)
+		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 1 |> pState, df)
+		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 1 |> pYear, df)
+		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 1 |> pState + pYear, df)
 		```
 
 	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
 	
 
 		```julia
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df)
+		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ Price, df)
 		```
 
 		Similarly, you may add id  or time fixed effects
 		```julia
-		fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
+		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
 		```
 
 
-- Threee minimization methods are available:
-	- `:gauss_seidel` (corresponds to coordinate gradient descent)
+- Two minimization methods are available:
 	- `:levenberg_marquardt`
 	- `:dogleg` 
 
@@ -73,14 +72,14 @@ Pkg.clone("https://github.com/matthieugomez/SparseFactorModels.jl")
 - Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
 
 	```julia
-	fit(SparseFactorModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
+	fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
 	```
 
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
 The general syntax is
 ```julia
-fit(pfm::SparseFactorModel,
+fit(pfm::InteractiveFixedEffectModel,
 	f::Formula, 
     df::AbstractDataFrame, 
     vcov_method::AbstractVcovMethod = VcovSimple();

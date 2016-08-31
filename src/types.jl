@@ -5,7 +5,7 @@
 ##############################################################################
 
 # Object constructed by the user
-type SparseFactorModel
+type InteractiveFixedEffectModel
     id::Symbol
     time::Symbol
     rank::Int64
