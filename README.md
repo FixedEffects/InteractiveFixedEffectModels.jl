@@ -9,15 +9,13 @@ Pkg.add("InteractiveFixedEffectModels.jl")
 
 
 ## Motivation
-This package estimates factor models and interactive fixed effect models (Bai 2009). 
+This package estimates factor models and interactive fixed effect models (Bai 2009). It implements a novel, fast and robust algorithm to estimate these models (more details below).
 
-The algorithm implements a novel and robust algorithm to estimate models with interactive fixed effects. It is much faster than the one proposed in (Bai 2009). It can also estimate more general models: the package can estimate models with missing observations per id x time, multiple observations per id x time, and weights (see below).
 
 
 Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
 
 ![minimization](img/minimization.png)
-
 
 
 
@@ -94,6 +92,8 @@ fit(pfm::InteractiveFixedEffectModel,
 
 
 ## Weights and multiple observations
+The algorithm can estimate models with missing observations per id x time, multiple observations per id x time, and weights (see below).
+
 With multiple observations per id x time, or with weights non constant within id or time, the optimization problem may have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
 
 ## FAQ
