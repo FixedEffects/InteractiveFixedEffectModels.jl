@@ -28,7 +28,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                         FactorSolution(Array(Float64, N), Array(Float64, T))
                        )
     nls = LeastSquaresOptim.LeastSquaresProblem(
-                slice(fs, :, 1), 
+                view(fs, :, 1), 
                 similar(fp.y), 
                 (x,y) -> f!(fp, x, y), 
                 fg, 
@@ -40,7 +40,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     end
     full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer, LeastSquaresOptim.LSMR())
     for r in 1:fullrank
-        fsr = slice(fs, :, r)
+        fsr = view(fs, :, r)
         full.x = fsr
         result = LeastSquaresOptim.optimize!(full,
             xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)

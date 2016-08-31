@@ -29,7 +29,7 @@ function fit!(::Type{Val{:gauss_seidel}},
     timescale = Array(Float64, size(fs.timepool, 1))
 
     for r in 1:rank(fp)
-        fsr = slice(fs, :, r)
+        fsr = view(fs, :, r)
         oldf_x = ssr(fp, fsr)
         iter_inner = 0
         while iter_inner < maxiter
@@ -97,7 +97,7 @@ function fit!(::Type{Val{:gauss_seidel}},
         copy!(fp.y, yoriginal)
         BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
         for r in 1:rank(fp)
-            fsr = slice(fs, :, r)
+            fsr = view(fs, :, r)
             update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, idscale, fsr.timepool)
             update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.timerefs, fp.idrefs, fsr.timepool, timescale, fsr.idpool)
             subtract_factor!(fp, fsr)

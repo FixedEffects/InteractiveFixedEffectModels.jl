@@ -43,17 +43,15 @@ function FactorSolution{Tid, Ttime}(idpool::Tid, timepool::Ttime)
     FactorSolution{r, Tid, Ttime}(idpool, timepool)
 end
 
-function slice(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...)
-    FactorSolution(slice(f.idpool, I...), slice(f.timepool, I...))
+function view(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...)
+    FactorSolution(view(f.idpool, I...), view(f.timepool, I...))
 end
-
-similar(fs::FactorSolution) = similar(idpool, timepool)
 
 
 ## subtract_factor! and subtract_b!
 function subtract_factor!(fm::AbstractFactorModel, fs::AbstractFactorSolution)
     for r in 1:rank(fm)
-        subtract_factor!(fm, slice(fs, :, r))
+        subtract_factor!(fm, view(fs, :, r))
     end
 end
 
@@ -99,10 +97,10 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
-        idinteraction = build_interaction(fp.timerefs, slice(fs.timepool, :, r))
+        idinteraction = build_interaction(fp.timerefs, view(fs.timepool, :, r))
         idfe = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, idinteraction, :id, :time, :(idxtime))
         push!(newfes, idfe)
-        timeinteraction = build_interaction(fp.idrefs, slice(fs.idpool, :, r))
+        timeinteraction = build_interaction(fp.idrefs, view(fs.idpool, :, r))
         timefe = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, timeinteraction, :time, :id, :(timexid))
         push!(newfes, timefe)
     end

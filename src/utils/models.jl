@@ -32,7 +32,7 @@ end
 
 #  remove observations with negative weights
 function isnaorneg{T <: Real}(a::Vector{T}) 
-    bitpack(a .> zero(eltype(a)))
+    BitArray(a .> zero(eltype(a)))
 end
 function isnaorneg{T <: Real}(a::DataVector{T}) 
     out = !a.na
@@ -41,7 +41,7 @@ function isnaorneg{T <: Real}(a::DataVector{T})
             out[i] = a[i] > zero(Float64)
         end
     end
-    bitpack(out)
+    BitArray(out)
 end
 
 
