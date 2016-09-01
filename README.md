@@ -4,12 +4,12 @@
 ## Install
 
 ```
-Pkg.add("InteractiveFixedEffectModels.jl")
+Pkg.add("InteractiveFixedEffectModels")
 ```
 
 
 ## Motivation
-This package estimates factor models and interactive fixed effect models (Bai 2009). It implements a novel, fast and robust algorithm to estimate these models (more details below).
+This package implements a novel, fast and robust algorithm to estimate interactive fixed effect models (Bai 2009).
 
 
 
