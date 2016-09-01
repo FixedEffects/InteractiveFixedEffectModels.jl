@@ -2,7 +2,7 @@ using RDatasets, DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
 
 precision = 2e-1
 
-for method in [:levenberg_marquardt, :dogleg]
+for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	println(method)
 
 	df = dataset("plm", "Cigar")
