@@ -3,7 +3,7 @@
 
 ## Install
 
-```
+```julia
 Pkg.add("InteractiveFixedEffectModels")
 ```
 
