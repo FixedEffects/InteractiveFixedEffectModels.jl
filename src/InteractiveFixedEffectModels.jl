@@ -6,18 +6,16 @@ module InteractiveFixedEffectModels
 ##
 ##############################################################################
 
-using Reexport
-using Base.Cartesian
-@reexport using FixedEffectModels
-import FixedEffectModels: title, top, Ones
+
 import Distances: chebyshev
-using Compat
-import LeastSquaresOptim
 import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, view, clamp!, dot, vecdot
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, fit, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
 import DataFrames: DataFrame, AbstractDataFrame, ModelMatrix, ModelFrame, Terms, coefnames, Formula, complete_cases, names!, pool
-
+import LeastSquaresOptim
+using Reexport
+@reexport using FixedEffectModels
+import FixedEffectModels: title, top, Ones
 
 
 ##############################################################################
