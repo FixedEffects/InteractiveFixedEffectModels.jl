@@ -18,7 +18,7 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 
-
+## Syntax
 #### `@formula`
 A typical formula is composed of one dependent variable and regressors
 ```
@@ -33,7 +33,7 @@ With multiple regressors, `fit` fits a linear model with interactive fixed effec
 ```julia
 @formula(Sales ~ Price)
 ```
-### `@ife`
+#### `@ife`
 Interactive fixed effects are indicated with the macro `@ife`. The id and time variables must refer to variables of type `PooledDataVector`.
 
 ```julia
