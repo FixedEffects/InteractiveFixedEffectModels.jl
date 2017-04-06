@@ -19,7 +19,7 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 
-#### formula
+#### `@formula`
 A typical formula is composed of one dependent variable and regressors
 ```
 using RDatasets, DataFrames, InteractiveFixedEffectModels
@@ -33,7 +33,7 @@ With multiple regressors, `fit` fits a linear model with interactive fixed effec
 ```julia
 @formula(Sales ~ Price)
 ```
-### `ife`
+### `@ife`
 Interactive fixed effects are indicated with the macro `@ife`. The id and time variables must refer to variables of type `PooledDataVector`.
 
 ```julia
@@ -42,7 +42,7 @@ df[:pYear] =  pool(df[:Year])
 @ife(pState + pYear, 2)
 ```
 
-### `fe`
+#### `@fe`
 Fixed effects are indicated with the macro `@fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
 ```julia
@@ -51,7 +51,7 @@ Fixed effects are indicated with the macro `@fe`. Use only the variables specifi
 @fe(pState + pYear)
 ```
 
-### standard errors 
+#### `@vcov`
 Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
 ```julia
 @vcovrobust()
@@ -59,14 +59,14 @@ Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
 @vcovcluster(StatePooled, YearPooled)
 ```
 
-#### weight
+#### `@weight`
 weights are indicated with the macro `@weight`
 ```julia
 @weight(Pop)
 ```
 
 
-### options
+#### options
 
 - Two minimization methods are available:
 	- `:levenberg_marquardt`
@@ -74,7 +74,7 @@ weights are indicated with the macro `@weight`
 
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
-###  Putting everything together
+####  Putting everything together
 ```julia
 using DataFrames, RDatasets, FixedEffectModels
 df = dataset("plm", "Cigar")
