@@ -22,29 +22,28 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 #### formula
 A typical formula is composed of one dependent variable and regressors
 ```
-@formula(y ~ x1 + x2)
+using RDatasets, DataFrames, InteractiveFixedEffectModels
+df = dataset("plm", "Cigar")
 ```
 When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
 ```julia
 @formula(Sales ~ 0)
 ```
 With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
-
+```julia
+@formula(Sales ~ Price)
+```
 ### `ife`
-
-An interactiveFixedEffectFormula refers to the id variable, the time variable, and the rank of the factor model (`r` in the model above). Id and time must refer to variables of type `PooledDataVector`.
+Interactive fixed effects are indicated with the macro `@ife`. The id and time variables must refer to variables of type `PooledDataVector`.
 
 ```julia
-using RDatasets, DataFrames, InteractiveFixedEffectModels
-df = dataset("plm", "Cigar")
-# create PooledDataVector
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
 @ife(pState + pYear, 2)
 ```
 
 ### `fe`
-Indicate potential fixed effects with `@fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+Fixed effects are indicated with the macro `@fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
 ```julia
 @fe(pState)
@@ -55,9 +54,15 @@ Indicate potential fixed effects with `@fe`. Use only the variables specified in
 ### standard errors 
 Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
 ```julia
-reg(df, @formula(Sales ~ NDI), @vcovrobust())
-reg(df, @formula(Sales ~ NDI), @vcovcluster(StatePooled))
-reg(df, @formula(Sales ~ NDI), @vcovcluster(StatePooled, YearPooled))
+@vcovrobust()
+@vcovcluster(StatePooled)
+@vcovcluster(StatePooled, YearPooled)
+```
+
+#### weight
+weights are indicated with the macro `@weight`
+```julia
+@weight(Pop)
 ```
 
 
@@ -69,8 +74,25 @@ reg(df, @formula(Sales ~ NDI), @vcovcluster(StatePooled, YearPooled))
 
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
+###  Putting everything together
+```julia
+using DataFrames, RDatasets, FixedEffectModels
+df = dataset("plm", "Cigar")
+reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), method = method, save = true)
+#=====================================================================
+# Number of obs                1380   Degree of freedom              93
+# R2                          0.245   R2 Adjusted                 0.190
+# F Stat                    417.342   p-val                       0.000
+# Iterations                      2   Converged:                   true
+# =====================================================================
+#         Estimate   Std.Error t value Pr(>|t|)   Lower 95%   Upper 95%
+# ---------------------------------------------------------------------
+# NDI  -0.00568607 0.000278334 -20.429    0.000 -0.00623211 -0.00514003
+# =====================================================================
+```
 
-## Weights and multiple observations
+
+## Unicity
 The algorithm can estimate models with missing observations per id x time, multiple observations per id x time, and weights (see below).
 
 With multiple observations per id x time, or with weights non constant within id or time, the optimization problem may have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
