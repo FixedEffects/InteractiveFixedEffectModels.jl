@@ -76,28 +76,28 @@ weights are indicated with the macro `@weight`
 
 ####  Putting everything together
 ```julia
-using DataFrames, RDatasets, FixedEffectModels
+using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
 reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), save = true)
-#=====================================================================
-# Number of obs                1380   Degree of freedom              93
-# R2                          0.245   R2 Adjusted                 0.190
-# F Stat                    417.342   p-val                       0.000
-# Iterations                      2   Converged:                   true
-# =====================================================================
-#         Estimate   Std.Error t value Pr(>|t|)   Lower 95%   Upper 95%
-# ---------------------------------------------------------------------
-# NDI  -0.00568607 0.000278334 -20.429    0.000 -0.00623211 -0.00514003
-# =====================================================================
+#                      Linear Factor Model                      
+#================================================================
+#Number of obs:             1380  Degree of freedom:          199
+#R2:                       0.976  R2 within:                0.435
+#Iterations:                 436  Converged:                 true
+#================================================================
+#        Estimate Std.Error  t value Pr(>|t|) Lower 95% Upper 95%
+#----------------------------------------------------------------
+#Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
+#================================================================
 ```
 
 
-## Unicity
-The algorithm can estimate models with missing observations per id x time, multiple observations per id x time, and weights (see below).
+## Local minimum vs global minimum
+The algorithm can estimate models with missing observations per id x time, multiple observations per id x time, and weights.
 
-With multiple observations per id x time, or with weights non constant within id or time, the optimization problem may have local minima. The algorithm tries to catch these cases, and, when this happens, the optimization algorithm is restarted on a random starting point. However I'm not sure all cases are caught. 
+However, in these cases, the optimization problem may have local minima. The algorithm tries to catch these cases, and, if need be, restart the optimization until the global minimum is reached. However I am not sure that all the cases are caught. 
 
 ## FAQ
 #### When should one use interactive fixed effects models?
