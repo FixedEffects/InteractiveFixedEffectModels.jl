@@ -19,6 +19,8 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 ## Syntax
+To estimate an interactive fixed effect model, one needs to specify a formula with `@formula`, a factor model with `@ife`, a set of fixed effects with `@fe`, a way to compute standard errors with `@vcov`, and a weight variable with `@weight`.
+
 #### `@formula`
 A typical formula is composed of one dependent variable and regressors
 ```
