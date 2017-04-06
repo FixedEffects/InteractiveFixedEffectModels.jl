@@ -19,40 +19,49 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 
-## Syntax
-- The first argument of `reg` is a dataframe
-- The second argument of `reg` is formula
-	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
-	```julia
-	Sales ~ 0
-	```
-	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
-- The third argument of `fit` is an InteractiveFixedEffectFormula. Such an object contains the id variable, the time variable, and the rank of the factor model (`r` in the model above). Id and time must refer to variables of typ `PooledDataVector`.
+#### formula
+A typical formula is composed of one dependent variable and regressors
+```
+@formula(y ~ x1 + x2)
+```
+When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
+```julia
+@formula(Sales ~ 0)
+```
+With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
 
-	```julia
-	using RDatasets, DataFrames, InteractiveFixedEffectModels
-	df = dataset("plm", "Cigar")
-	# create PooledDataVector
-	df[:pState] =  pool(df[:State])
-	df[:pYear] =  pool(df[:Year])
-	reg(df, @formula(Sales ~ 1), @ife(pState + pYear, 2))
-	```
+### `ife`
 
-- Indicate potential fixed effects with `@fe`. Use only the variables specified in the factor model.
+An interactiveFixedEffectFormula refers to the id variable, the time variable, and the rank of the factor model (`r` in the model above). Id and time must refer to variables of type `PooledDataVector`.
 
-		```julia
-		reg(df,  Sales ~ 1, fe(pState), ife(pState + pYear, 2)
-		reg(df,  Sales ~ 1, fe(pYear), ife(pState + pYear, 2)
-		reg(df,  Sales ~ 1, fe(pState + pYear), ife(pState + pYear, 2)
-		```
+```julia
+using RDatasets, DataFrames, InteractiveFixedEffectModels
+df = dataset("plm", "Cigar")
+# create PooledDataVector
+df[:pState] =  pool(df[:State])
+df[:pYear] =  pool(df[:Year])
+@ife(pState + pYear, 2)
+```
 
-- Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
-	```julia
-	reg(df, @formula(Sales ~ 1), ife(pState + pYear, 2), @vcovrobust())
-	reg(df, @formula(Sales ~ 1), ife(pState + pYear, 2), @vcovcluster(pState))
-	reg(df, @formula(Sales ~ 1), ife(pState + pYear, 2), @vcovcluster(pState + pYear))
-	```
+### `fe`
+Indicate potential fixed effects with `@fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
+```julia
+@fe(pState)
+@fe(pYear)
+@fe(pState + pYear)
+```
+
+### standard errors 
+Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
+```julia
+reg(df, @formula(Sales ~ NDI), @vcovrobust())
+reg(df, @formula(Sales ~ NDI), @vcovcluster(StatePooled))
+reg(df, @formula(Sales ~ NDI), @vcovcluster(StatePooled, YearPooled))
+```
+
+
+### options
 
 - Two minimization methods are available:
 	- `:levenberg_marquardt`
