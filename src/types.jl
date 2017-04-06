@@ -5,10 +5,18 @@
 ##############################################################################
 
 # Object constructed by the user
-type InteractiveFixedEffectModel
+type InteractiveFixedEffectFormula
     id::Symbol
     time::Symbol
     rank::Int64
+end
+
+macro ife(arg1, arg2)
+    if (arg1.head === :call && arg1.args[1] === :(+) && typeof(arg2) <: Integer)
+        return InteractiveFixedEffectFormula(arg1.args[2], arg1.args[3], arg2)
+    else
+        throw("macro @ife not correctly constructed. Use @ife(id+time, 3)")
+    end
 end
 
 abstract AbstractFactorModel{T}
@@ -116,7 +124,7 @@ function build_interaction(refs::Vector, pool::AbstractVector)
     return interaction
 end
 
-function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::BitVector)
+function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::AbstractVector{Bool})
     df = DataFrame()
     anyNA = all(esample)
     for r in 1:rank(fp)
@@ -126,7 +134,7 @@ function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample:
     end
     return df
 end
-function build_column(refs::Vector, pool::Vector, esample::BitVector)
+function build_column(refs::Vector, pool::Vector, esample::AbstractVector{Bool})
     T = eltype(refs)
     newrefs = fill(zero(T), length(esample))
     newrefs[esample] = refs

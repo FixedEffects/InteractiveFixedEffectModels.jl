@@ -4,11 +4,16 @@
 ## 
 ##############################################################################
 
-function get_weight(df::AbstractDataFrame, weight::Symbol)
-    convert(Vector{Float64}, sqrt(df[weight]))
-end
-function get_weight(df::AbstractDataFrame, ::Void)
-    Ones(size(df, 1))
+function get_weight(df::AbstractDataFrame, weightformula::WeightFormula) 
+    if weightformula.arg == nothing
+        Ones{Float64}(size(df, 1))
+    else
+        out = df[weightformula.arg]
+        # there are no NA in it. DataVector to Vector
+        out = convert(Vector{Float64}, out)
+        map!(sqrt, out, out)
+        return out
+    end
 end
 
 ##############################################################################
@@ -23,10 +28,10 @@ function reftype(sz)
     sz <= typemax(UInt32) ? UInt32 :
     UInt64
 end
-function simpleModelFrame(df, t, esample)
-    df1 = DataFrame(map(x -> df[x], t.eterms))
-    names!(df1, convert(Vector{Symbol}, map(string, t.eterms)))
-    mf = ModelFrame(df1, t, esample)
+function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict = Dict())
+    mf = ModelFrame(trms, d; contrasts = contrasts)
+    mf.msng = esample
+    return mf
 end
 
 
@@ -44,19 +49,6 @@ function isnaorneg{T <: Real}(a::DataVector{T})
     BitArray(out)
 end
 
-
-# Directly from DataFrames.jl
-function remove_response(t::Terms)
-    # shallow copy original terms
-    t = Terms(t.terms, t.eterms, t.factors, t.order, t.response, t.intercept)
-    if t.response
-        t.order = t.order[2:end]
-        t.eterms = t.eterms[2:end]
-        t.factors = t.factors[2:end, 2:end]
-        t.response = false
-    end
-    return t
-end
 
 
 # used when removing certain rows in a dataset

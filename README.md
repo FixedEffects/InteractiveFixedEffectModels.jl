@@ -12,7 +12,6 @@ Pkg.add("InteractiveFixedEffectModels")
 This package implements a novel, fast and robust algorithm to estimate interactive fixed effect models (Bai 2009).
 
 
-
 Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
 
 ![minimization](img/minimization.png)
@@ -21,9 +20,14 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 ## Syntax
-
-
-- The first argument of `fit` is an object of type `InteractiveFixedEffectModel`. Such an object can be constructed by specifying the id variable, the time variable, and the rank of the factor model (`r` in the model above). Both the id and time variable must be of type `PooledDataVector`.
+- The first argument of `reg` is a dataframe
+- The second argument of `reg` is formula
+	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
+	```julia
+	Sales ~ 0
+	```
+	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
+- The third argument of `fit` is an InteractiveFixedEffectFormula. Such an object contains the id variable, the time variable, and the rank of the factor model (`r` in the model above). Id and time must refer to variables of typ `PooledDataVector`.
 
 	```julia
 	using RDatasets, DataFrames, InteractiveFixedEffectModels
@@ -31,64 +35,30 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 	# create PooledDataVector
 	df[:pState] =  pool(df[:State])
 	df[:pYear] =  pool(df[:Year])
-	# create InteractiveFixedEffectModel in state, year, and rank 2
-	factormodel = InteractiveFixedEffectModel(:pState, :pYear, 2)
+	reg(df, @formula(Sales ~ 1), @ife(pState + pYear, 2))
 	```
 
-- The second argument of `fit` is a formula
-	- When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
+- Indicate potential fixed effects with `@fe`. Use only the variables specified in the factor model.
 
 		```julia
-		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 0, df)
+		reg(df,  Sales ~ 1, fe(pState), ife(pState + pYear, 2)
+		reg(df,  Sales ~ 1, fe(pYear), ife(pState + pYear, 2)
+		reg(df,  Sales ~ 1, fe(pState + pYear), ife(pState + pYear, 2)
 		```
 
-		You can pre-demean the variable using `|>` as in the package [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl). Use only the variables specified in the factor model.
-
-		```julia
-		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 1 |> pState, df)
-		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 1 |> pYear, df)
-		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ 1 |> pState + pYear, df)
-		```
-
-	- With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
-	
-
-		```julia
-		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ Price, df)
-		```
-
-		Similarly, you may add id  or time fixed effects
-		```julia
-		fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ Price |> pState, df)
-		```
+- Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
+	```julia
+	reg(df, @formula(Sales ~ 1), ife(pState + pYear, 2), @vcovrobust())
+	reg(df, @formula(Sales ~ 1), ife(pState + pYear, 2), @vcovcluster(pState))
+	reg(df, @formula(Sales ~ 1), ife(pState + pYear, 2), @vcovcluster(pState + pYear))
+	```
 
 
 - Two minimization methods are available:
 	- `:levenberg_marquardt`
 	- `:dogleg` 
 
-
-- Compute robust standard errors by constructing an object of type `AbstractVcovMethod`. For now, `VcovSimple()` (default), `VcovWhite()` and `VcovCluster(cols)` are implemented.
-
-	```julia
-	fit(InteractiveFixedEffectModel(:pState, :pYear, 2), Sales ~ Price, df, VcovCluster(:pState))
-	```
-
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
-
-The general syntax is
-```julia
-fit(pfm::InteractiveFixedEffectModel,
-	f::Formula, 
-    df::AbstractDataFrame, 
-    vcov_method::AbstractVcovMethod = VcovSimple();
- 	method::Symbol = :dogleg
-    weight::Union{Symbol, Void} = nothing, 
-    subset::Union{AbstractVector{Bool}, Void} = nothing,
-    save::Bool = true, 
-    maxiter::Int64 = 10000, tol::Float64 = 1e-8
-    )
-```
 
 
 ## Weights and multiple observations

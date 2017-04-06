@@ -1,18 +1,19 @@
-ssr
+
 ##############################################################################
 ##
 ## Fit is the only exported function
 ##
 ##############################################################################
 
-function fit(m::InteractiveFixedEffectModel, 
+function reg(df::AbstractDataFrame, 
              f::Formula, 
-             df::AbstractDataFrame, 
-             vcov_method::AbstractVcovMethod = VcovSimple(); 
+             m::InteractiveFixedEffectFormula,
+             feformula::FixedEffectFormula, 
+             vcovformula::AbstractVcovFormula,
+             weightformula::WeightFormula; 
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
              subset::Union{AbstractVector{Bool}, Void} = nothing, 
-             weight::Union{Symbol, Void} = nothing, 
              maxiter::Integer = 10_000, 
              tol::Real = 1e-9, 
              save::Union{Bool, Void} = nothing)
@@ -25,34 +26,37 @@ function fit(m::InteractiveFixedEffectModel,
 
     ## parse formula 
     rf = deepcopy(f)
-    (has_absorb, absorb_formula, absorb_terms, has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose!(rf)
+    (has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose_iv!(rf)
     if has_iv
         error("partial_out does not support instrumental variables")
     end
+    has_absorb = feformula.arg != nothing
+    has_weight = (weightformula.arg != nothing)
+
+
     rt = Terms(rf)
     has_regressors = allvars(rf.rhs) != [] || (rt.intercept == true && !has_absorb)
-
     # change default if has_regressors
     if save == nothing 
         save = !has_regressors
     end
     ## create a dataframe without missing values & negative weights
     vars = allvars(rf)
-    vcov_vars = allvars(vcov_method)
-    absorb_vars = allvars(absorb_formula)
+    vcov_vars = allvars(vcovformula)
+    absorb_vars = allvars(feformula)
     factor_vars = [m.id, m.time]
     all_vars = vcat(vars, absorb_vars, factor_vars, vcov_vars)
     all_vars = unique(convert(Vector{Symbol}, all_vars))
-    esample = complete_cases(df[all_vars])
-    if weight != nothing
-        esample &= isnaorneg(df[weight])
-        all_vars = unique(vcat(all_vars, weight))
+    esample = completecases(df[all_vars])
+    if has_weight
+        esample &= isnaorneg(df[weightformula.arg])
+        all_vars = unique(vcat(all_vars, weightformula.arg))
     end
     if subset != nothing
         if length(subset) != size(df, 1)
             error("df has $(size(df, 1)) rows but the subset vector has $(length(subset)) elements")
         end
-        esample &= convert(BitArray, subset)
+        esample &= subset
     end
     subdf = df[esample, all_vars]
     main_vars = unique(convert(Vector{Symbol}, vcat(vars, factor_vars)))
@@ -61,14 +65,14 @@ function fit(m::InteractiveFixedEffectModel,
     end
 
     # Compute data needed for errors
-    vcov_method_data = VcovMethodData(vcov_method, subdf)
+    vcov_method_data = VcovMethod(subdf, vcovformula)
 
     # Compute weight
-    sqrtw = get_weight(subdf, weight)
+    sqrtw = get_weight(subdf, weightformula)
 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
-        fes = FixedEffect[FixedEffect(subdf, a, sqrtw) for a in absorb_terms.terms]
+        fes = FixedEffect[FixedEffect(subdf, a, sqrtw) for a in Terms(feformula).terms]
         # in case some FixedEffect is aFixedEffectIntercept, remove the intercept
         if any([typeof(f.interaction) <: Ones for f in fes]) 
             rt.intercept = false
@@ -90,7 +94,7 @@ function fit(m::InteractiveFixedEffectModel,
     ##
     ##############################################################################
 
-    mf = simpleModelFrame(subdf, rt, esample)
+    mf = ModelFrame2(rt, subdf, esample)
 
     # Compute demeaned X
     if has_regressors
@@ -195,7 +199,7 @@ function fit(m::InteractiveFixedEffectModel,
             df_absorb_fe = 0
             ## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
             for fe in fes
-                if typeof(vcov_method) == VcovCluster && in(fe.factorname, vcov_vars)
+                if typeof(vcovformula) == VcovClusterFormula && in(fe.factorname, vcov_vars)
                     df_absorb_fe += 0
                 else
                     df_absorb_fe += sum(fe.scale .!= zero(Float64))
@@ -206,7 +210,7 @@ function fit(m::InteractiveFixedEffectModel,
         newfes = getfactors(fp, fs)
         for fe in newfes
             df_absorb_factors += 
-                (typeof(vcov_method) == VcovCluster && in(fe.factorname, vcov_vars)) ? 
+                (typeof(vcovformula) == VcovClusterFormula && in(fe.factorname, vcov_vars)) ? 
                     0 : sum(fe.scale .!= zero(Float64))
         end
         df_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
@@ -236,6 +240,7 @@ function fit(m::InteractiveFixedEffectModel,
     if !save 
         augmentdf = DataFrame()
     else
+
         augmentdf = DataFrame(fp, fs, esample)
         # save residuals in a dataframe
         if all(esample)
@@ -248,7 +253,7 @@ function fit(m::InteractiveFixedEffectModel,
         # save fixed effects in a dataframe
         if has_absorb
             # residual before demeaning
-            mf = simpleModelFrame(subdf, rt, esample)
+            mf = ModelFrame2(rt, subdf, esample)
             oldresiduals = model_response(mf)[:]
             if has_regressors
                 oldX = ModelMatrix(mf).m
@@ -272,10 +277,25 @@ function fit(m::InteractiveFixedEffectModel,
     end
 end
 
-
-# Symbol to formula Symbol ~ 0
-function fit(m::InteractiveFixedEffectModel, 
-             variable::Symbol, args...; kwargs...)
-    formula = Formula(variable, 0)
-    fit(m, formula, args...; kwargs...)
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula; kwargs...) 
+    reg(df, f, ife, @fe(), @vcov(), @weight(); kwargs...)
 end
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, feformula::FixedEffectFormula; kwargs...) 
+    reg(df, f, ife, feformula, @vcov(), @weight(); kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, vcovformula::AbstractVcovFormula; kwargs...) 
+    reg(df, f, ife, @fe(), vcovformula, @weight(); kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, weightformula::WeightFormula; kwargs...) 
+    reg(df, f, ife, @fe(), @vcov(), weightformula; kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula,  vcovformula::AbstractVcovFormula, weightformula::WeightFormula; kwargs...) 
+    reg(df, f, ife, @fe(), vcovformula, weightformula; kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, feformula::FixedEffectFormula, weightformula::WeightFormula; kwargs...) 
+    reg(df, f, ife, feformula, @vcov(), weightformula; kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, feformula::FixedEffectFormula, vcovformula::AbstractVcovFormula; kwargs...) 
+    reg(df, f, ife, feformula, vcovformula, @weight(); kwargs...)
+end
+
