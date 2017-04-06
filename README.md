@@ -68,7 +68,7 @@ weights are indicated with the macro `@weight`
 
 #### options
 
-- Two minimization methods are available:
+- `method` allows to choose between two algorithms:
 	- `:levenberg_marquardt`
 	- `:dogleg` 
 
@@ -78,7 +78,9 @@ weights are indicated with the macro `@weight`
 ```julia
 using DataFrames, RDatasets, FixedEffectModels
 df = dataset("plm", "Cigar")
-reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), method = method, save = true)
+df[:pState] =  pool(df[:State])
+df[:pYear] =  pool(df[:Year])
+reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), save = true)
 #=====================================================================
 # Number of obs                1380   Degree of freedom              93
 # R2                          0.245   R2 Adjusted                 0.190
