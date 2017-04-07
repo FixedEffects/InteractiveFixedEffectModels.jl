@@ -36,7 +36,7 @@ With multiple regressors, `fit` fits a linear model with interactive fixed effec
 @formula(Sales ~ Price)
 ```
 #### `@ife`
-Interactive fixed effects are indicated with the macro `@ife`. The id and time variables must refer to variables of type `PooledDataVector`.
+Interactive fixed effects are indicated with the macro `@ife`. Variables must be of type `PooledDataVector`. For instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
 
 ```julia
 df[:pState] =  pool(df[:State])
