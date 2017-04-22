@@ -23,7 +23,7 @@ To estimate an interactive fixed effect model, one needs to specify a formula wi
 
 #### `@formula`
 A typical formula is composed of one dependent variable and regressors
-```
+```julia
 using RDatasets, DataFrames, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 ```
