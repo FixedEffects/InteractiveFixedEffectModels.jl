@@ -104,6 +104,18 @@ The algorithm can estimate models with missing observations per id x time, multi
 However, in these cases, the optimization problem may have local minima. The algorithm tries to catch these cases, and, if need be, restart the optimization until the global minimum is reached. However I am not sure that all the cases are caught. 
 
 ## FAQ
+#### Does the package estimate PCA / factor models?
+
+Yes. Factor models are a particular case of interactive fixed effect models. Simply specify `0` as the lhs of the formula.
+```julia
+using DataFrames, RDatasets, InteractiveFixedEffectModels
+df = dataset("plm", "Cigar")
+df[:pState] =  pool(df[:State])
+df[:pYear] =  pool(df[:Year])
+reg(df, @formula(Sales ~ 0), @ife(pState + pYear, 2), @fe(pState), save = true)
+```
+Compared to the usual SVD method, the package estimates models with multiple (or missing) observations per id x time.
+
 #### When should one use interactive fixed effects models?
 Some litterature using this estimation procedure::
 
@@ -120,13 +132,6 @@ Errors are obtained by regressing y on x and covariates of the form `i.id#c.year
 In presence of cross or time correlation beyond the factor structure, the estimate for beta is consistent but biased (see Theorem 3 in Bai 2009, which derives the correction term in special cases). However, this package does not implement any correction. You may want to check that your residuals are approximately i.i.d.
 
 
-## References
-- Bai, Jushan. *Panel data models with interactive fixed effects.* (2009) Econometrica 
-- Ilin, Alexander, and Tapani Raiko. *Practical approaches to principal component analysis in the presence of missing values.* (2010) The Journal of Machine Learning Research 11 
--  Koren, Yehuda. *Factorization meets the neighborhood: a multifaceted collaborative filtering model.* (2008) Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. 
-- Raiko, Tapani, Alexander Ilin, and Juha Karhunen. *Principal component analysis for sparse high-dimensional data.* (2008) Neural Information Processing.
-- Srebro, Nathan, and Tommi Jaakkola. *Weighted low-rank approximations* (2010) The Journal of Machine Learning Research 11 
-- Nocedal, Jorge and Stephen Wright *An Inexact Levenberg-Marquardt method for Large Sparse Nonlinear Least Squares*  (1985) The Journal of the Australian Mathematical Society
 
 ## Related Packages
 - https://github.com/joidegn/FactorModels.jl : fits and predict factor models on matrices
