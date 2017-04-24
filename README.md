@@ -22,18 +22,20 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 To estimate an interactive fixed effect model, one needs to specify a formula with `@formula`, a factor model with `@ife`, a set of fixed effects with `@fe`, a way to compute standard errors with `@vcov`, and a weight variable with `@weight`.
 
 #### `@formula`
-A typical formula is composed of one dependent variable and regressors
+A typical formula is composed of one dependent variable and a set of  regressors
 ```julia
 using RDatasets, DataFrames, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 ```
-When the only regressor is `0`, `fit` fits a factor model on the left hand side variable
+
+When the only regressor is `0`, `fit` simply fits a factor model (i.e. PCA allowing for missing observations)
 ```julia
 @formula(Sales ~ 0)
 ```
-With multiple regressors, `fit` fits a linear model with interactive fixed effects (Bai (2009))
+
+Otherwise, `fit` fits a linear model with interactive fixed effects (Bai (2009))
 ```julia
-@formula(Sales ~ Price)
+@formula(Sales ~ Price + Year)
 ```
 #### `@ife`
 Interactive fixed effects are indicated with the macro `@ife`. Variables must be of type `PooledDataVector`. For instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
