@@ -45,6 +45,10 @@ function reg(df::AbstractDataFrame,
     vcov_vars = allvars(vcovformula)
     absorb_vars = allvars(feformula)
     factor_vars = [m.id, m.time]
+    rem = setdiff(absorb_vars, factor_vars)
+    if length(rem) > 0
+        error("The categorical variable $(rem[1]) appears in @fe but does not appear in @ife. Simply add it in @formula instead")
+    end
     all_vars = vcat(vars, absorb_vars, factor_vars, vcov_vars)
     all_vars = unique(convert(Vector{Symbol}, all_vars))
     esample = completecases(df[all_vars])

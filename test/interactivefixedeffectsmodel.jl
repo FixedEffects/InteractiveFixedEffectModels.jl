@@ -57,6 +57,10 @@ for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 	@test norm(result.augmentdf[:pState][1] /131.6162 - 1) < precision
 end
 
+# check high dimentional fixed effects are part of factor models
+df[:pState2] = pool(df[:State])
+@test_throws ErrorException reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState2), @weight(Pop), method = method, save = true)
+
 
 # local minima
 using RDatasets, DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
@@ -86,6 +90,8 @@ for method in [:levenberg_marquardt, :dogleg]
 	result = reg(df, @formula(y ~ x1), @ife(pid1 + pid2, 1), @weight(w), method = method, save = true)
 	@test norm(result.coef ./ [ -2.62105, -0.0470005] - 1) < precision
 end
+
+
 
 
 
