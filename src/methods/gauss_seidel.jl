@@ -25,8 +25,8 @@ function fit!(::Type{Val{:gauss_seidel}},
     converged = true
 
     fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
-    idscale = Array(Float64, size(fs.idpool, 1))
-    timescale = Array(Float64, size(fs.timepool, 1))
+    idscale = Array{Float64}(size(fs.idpool, 1))
+    timescale = Array{Float64}(size(fs.timepool, 1))
 
     for r in 1:rank(fp)
         fsr = view(fs, :, r)
@@ -80,8 +80,8 @@ function fit!(::Type{Val{:gauss_seidel}},
     yoriginal = deepcopy(fp.y)
     fp = InteractiveFixedEffectsModel(deepcopy(fp.y), fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
 
-    idscale = Array(Float64, size(fs.idpool, 1))
-    timescale = Array(Float64, size(fs.timepool, 1))
+    idscale = Array{Float64}(size(fs.idpool, 1))
+    timescale = Array{Float64}(size(fs.timepool, 1))
 
     # starts loop
     converged = false
@@ -112,7 +112,7 @@ function fit!(::Type{Val{:gauss_seidel}},
 
         # Check convergence
         BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
-        f_x = sumabs2(fp.y)
+        f_x = sum(abs2, fp.y)
         if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
             converged = true
             iterations = iter

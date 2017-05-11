@@ -1,7 +1,7 @@
-using RDatasets, DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
+using DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
 
 precision = 2e-1
-df = dataset("plm", "Cigar")
+df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
 df[:pState] = pool(df[:State])
 df[:pYear] = pool(df[:Year])
 method = :levenberg_marquardt
@@ -63,19 +63,20 @@ df[:pState2] = pool(df[:State])
 
 
 # local minima
-using RDatasets, DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
+using DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
 precision = 2e-1
+
 
 for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
-	df = dataset("plm", "Cigar")
+	df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
 	df[:pState] = pool(df[:State])
 	df[:pYear] = pool(df[:Year])
 	result = reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 1), @fe(pState), @weight(Pop), method = method, save = true)
 	result = reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), @weight(Pop), method = method, save = true)
 
-	df = dataset("plm", "EmplUK")
+	df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "EmplUK.csv.gz"))
 	df[:id1] = df[:Firm]
 	df[:id2] = df[:Year]
 	df[:pid1] = pool(df[:id1])

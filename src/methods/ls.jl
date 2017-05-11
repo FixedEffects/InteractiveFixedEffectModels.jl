@@ -24,8 +24,8 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     N = size(fs.idpool, 1)
     T = size(fs.timepool, 1)
     fg = FactorGradient(fp,
-                        FactorSolution(Array(Float64, N), Array(Float64, T)),
-                        FactorSolution(Array(Float64, N), Array(Float64, T))
+                        FactorSolution(Array{Float64}(N), Array{Float64}(T)),
+                        FactorSolution(Array{Float64}(N), Array{Float64}(T))
                        )
     nls = LeastSquaresOptim.LeastSquaresProblem(
                 view(fs, :, 1), 
@@ -68,7 +68,7 @@ function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}
                          maxiter::Integer = 10_000,
                          tol::Real = 1e-9,
                          lambda::Number = 0.0)
-    scaleb = vec(sumabs2(fp.X, 1))
+    scaleb = vec(sum(abs2, fp.X, 1))
     fsT = InteractiveFixedEffectsSolutionT(fs.b, fs.idpool', fs.timepool')
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
@@ -183,14 +183,6 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
         end
     end
 
-    vars = [:(sumabs2(x.$field)) for field in fieldnames(t)]
-    expr = Expr(:call, :+, vars...)
-    @eval begin
-        function sumabs2(x::$t)
-            $expr
-        end
-    end
-
     vars = [:(length(x.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :+, vars...)
     @eval begin
@@ -207,16 +199,32 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
         end
     end
 
-    vars = [:(maxabs(x.$field)) for field in fieldnames(t)]
+    vars = [:(sum(abs2, x.$field)) for field in fieldnames(t)]
+    expr = Expr(:call, :+, vars...)
+    @eval begin
+        function _sumabs2(x::$t)
+            $expr
+        end
+    end
+    vars = [:(maximum(abs, x.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :max, vars...)
     @eval begin
-        function maxabs(x::$t)
+        function _maxabs(x::$t)
             $expr
         end
     end
 end
 
-norm(fs::AbstractFactorSolution) = sqrt(sumabs2(fs))
+function norm(x::AbstractFactorSolution, i)
+    if i == 2
+        return sqrt(_sumabs2(x))
+    elseif i == Inf
+        return _maxabs(x)
+    end
+end
+norm(x::AbstractFactorSolution) = norm(x, 2)
+
+
 eltype(fg::AbstractFactorSolution) = Float64
 
 function safe_scale!(x, β)
@@ -234,9 +242,9 @@ end
 ##
 ##############################################################################
 
-abstract AbstractFactorGradient{T}
+abstract type AbstractFactorGradient{T} end
 
-type FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} <: AbstractFactorGradient{Rank}
+struct FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} <: AbstractFactorGradient{Rank}
     fp::FactorModel{Rank, W, Rid, Rtime}
     fs::FactorSolution{Rank, Tid, Ttime}
     scalefs::FactorSolution{Rank, sTid, sTtime}
@@ -250,7 +258,7 @@ function size(fg::FactorGradient, i::Integer)
     end
 end
 
-type InteractiveFixedEffectsGradientT{Rank, W, Rid, Rtime, Tb, Tid, Ttime, sTb, sTid, sTtime} <: AbstractFactorGradient{Rank}
+struct InteractiveFixedEffectsGradientT{Rank, W, Rid, Rtime, Tb, Tid, Ttime, sTb, sTid, sTtime} <: AbstractFactorGradient{Rank}
     fp::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}
     fs::InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime}
     scalefs::InteractiveFixedEffectsSolutionT{Rank, sTb, sTid, sTtime}

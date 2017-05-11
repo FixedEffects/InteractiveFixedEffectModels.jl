@@ -40,7 +40,7 @@ function isnaorneg{T <: Real}(a::Vector{T})
     BitArray(a .> zero(eltype(a)))
 end
 function isnaorneg{T <: Real}(a::DataVector{T}) 
-    out = !a.na
+    out = .!(a.na)
     @inbounds @simd for i in 1:length(a)
         if out[i]
             out[i] = a[i] > zero(Float64)
@@ -82,7 +82,7 @@ function compute_tss(y::Vector{Float64}, hasintercept::Bool, ::Ones)
             tss += abs2((y[i] - m))
         end
     else
-        tss = sumabs2(y)
+        tss = sum(abs2, y)
     end
     return tss
 end
@@ -95,7 +95,7 @@ function compute_tss(y::Vector{Float64}, hasintercept::Bool, sqrtw::Vector{Float
          tss += abs2(y[i] - sqrtw[i] * m)
         end
     else
-        tss = sumabs2(y)
+        tss = sum(abs2, y)
     end
     return tss
 end

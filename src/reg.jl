@@ -53,14 +53,14 @@ function reg(df::AbstractDataFrame,
     all_vars = unique(convert(Vector{Symbol}, all_vars))
     esample = completecases(df[all_vars])
     if has_weight
-        esample &= isnaorneg(df[weightformula.arg])
+        esample .&= isnaorneg(df[weightformula.arg])
         all_vars = unique(vcat(all_vars, weightformula.arg))
     end
     if subset != nothing
         if length(subset) != size(df, 1)
             error("df has $(size(df, 1)) rows but the subset vector has $(length(subset)) elements")
         end
-        esample &= subset
+        esample .&= subset
     end
     subdf = df[esample, all_vars]
     main_vars = unique(convert(Vector{Symbol}, vcat(vars, factor_vars)))
@@ -193,7 +193,7 @@ function reg(df::AbstractDataFrame,
     ##############################################################################
    
     if !has_regressors
-        ess = sumabs2(residuals)
+        ess = sum(abs2, residuals)
     else
         residualsm = ym .- Xm * fs.b
         crossxm = cholfact!(At_mul_B(Xm, Xm))
@@ -225,11 +225,11 @@ function reg(df::AbstractDataFrame,
 
         # compute various r2
         nobs = size(subdf, 1)
-        ess = sumabs2(residualsm)
+        ess = sum(abs2, residualsm)
         tss = compute_tss(ym, rt.intercept, sqrtw)
         r2_within = 1 - ess / tss 
 
-        ess = sumabs2(residuals)
+        ess = sum(abs2, residuals)
         tss = compute_tss(oldy, rt.intercept || has_absorb, sqrtw)
         r2 = 1 - ess / tss 
         r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 

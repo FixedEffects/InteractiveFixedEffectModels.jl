@@ -5,7 +5,7 @@
 ##############################################################################
 
 # Object constructed by the user
-type InteractiveFixedEffectFormula
+struct InteractiveFixedEffectFormula
     id::Symbol
     time::Symbol
     rank::Int64
@@ -19,15 +19,15 @@ macro ife(arg1, arg2)
     end
 end
 
-abstract AbstractFactorModel{T}
-abstract AbstractFactorSolution{T}
+abstract type AbstractFactorModel{T} end
+abstract type AbstractFactorSolution{T} end
 ##############################################################################
 ##
 ## Factor Model
 ##
 ##############################################################################
 
-type FactorModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
+struct FactorModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
     y::Vector{Float64}
     sqrtw::W
     idrefs::Vector{Rid}
@@ -89,7 +89,7 @@ end
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)
     U = eigfact!(Symmetric(At_mul_B(fs.timepool, fs.timepool)))
-    sqrtDx = diagm(sqrt(abs(U[:values])))
+    sqrtDx = diagm(sqrt.(abs.(U[:values])))
     A_mul_B!(newfs.idpool,  fs.idpool,  U[:vectors] * sqrtDx)
     V = eigfact!(At_mul_B(newfs.idpool, newfs.idpool))
     A_mul_B!(newfs.idpool, fs.idpool, reverse(U[:vectors] * sqrtDx * V[:vectors]))
@@ -117,7 +117,7 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
 end
 
 function build_interaction(refs::Vector, pool::AbstractVector)
-    interaction = Array(Float64, length(refs))
+    interaction = Array{Float64}(length(refs))
     @inbounds @simd for i in 1:length(refs)
         interaction[i] = pool[refs[i]]
     end
@@ -149,7 +149,7 @@ end
 ##
 ##############################################################################
 
-type InteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
+struct InteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
     y::Vector{Float64}
     sqrtw::W
     X::Matrix{Float64}
@@ -166,7 +166,7 @@ rank{Rank}(::InteractiveFixedEffectsModel{Rank}) = Rank
 convert{Rank, W, Rid, Rtime}(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) = FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
 
 
-type InteractiveFixedEffectsSolution{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
+struct InteractiveFixedEffectsSolution{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
     b::Tb
     idpool::Tid
     timepool::Ttime
@@ -179,7 +179,7 @@ end
 convert(::Type{FactorSolution}, f::InteractiveFixedEffectsSolution) = FactorSolution(f.idpool, f.timepool)
 
 
-type InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
+struct InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
     b::Tb
     idpool::Tid
     timepool::Ttime
@@ -201,7 +201,7 @@ end
 
 
 
-type HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel
+struct HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
     y::Vector{Float64}
     sqrtw::W
     X::Matrix{Float64}
@@ -210,11 +210,12 @@ type HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorMode
     timepool::Matrix{Float64}
     size::Tuple{Int, Int}
 end
+
 function HalfInteractiveFixedEffectsModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, timepool::Matrix{Float64}, size, rank::Int)
     HalfInteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs, timepool, size)
 end
 
-type HalfInteractiveFixedEffectsSolution{Tb, Tid} <: AbstractFactorSolution
+struct HalfInteractiveFixedEffectsSolution{Rank, Tb, Tid} <: AbstractFactorSolution{Rank}
     b::Tb
     idpool::Tid
 end
@@ -225,7 +226,7 @@ end
 ##
 ##############################################################################'
 
-type FactorResult 
+struct FactorResult 
     esample::BitVector
     augmentdf::DataFrame
 
@@ -236,7 +237,7 @@ end
 
 
 # result
-type InteractiveFixedEffectsResult <: AbstractRegressionResult
+struct InteractiveFixedEffectsResult <: AbstractRegressionResult
     coef::Vector{Float64}   # Vector of coefficients
     vcov::Matrix{Float64}   # Covariance matrix
 
