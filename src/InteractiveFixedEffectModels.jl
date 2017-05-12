@@ -8,7 +8,7 @@ module InteractiveFixedEffectModels
 
 
 import Distances: chebyshev
-import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, view, clamp!, dot, vecdot
+import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, view, clamp!, dot, vecdot, start, next, done
 using Base.Cartesian
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, CoefTable,  df_residual
 import DataArrays: RefArray, PooledDataVector, DataVector, PooledDataArray, DataArray
@@ -17,6 +17,7 @@ import LeastSquaresOptim
 using Reexport
 @reexport using FixedEffectModels
 import FixedEffectModels: title, top, Ones, reg
+using Iterators
 
 
 ##############################################################################

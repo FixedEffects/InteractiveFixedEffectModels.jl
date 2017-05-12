@@ -199,31 +199,15 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
         end
     end
 
-    vars = [:(sum(abs2, x.$field)) for field in fieldnames(t)]
-    expr = Expr(:call, :+, vars...)
+    vars = [:(x.$field) for field in fieldnames(t)]
+    expr = Expr(:call, chain, vars...)
     @eval begin
-        function _sumabs2(x::$t)
-            $expr
-        end
-    end
-    vars = [:(maximum(abs, x.$field)) for field in fieldnames(t)]
-    expr = Expr(:call, :max, vars...)
-    @eval begin
-        function _maxabs(x::$t)
-            $expr
-        end
+        start(x::$t) = start($expr)
+        next(x::$t, state) = next($expr, state)
+        done(x::$t, state) = done($expr, state)
     end
 end
-
-function norm(x::AbstractFactorSolution, i)
-    if i == 2
-        return sqrt(_sumabs2(x))
-    elseif i == Inf
-        return _maxabs(x)
-    end
-end
-norm(x::AbstractFactorSolution) = norm(x, 2)
-
+norm(x::AbstractFactorSolution) = sqrt(sum(abs2, x))
 
 eltype(fg::AbstractFactorSolution) = Float64
 
