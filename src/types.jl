@@ -11,6 +11,7 @@ struct InteractiveFixedEffectFormula
     rank::Int64
 end
 
+
 macro ife(arg1, arg2)
     if (arg1.head === :call && arg1.args[1] === :(+) && typeof(arg2) <: Integer)
         return InteractiveFixedEffectFormula(arg1.args[2], arg1.args[3], arg2)

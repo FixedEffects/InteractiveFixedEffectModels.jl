@@ -6,11 +6,11 @@
 ##############################################################################
 
 function reg(df::AbstractDataFrame, 
-             f::Formula, 
-             m::InteractiveFixedEffectFormula,
-             feformula::FixedEffectFormula, 
-             vcovformula::AbstractVcovFormula,
-             weightformula::WeightFormula; 
+             f::Formula,
+             m::InteractiveFixedEffectFormula;
+             fe::FixedEffectFormula = @fe(), 
+             vcov::AbstractVcovFormula = @vcov(),
+             weight::WeightFormula = @weight(),  
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
              subset::Union{AbstractVector{Bool}, Void} = nothing, 
@@ -23,7 +23,9 @@ function reg(df::AbstractDataFrame,
     ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
-
+    feformula = fe
+    vcovformula = vcov
+    weightformula = weight
     ## parse formula 
     rf = deepcopy(f)
     (has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose_iv!(rf)
@@ -281,25 +283,20 @@ function reg(df::AbstractDataFrame,
     end
 end
 
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula; kwargs...) 
-    reg(df, f, ife, @fe(), @vcov(), @weight(); kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, feformula::FixedEffectFormula; kwargs...) 
-    reg(df, f, ife, feformula, @vcov(), @weight(); kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, vcovformula::AbstractVcovFormula; kwargs...) 
-    reg(df, f, ife, @fe(), vcovformula, @weight(); kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, weightformula::WeightFormula; kwargs...) 
-    reg(df, f, ife, @fe(), @vcov(), weightformula; kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula,  vcovformula::AbstractVcovFormula, weightformula::WeightFormula; kwargs...) 
-    reg(df, f, ife, @fe(), vcovformula, weightformula; kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, feformula::FixedEffectFormula, weightformula::WeightFormula; kwargs...) 
-    reg(df, f, ife, feformula, @vcov(), weightformula; kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, ife::InteractiveFixedEffectFormula, feformula::FixedEffectFormula, vcovformula::AbstractVcovFormula; kwargs...) 
-    reg(df, f, ife, feformula, vcovformula, @weight(); kwargs...)
-end
 
+##############################################################################
+##
+## Syntax without keywords
+##
+##############################################################################
+
+
+function reg(df::AbstractDataFrame, f::Formula, m::InteractiveFixedEffectFormula, feformula::FixedEffectFormula, args...; kwargs...) 
+    reg(df, f, m, args...; fe = feformula, kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, m::InteractiveFixedEffectFormula, vcovformula::AbstractVcovFormula, args...; kwargs...) 
+    reg(df, f, m, args...; vcov = vcovformula, kwargs...)
+end
+function reg(df::AbstractDataFrame, f::Formula, m::InteractiveFixedEffectFormula, weightformula::WeightFormula, args...; kwargs...) 
+    reg(df, f, m, args...; weight = weightformula, kwargs...)
+end
