@@ -46,7 +46,7 @@ function reg(df::AbstractDataFrame,
     vars = allvars(rf)
     vcov_vars = allvars(vcovformula)
     absorb_vars = allvars(feformula)
-    factor_vars = [m.id, m.time]
+    factor_vars = vcat(allvars(m.id), allvars(m.time))
     rem = setdiff(absorb_vars, factor_vars)
     if length(rem) > 0
         error("The categorical variable $(rem[1]) appears in @fe but does not appear in @ife. Simply add it in @formula instead")
@@ -91,8 +91,19 @@ function reg(df::AbstractDataFrame,
     iterations = 0
     converged = false
     # get two dimensions
-    id = subdf[m.id]
-    time = subdf[m.time]
+
+    if isa(m.id, Symbol)
+        id = subdf[m.id]
+    else
+        factorvars, interactionvars = _split(subdf, allvars(m.id))
+        id = group(subdf, factorvars)
+    end
+    if isa(m.time, Symbol)
+        time = subdf[m.time]
+    else
+        factorvars, interactionvars = _split(subdf, allvars(m.time))
+        time = group(subdf, factorvars)
+    end
 
     ##############################################################################
     ##

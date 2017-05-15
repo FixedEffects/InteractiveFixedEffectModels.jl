@@ -6,19 +6,20 @@
 
 # Object constructed by the user
 struct InteractiveFixedEffectFormula
-    id::Symbol
-    time::Symbol
+    id::Union{Symbol, Expr}
+    time::Union{Symbol, Expr}
     rank::Int64
 end
-
+function InteractiveFixedEffectFormula(arg1, arg2)
+    length(arg1) == 2 || throw("@ife does not have a correct syntax")
+    InteractiveFixedEffectFormula(arg1[1], arg1[2], arg2)
+end
 
 macro ife(arg1, arg2)
-    if (arg1.head === :call && arg1.args[1] === :(+) && typeof(arg2) <: Integer)
-        return InteractiveFixedEffectFormula(arg1.args[2], arg1.args[3], arg2)
-    else
-        throw("macro @ife not correctly constructed. Use @ife(id+time, 3)")
-    end
+    ex = Expr(:call, Formula, :nothing, Base.Meta.quot(arg1))
+    return :(InteractiveFixedEffectFormula(Terms($(ex)).terms, $arg2))
 end
+
 
 abstract type AbstractFactorModel{T} end
 abstract type AbstractFactorSolution{T} end

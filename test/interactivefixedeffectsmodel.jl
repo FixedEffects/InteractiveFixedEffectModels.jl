@@ -2,6 +2,8 @@ using DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
 
 precision = 2e-1
 df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
+#df = readtable("/Users/Matthieu/Dropbox/Github/FixedEffectModels.jl/dataset/Cigar.csv.gz")
+
 df[:pState] = pool(df[:State])
 df[:pYear] = pool(df[:Year])
 method = :levenberg_marquardt

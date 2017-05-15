@@ -68,6 +68,14 @@ end
 
 dropUnusedLevels!(f::DataVector) = f
 
+
+function _split(df::AbstractDataFrame, ss::Vector{Symbol})
+    catvars, contvars = Symbol[], Symbol[]
+    for s in ss
+        isa(df[s], PooledDataVector) ? push!(catvars, s) : push!(contvars, s)
+    end
+    return catvars, contvars
+end
 ##############################################################################
 ##
 ## sum of squares
