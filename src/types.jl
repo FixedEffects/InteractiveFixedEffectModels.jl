@@ -15,11 +15,6 @@ function InteractiveFixedEffectFormula(arg1, arg2)
     InteractiveFixedEffectFormula(arg1[1], arg1[2], arg2)
 end
 
-macro ife(arg1, arg2)
-    ex = Expr(:call, Formula, :nothing, Base.Meta.quot(arg1))
-    return :(InteractiveFixedEffectFormula(Terms($(ex)).terms, $arg2))
-end
-
 
 abstract type AbstractFactorModel{T} end
 abstract type AbstractFactorSolution{T} end

@@ -27,8 +27,7 @@ using Iterators
 ##############################################################################
 
 export InteractiveFixedEffectFormula,
-InteractiveFixedEffectResult,
-@ife
+InteractiveFixedEffectResult
 ##############################################################################
 ##
 ## Load files

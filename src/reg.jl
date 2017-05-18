@@ -8,9 +8,9 @@
 function reg(df::AbstractDataFrame, 
              f::Formula,
              m::InteractiveFixedEffectFormula;
-             fe::FixedEffectFormula = @fe(), 
-             vcov::AbstractVcovFormula = @vcov(),
-             weight::WeightFormula = @weight(),  
+             fe::FixedEffectFormula = FixedEffectFormula(nothing), 
+             vcov::AbstractVcovFormula = VcovSimpleFormula(),
+             weight::Union{Symbol, Void} = nothing,  
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
              subset::Union{AbstractVector{Bool}, Void} = nothing, 
@@ -25,7 +25,6 @@ function reg(df::AbstractDataFrame,
     ##############################################################################
     feformula = fe
     vcovformula = vcov
-    weightformula = weight
     ## parse formula 
     rf = deepcopy(f)
     (has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose_iv!(rf)
@@ -33,7 +32,7 @@ function reg(df::AbstractDataFrame,
         error("partial_out does not support instrumental variables")
     end
     has_absorb = feformula.arg != nothing
-    has_weight = (weightformula.arg != nothing)
+    has_weight = (weight != nothing)
 
 
     rt = Terms(rf)
@@ -55,8 +54,8 @@ function reg(df::AbstractDataFrame,
     all_vars = unique(convert(Vector{Symbol}, all_vars))
     esample = completecases(df[all_vars])
     if has_weight
-        esample .&= isnaorneg(df[weightformula.arg])
-        all_vars = unique(vcat(all_vars, weightformula.arg))
+        esample .&= isnaorneg(df[weight])
+        all_vars = unique(vcat(all_vars, weight))
     end
     if subset != nothing
         if length(subset) != size(df, 1)
@@ -74,7 +73,7 @@ function reg(df::AbstractDataFrame,
     vcov_method_data = VcovMethod(subdf, vcovformula)
 
     # Compute weight
-    sqrtw = get_weight(subdf, weightformula)
+    sqrtw = get_weight(subdf, weight)
 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
@@ -300,14 +299,3 @@ end
 ## Syntax without keywords
 ##
 ##############################################################################
-
-
-function reg(df::AbstractDataFrame, f::Formula, m::InteractiveFixedEffectFormula, feformula::FixedEffectFormula, args...; kwargs...) 
-    reg(df, f, m, args...; fe = feformula, kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, m::InteractiveFixedEffectFormula, vcovformula::AbstractVcovFormula, args...; kwargs...) 
-    reg(df, f, m, args...; vcov = vcovformula, kwargs...)
-end
-function reg(df::AbstractDataFrame, f::Formula, m::InteractiveFixedEffectFormula, weightformula::WeightFormula, args...; kwargs...) 
-    reg(df, f, m, args...; weight = weightformula, kwargs...)
-end

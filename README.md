@@ -19,72 +19,14 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 ## Syntax
-To estimate an interactive fixed effect model, one needs to specify a formula with `@formula`, a factor model with `@ife`, a set of fixed effects with `@fe`, a way to compute standard errors with `@vcov`, and a weight variable with `@weight`.
+To estimate an interactive fixed effect model, one needs to specify a formula, a factor model with `ife`, and, eventually, a set of fixed effects with `fe`, a way to compute standard errors with `vcov`, and a weight variable with `weight`.
 
-#### `@formula`
-A typical formula is composed of one dependent variable and a set of  regressors
-```julia
-using RDatasets, DataFrames, InteractiveFixedEffectModels
-df = dataset("plm", "Cigar")
-```
-
-When the only regressor is `0`, `fit` simply fits a factor model (i.e. PCA allowing for missing observations)
-```julia
-@formula(Sales ~ 0)
-```
-
-Otherwise, `fit` fits a linear model with interactive fixed effects (Bai (2009))
-```julia
-@formula(Sales ~ Price + Year)
-```
-#### `@ife`
-Interactive fixed effects are indicated with the macro `@ife`. Variables must be of type `PooledDataVector`. For instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
-
-```julia
-df[:pState] =  pool(df[:State])
-df[:pYear] =  pool(df[:Year])
-@ife(pState + pYear, 2)
-```
-
-#### `@fe`
-Fixed effects are indicated with the macro `@fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
-
-```julia
-@fe(pState)
-@fe(pYear)
-@fe(pState + pYear)
-```
-
-#### `@vcov`
-Standard errors are indicated with the macro `@vcovrobust()` or `@vcovcluster()`
-```julia
-@vcovrobust()
-@vcovcluster(StatePooled)
-@vcovcluster(StatePooled, YearPooled)
-```
-
-#### `@weight`
-weights are indicated with the macro `@weight`
-```julia
-@weight(Pop)
-```
-
-
-#### options
-
-- `method` allows to choose between two algorithms:
-	- `:levenberg_marquardt`
-	- `:dogleg` 
-
-- The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
-
-####  Putting everything together
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
-reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), save = true)
+@reg df Sales ~ Price ife = (pState + pYear, 2) fe = pState save = true
 #                      Linear Factor Model                      
 #================================================================
 #Number of obs:             1380  Degree of freedom:          199
@@ -96,6 +38,57 @@ reg(df, @formula(Sales ~ Price), @ife(pState + pYear, 2), @fe(pState), save = tr
 #Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
 #================================================================
 ```
+
+- A typical formula is composed of one dependent variable and a set of  regressors
+	```julia
+	using RDatasets, DataFrames, InteractiveFixedEffectModels
+	df = dataset("plm", "Cigar")
+	```
+
+	When the only regressor is `0`, `fit` fits a factor model
+	```julia
+	Sales ~ 0
+	```
+
+	Otherwise, `fit` fits a linear model with interactive fixed effects (Bai (2009))
+	```julia
+	Sales ~ Price + Year
+	```
+- Interactive fixed effects are indicated with the keyword argument `ife`. Variables must be of type `PooledDataVector`. For instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
+
+	```julia
+	df[:pState] =  pool(df[:State])
+	df[:pYear] =  pool(df[:Year])
+	ife = pState + pYear, 2
+	```
+
+- Fixed effects are indicated with the keyword argument `fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+
+	```julia
+	fe = pState
+	fe = pYear
+	fe = pState + pYear
+	```
+
+- Standard errors are indicated with the keyword argument `vcov`
+	```julia
+	vcov = robust()
+	vcov = cluster(StatePooled)
+	vcov = cluster(StatePooled, YearPooled)
+	```
+
+- weights are indicated with the keyword argument `weight`
+	```julia
+	weight = Pop
+	```
+
+- `method` allows to choose between two algorithms:
+	- `:levenberg_marquardt`
+	- `:dogleg` 
+
+- The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
+
+
 
 
 ## Local minimum vs global minimum

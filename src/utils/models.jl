@@ -4,17 +4,16 @@
 ## 
 ##############################################################################
 
-function get_weight(df::AbstractDataFrame, weightformula::WeightFormula) 
-    if weightformula.arg == nothing
-        Ones{Float64}(size(df, 1))
-    else
-        out = df[weightformula.arg]
-        # there are no NA in it. DataVector to Vector
-        out = convert(Vector{Float64}, out)
-        map!(sqrt, out, out)
-        return out
-    end
+function get_weight(df::AbstractDataFrame, weight::Symbol) 
+    out = df[weight]
+    # there are no NA in it. DataVector to Vector
+    out = convert(Vector{Float64}, out)
+    map!(sqrt, out, out)
+    return out
 end
+get_weight(df::AbstractDataFrame, ::Void) = Ones{Float64}(size(df, 1))
+
+
 
 ##############################################################################
 ##
