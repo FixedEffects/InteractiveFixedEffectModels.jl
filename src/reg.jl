@@ -31,7 +31,7 @@ function reg(df::AbstractDataFrame,
     if has_iv
         error("partial_out does not support instrumental variables")
     end
-    has_absorb = feformula.arg != nothing
+    has_absorb = feformula._ != nothing
     has_weight = (weight != nothing)
 
 
@@ -78,7 +78,7 @@ function reg(df::AbstractDataFrame,
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
         fes = FixedEffect[FixedEffect(subdf, a, sqrtw) for a in Terms(feformula).terms]
-        # in case some FixedEffect is aFixedEffectIntercept, remove the intercept
+        # in case some FixedEffect is a FixedEffectIntercept, remove the intercept
         if any([typeof(f.interaction) <: Ones for f in fes]) 
             rt.intercept = false
         end
@@ -215,7 +215,7 @@ function reg(df::AbstractDataFrame,
             df_absorb_fe = 0
             ## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
             for fe in fes
-                if typeof(vcovformula) == VcovClusterFormula && in(fe.factorname, vcov_vars)
+                if isa(vcovformula, VcovClusterFormula) && in(fe.factorname, vcov_vars)
                     df_absorb_fe += 0
                 else
                     df_absorb_fe += sum(fe.scale .!= zero(Float64))
@@ -226,7 +226,7 @@ function reg(df::AbstractDataFrame,
         newfes = getfactors(fp, fs)
         for fe in newfes
             df_absorb_factors += 
-                (typeof(vcovformula) == VcovClusterFormula && in(fe.factorname, vcov_vars)) ? 
+                (isa(vcovformula, VcovClusterFormula) && in(fe.factorname, vcov_vars)) ? 
                     0 : sum(fe.scale .!= zero(Float64))
         end
         df_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
@@ -293,9 +293,3 @@ function reg(df::AbstractDataFrame,
     end
 end
 
-
-##############################################################################
-##
-## Syntax without keywords
-##
-##############################################################################
