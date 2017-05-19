@@ -65,7 +65,7 @@ end
 
 # check high dimentional fixed effects are part of factor models
 df[:pState2] = pool(df[:State])
-@test_throws ErrorException regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState2, weight = Pop, method = $(method), save = true))
+@test_throws ErrorException regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState2, weights = Pop, method = $(method), save = true))
 
 
 # local minima
@@ -79,9 +79,9 @@ for method in [:levenberg_marquardt, :dogleg]
 	df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
 	df[:pState] = pool(df[:State])
 	df[:pYear] = pool(df[:Year])
-	model = @model Sales ~ Price ife = (pState + pYear, 1) fe = pState weight = Pop method = $(method) save = true
+	model = @model Sales ~ Price ife = (pState + pYear, 1) fe = pState weights = Pop method = $(method) save = true
 	result = regife(df, model)
-	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState weight = Pop method = $(method) save = true
+	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState weights = Pop method = $(method) save = true
 	result = regife(df, model)
 
 	df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "EmplUK.csv.gz"))
@@ -95,10 +95,10 @@ for method in [:levenberg_marquardt, :dogleg]
 	model = @model y ~ x1 ife = (pid1 + pid2, 2) method = $(method) save = true
 	result = regife(df, model)
 	@test norm(result.coef ./ [4.53965, -0.0160858] - 1) < precision
-	model = @model y ~ x1 ife = (pid1 + pid2, 2) weight = w method = $(method) save = true
+	model = @model y ~ x1 ife = (pid1 + pid2, 2) weights = w method = $(method) save = true
 	result = regife(df, model)
 	@test norm(result.coef ./ [3.47551,-0.017366] - 1) < precision
-	model = @model y ~ x1 ife = (pid1 + pid2, 1) weight = w method = $(method) save = true
+	model = @model y ~ x1 ife = (pid1 + pid2, 1) weights = w method = $(method) save = true
 	result = regife(df, model)
 	@test norm(result.coef ./ [ -2.62105, -0.0470005] - 1) < precision
 end

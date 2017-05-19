@@ -4,15 +4,14 @@
 ## 
 ##############################################################################
 
-function get_weight(df::AbstractDataFrame, weight::Symbol) 
-    out = df[weight]
+function get_weights(df::AbstractDataFrame, weights::Symbol) 
+    out = df[weights]
     # there are no NA in it. DataVector to Vector
     out = convert(Vector{Float64}, out)
     map!(sqrt, out, out)
     return out
 end
-get_weight(df::AbstractDataFrame, ::Void) = Ones{Float64}(size(df, 1))
-
+get_weights(df::AbstractDataFrame, ::Void) = Ones{Float64}(size(df, 1))
 
 
 ##############################################################################

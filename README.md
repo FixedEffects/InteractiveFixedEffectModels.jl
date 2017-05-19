@@ -19,14 +19,14 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 ## Syntax
-To estimate an interactive fixed effect model, one needs to specify a formula, a factor model with `ife`, and, eventually, a set of fixed effects with `fe`, a way to compute standard errors with `vcov`, and a weight variable with `weight`.
+To estimate an interactive fixed effect model, one needs to specify a formula, a factor model with `ife`, and, eventually, a set of fixed effects with `fe`, a way to compute standard errors with `vcov`, and a weight variable with `weights`.
 
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
-regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2) fe = pState save = true))
+regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState, save = true))
 #                      Linear Factor Model                      
 #================================================================
 #Number of obs:             1380  Degree of freedom:          199
@@ -59,7 +59,7 @@ regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2) fe = pState save = tr
 	```julia
 	df[:pState] =  pool(df[:State])
 	df[:pYear] =  pool(df[:Year])
-	ife = pState + pYear, 2
+	ife = (pState + pYear, 2)
 	```
 
 - Fixed effects are indicated with the keyword argument `fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
@@ -77,9 +77,9 @@ regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2) fe = pState save = tr
 	vcov = cluster(StatePooled, YearPooled)
 	```
 
-- weights are indicated with the keyword argument `weight`
+- weights are indicated with the keyword argument `weights`
 	```julia
-	weight = Pop
+	weights = Pop
 	```
 
 - `method` allows to choose between two algorithms:

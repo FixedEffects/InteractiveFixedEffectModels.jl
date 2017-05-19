@@ -10,7 +10,7 @@ function regife(df::AbstractDataFrame,
              ife::Union{Symbol, Expr, Void} = nothing, 
              fe::Union{Symbol, Expr, Void} = nothing, 
              vcov::Union{Symbol, Expr, Void} = :(simple()), 
-             weight::Union{Symbol, Expr, Void} = nothing, 
+             weights::Union{Symbol, Expr, Void} = nothing, 
              subset::Union{Symbol, Expr, Void} = nothing, 
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
@@ -37,7 +37,7 @@ function regife(df::AbstractDataFrame,
         error("partial_out does not support instrumental variables")
     end
     has_absorb = feformula != nothing
-    has_weight = (weight != nothing)
+    has_weights = (weights != nothing)
 
 
     rt = Terms(rf)
@@ -46,7 +46,7 @@ function regife(df::AbstractDataFrame,
     if save == nothing 
         save = !has_regressors
     end
-    ## create a dataframe without missing values & negative weights
+    ## create a dataframe without missing values & negative weightss
     vars = allvars(rf)
     vcov_vars = allvars(vcovformula)
     absorb_vars = allvars(feformula)
@@ -58,9 +58,9 @@ function regife(df::AbstractDataFrame,
     all_vars = vcat(vars, absorb_vars, factor_vars, vcov_vars)
     all_vars = unique(convert(Vector{Symbol}, all_vars))
     esample = completecases(df[all_vars])
-    if has_weight
-        esample .&= isnaorneg(df[weight])
-        all_vars = unique(vcat(all_vars, weight))
+    if has_weights
+        esample .&= isnaorneg(df[weights])
+        all_vars = unique(vcat(all_vars, weights))
     end
     if subset != nothing
         subset = eval(evaluate_subset(df, subset))
@@ -78,8 +78,8 @@ function regife(df::AbstractDataFrame,
     # Compute data needed for errors
     vcov_method_data = VcovMethod(subdf, vcovformula)
 
-    # Compute weight
-    sqrtw = get_weight(subdf, weight)
+    # Compute weights
+    sqrtw = get_weights(subdf, weights)
 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
