@@ -26,7 +26,7 @@ using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
-regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2) fe = pState save = true)
+regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2) fe = pState save = true))
 #                      Linear Factor Model                      
 #================================================================
 #Number of obs:             1380  Degree of freedom:          199
@@ -105,7 +105,7 @@ using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
-regife(df, @model(Sales ~ 0, ife = (pState + pYear, 2), fe = pState, save = true)
+regife(df, @model(Sales ~ 0, ife = (pState + pYear, 2), fe = pState, save = true))
 ```
 Compared to the usual SVD method, the package estimates models with multiple (or missing) observations per id x time.
 
