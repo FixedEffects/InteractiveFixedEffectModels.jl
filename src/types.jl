@@ -10,9 +10,12 @@ struct InteractiveFixedEffectFormula
     time::Union{Symbol, Expr}
     rank::Int64
 end
-function InteractiveFixedEffectFormula(arg1, arg2)
-    length(arg1) == 2 || throw("@ife does not have a correct syntax")
-    InteractiveFixedEffectFormula(arg1[1], arg1[2], arg2)
+function InteractiveFixedEffectFormula(arg)
+    arg.head == :tuple && length(arg.args) == 2 || throw("@ife does not have a correct syntax")
+    arg1 = arg.args[1]
+    arg2 = arg.args[2]
+    arg1.head == :call && arg1.args[1] == :+ && length(arg1.args) == 3 || throw("@ife does not have a correct syntax")
+    InteractiveFixedEffectFormula(arg1.args[2], arg1.args[3], arg2)
 end
 
 

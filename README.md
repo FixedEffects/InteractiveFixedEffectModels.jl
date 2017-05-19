@@ -26,7 +26,7 @@ using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
-@reg df Sales ~ Price ife = (pState + pYear, 2) fe = pState save = true
+regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2) fe = pState save = true)
 #                      Linear Factor Model                      
 #================================================================
 #Number of obs:             1380  Degree of freedom:          199
@@ -83,8 +83,8 @@ df[:pYear] =  pool(df[:Year])
 	```
 
 - `method` allows to choose between two algorithms:
-	- `:levenberg_marquardt`
-	- `:dogleg` 
+	- `levenberg_marquardt`
+	- `dogleg` 
 
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
@@ -105,7 +105,7 @@ using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 df[:pState] =  pool(df[:State])
 df[:pYear] =  pool(df[:Year])
-reg(df, @formula(Sales ~ 0), @ife(pState + pYear, 2), @fe(pState), save = true)
+regife(df, @model(Sales ~ 0, ife = (pState + pYear, 2), fe = pState, save = true)
 ```
 Compared to the usual SVD method, the package estimates models with multiple (or missing) observations per id x time.
 

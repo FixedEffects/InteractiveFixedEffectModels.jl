@@ -5,15 +5,15 @@
 ##
 ##############################################################################
 
-function reg(df::AbstractDataFrame, 
-             f::Formula,
-             m::InteractiveFixedEffectFormula;
-             fe::FixedEffectFormula = FixedEffectFormula(nothing), 
-             vcov::AbstractVcovFormula = VcovSimpleFormula(),
-             weight::Union{Symbol, Void} = nothing,  
+function regife(df::AbstractDataFrame, 
+             f::Formula;
+             ife::Union{Symbol, Expr, Void} = nothing, 
+             fe::Union{Symbol, Expr, Void} = nothing, 
+             vcov::Union{Symbol, Expr, Void} = :(simple()), 
+             weight::Union{Symbol, Expr, Void} = nothing, 
+             subset::Union{Symbol, Expr, Void} = nothing, 
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
-             subset::Union{AbstractVector{Bool}, Void} = nothing, 
              maxiter::Integer = 10_000, 
              tol::Real = 1e-9, 
              save::Union{Bool, Void} = nothing)
@@ -24,14 +24,19 @@ function reg(df::AbstractDataFrame,
     ##
     ##############################################################################
     feformula = fe
-    vcovformula = vcov
+    if isa(vcov, Symbol)
+        vcovformula = VcovFormula(Val{vcov})
+    else 
+        vcovformula = VcovFormula(Val{vcov.args[1]}, (vcov.args[i] for i in 2:length(vcov.args))...)
+    end
+    m = InteractiveFixedEffectFormula(ife)
     ## parse formula 
     rf = deepcopy(f)
     (has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose_iv!(rf)
     if has_iv
         error("partial_out does not support instrumental variables")
     end
-    has_absorb = feformula._ != nothing
+    has_absorb = feformula != nothing
     has_weight = (weight != nothing)
 
 
@@ -58,6 +63,7 @@ function reg(df::AbstractDataFrame,
         all_vars = unique(vcat(all_vars, weight))
     end
     if subset != nothing
+        subset = eval(evaluate_subset(df, subset))
         if length(subset) != size(df, 1)
             error("df has $(size(df, 1)) rows but the subset vector has $(length(subset)) elements")
         end
@@ -77,7 +83,7 @@ function reg(df::AbstractDataFrame,
 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
-        fes = FixedEffect[FixedEffect(subdf, a, sqrtw) for a in Terms(feformula).terms]
+        fes = FixedEffect(subdf, feformula, sqrtw)
         # in case some FixedEffect is a FixedEffectIntercept, remove the intercept
         if any([typeof(f.interaction) <: Ones for f in fes]) 
             rt.intercept = false
@@ -293,3 +299,23 @@ function reg(df::AbstractDataFrame,
     end
 end
 
+function regife(df::AbstractDataFrame, ex::Tuple)
+    dict = Dict{Symbol, Any}()
+    for i in 1:length(ex)
+        isa(ex[i], Expr) || throw("All arguments of @models, except the first one, should be keyboard arguments")
+        if ex[i].head== :(=)
+            dict[ex[i].args[1]] = ex[i].args[2]
+        end
+    end
+    regife(df, Formula(ex[1].args[2], ex[1].args[3]); dict...)
+end
+
+function evaluate_subset(df, ex::Expr)
+    if ex.head == :call
+        return Expr(ex.head, ex.args[1], (evaluate_subset(df, ex.args[i]) for i in 2:length(ex.args))...)
+    else
+        return Expr(ex.head, (evaluate_subset(df, ex.args[i]) for i in 1:length(ex.args))...)
+    end
+end
+evaluate_subset(df, ex::Symbol) = df[ex]
+evaluate_subset(df, ex)  = ex

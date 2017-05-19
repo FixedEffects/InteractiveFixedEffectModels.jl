@@ -27,7 +27,8 @@ using Iterators
 ##############################################################################
 
 export InteractiveFixedEffectFormula,
-InteractiveFixedEffectResult
+InteractiveFixedEffectResult,
+regife
 ##############################################################################
 ##
 ## Load files
@@ -40,6 +41,6 @@ include("utils/models.jl")
 include("methods/gauss_seidel.jl")
 include("methods/ls.jl")
 
-include("reg.jl")
+include("regife.jl")
 
 end
