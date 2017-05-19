@@ -62,12 +62,12 @@ end
 ##
 ##############################################################################
 
-function fit!{Rank}(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
+function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                          fp::InteractiveFixedEffectsModel{Rank},
                          fs::InteractiveFixedEffectsSolution{Rank}; 
                          maxiter::Integer = 10_000,
                          tol::Real = 1e-9,
-                         lambda::Number = 0.0)
+                         lambda::Number = 0.0) where {Rank}
     scaleb = vec(sum(abs2, fp.X, 1))
     fsT = InteractiveFixedEffectsSolutionT(fs.b, fs.idpool', fs.timepool')
     fg = InteractiveFixedEffectsGradientT(fp, 
@@ -95,7 +95,7 @@ end
 ##
 ##############################################################################
 
-function vecdot{T}(fs1::AbstractArray{T}, fs2::AbstractArray{T})  
+function vecdot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
     out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(fs1)
         out += fs1[i] * fs2[i]
@@ -103,7 +103,7 @@ function vecdot{T}(fs1::AbstractArray{T}, fs2::AbstractArray{T})
     return out
 end
 
-function vecdot{T}(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T})
+function vecdot(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}) where {T}
     out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(x)
         out += w[i] * x[i] * y[i]
@@ -256,12 +256,12 @@ function size(fg::InteractiveFixedEffectsGradientT, i::Integer)
     end
 end
 
-Base.rank{Rank}(f::AbstractFactorGradient{Rank}) = Rank
+Base.rank(f::AbstractFactorGradient{Rank}) where {Rank} = Rank 
 size(fg::AbstractFactorGradient) = (size(fg, 1), size(fg, 2))
 eltype(fg::AbstractFactorGradient) = Float64
 LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, fg.scalefs)
 
-@generated function A_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64})
+@generated function A_mul_B!(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64}) where {Rank}
     if Rank == 1
         ex = quote
             out += (fg.fs.idpool[idi] * fs.timepool[timei] 
@@ -296,7 +296,7 @@ function A_mul_B!_X(::Number, ::FactorModel, ::FactorSolution, β::Number, y::Ab
     safe_scale!(y, β)
 end
 
-@generated function Ac_mul_B!{Rank}(α::Number, fg::AbstractFactorGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank})
+@generated function Ac_mul_B!(α::Number, fg::AbstractFactorGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank}) where {Rank}
     if Rank == 1
         ex = quote
            fs.idpool[idi] += sqrtwi * fg.fs.timepool[timei]
@@ -344,8 +344,8 @@ end
 ##
 ##############################################################################
 
-@generated function f!{Rank}(fp::AbstractFactorModel{Rank}, 
-    fs::AbstractFactorSolution{Rank}, out::Vector{Float64})
+@generated function f!(fp::AbstractFactorModel{Rank}, 
+    fs::AbstractFactorSolution{Rank}, out::Vector{Float64}) where {Rank}
     if Rank == 1
         ex = quote
             out[i] -= sqrtwi * fs.idpool[idi] * fs.timepool[timei]
@@ -376,7 +376,7 @@ end
 ##
 ##############################################################################
 
-@generated function g!{Rank}(fs::AbstractFactorSolution{Rank}, fg::AbstractFactorGradient{Rank})
+@generated function g!(fs::AbstractFactorSolution{Rank}, fg::AbstractFactorGradient{Rank}) where {Rank}
     if Rank == 1
         ex = quote
             fg.scalefs.idpool[idi] += abs2(sqrtwi * fg.fs.timepool[timei])

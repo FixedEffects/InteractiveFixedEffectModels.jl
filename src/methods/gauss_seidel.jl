@@ -128,7 +128,7 @@ end
 ##
 ##############################################################################
 
-function update!{R1, R2}(::Type{Val{:gauss_seidel}},
+function update!(::Type{Val{:gauss_seidel}},
     y::Vector{Float64},
     sqrtw::AbstractVector{Float64},
     p1refs::Vector{R1},
@@ -136,7 +136,7 @@ function update!{R1, R2}(::Type{Val{:gauss_seidel}},
     p1::AbstractVector{Float64},
     p1scale::Vector{Float64},
     p2::AbstractVector{Float64}
-    )
+    ) where {R1, R2}
     fill!(p1, zero(Float64))
     fill!(p1scale, zero(Float64))
     @inbounds @simd for i in 1:length(y)

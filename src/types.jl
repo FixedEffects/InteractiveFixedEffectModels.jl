@@ -34,18 +34,18 @@ struct FactorModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{Rank}
     timerefs::Vector{Rtime}
 end
 
-function FactorModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int)
+function FactorModel(y::Vector{Float64}, sqrtw::W, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int) where {W, Rid, Rtime}
     FactorModel{rank, W, Rid, Rtime}(y, sqrtw, idrefs, timerefs)
 end
 
-rank{Rank}(::FactorModel{Rank}) = Rank
+rank(::FactorModel{Rank}) where {Rank} = Rank
 
 type FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution{Rank}
     idpool::Tid
     timepool::Ttime
 end
 
-function FactorSolution{Tid, Ttime}(idpool::Tid, timepool::Ttime)
+function FactorSolution(idpool::Tid, timepool::Ttime) where {Tid, Ttime}
     r = size(idpool, 2)
     @assert r == size(timepool, 2)
     FactorSolution{r, Tid, Ttime}(idpool, timepool)
@@ -71,7 +71,7 @@ end
 
 
 ## rescale a factor model
-function reverse{R}(m::Matrix{R})
+function reverse(m::Matrix{R}) where {R}
     out = similar(m)
     for j in 1:size(m, 2)
         invj = size(m, 2) + 1 - j 
@@ -157,13 +157,15 @@ struct InteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorModel{
     timerefs::Vector{Rtime}
 end
 
-function InteractiveFixedEffectsModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int)
+function InteractiveFixedEffectsModel(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, rank::Int) where {W, Rid, Rtime}
     InteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs)
 end
 
-rank{Rank}(::InteractiveFixedEffectsModel{Rank}) = Rank
+rank(::InteractiveFixedEffectsModel{Rank}) where {Rank} = Rank
 
-convert{Rank, W, Rid, Rtime}(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) = FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
+function convert(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) where {Rank, W, Rid, Rtime}
+    FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
+end
 
 
 struct InteractiveFixedEffectsSolution{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}
@@ -171,7 +173,7 @@ struct InteractiveFixedEffectsSolution{Rank, Tb, Tid, Ttime} <: AbstractFactorSo
     idpool::Tid
     timepool::Ttime
 end
-function InteractiveFixedEffectsSolution{Tb, Tid, Ttime}(b::Tb, idpool::Tid, timepool::Ttime)
+function InteractiveFixedEffectsSolution(b::Tb, idpool::Tid, timepool::Ttime) where {Tb, Tid, Ttime}
     r = size(idpool, 2)
     r == size(timepool, 2) || throw("factors and loadings don't have same dimension")
     InteractiveFixedEffectsSolution{r, Tb, Tid, Ttime}(b, idpool, timepool)
@@ -184,7 +186,7 @@ struct InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime} <: AbstractFactorS
     idpool::Tid
     timepool::Ttime
 end
-function InteractiveFixedEffectsSolutionT{Tb, Tid, Ttime}(b::Tb, idpool::Tid, timepool::Ttime)
+function InteractiveFixedEffectsSolutionT(b::Tb, idpool::Tid, timepool::Ttime) where {Tb, Tid, Ttime}
     r = size(idpool, 1)
     r == size(timepool, 1) || throw("factors and loadings don't have same dimension")
     InteractiveFixedEffectsSolutionT{r, Tb, Tid, Ttime}(b, idpool, timepool)
@@ -211,7 +213,7 @@ struct HalfInteractiveFixedEffectsModel{Rank, W, Rid, Rtime} <: AbstractFactorMo
     size::Tuple{Int, Int}
 end
 
-function HalfInteractiveFixedEffectsModel{W, Rid, Rtime}(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, timepool::Matrix{Float64}, size, rank::Int)
+function HalfInteractiveFixedEffectsModel(y::Vector{Float64}, sqrtw::W, X::Matrix{Float64}, idrefs::Vector{Rid}, timerefs::Vector{Rtime}, timepool::Matrix{Float64}, size, rank::Int) where {W, Rid, Rtime}
     HalfInteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs, timepool, size)
 end
 
