@@ -125,7 +125,7 @@ function regife(df::AbstractDataFrame,
     if has_regressors
         coef_names = coefnames(mf)
         X = ModelMatrix(mf).m
-        broadcast!(*, X, X, sqrtw)
+        X .= X .* sqrtw 
         residualize!(X, pfe, Int[], Bool[])
     end
 
@@ -137,7 +137,7 @@ function regife(df::AbstractDataFrame,
     else
         y = py
     end
-    broadcast!(*, y, y, sqrtw)
+    y .= y .* sqrtw 
     oldy = deepcopy(y)
     residualize!(y, pfe, Int[], Bool[])
 
@@ -205,7 +205,7 @@ function regife(df::AbstractDataFrame,
         BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
     end
     subtract_factor!(fp, fs)
-    broadcast!(/, fp.y, fp.y, sqrtw)
+    fp.y .= fp.y ./ sqrtw
     residuals = fp.y
     ##############################################################################
     ##
