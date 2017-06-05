@@ -30,7 +30,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     nls = LeastSquaresOptim.LeastSquaresProblem(
                 view(fs, :, 1), 
                 similar(fp.y), 
-                (x,y) -> f!(fp, x, y), 
+                (y, x) -> f!(y, x, fp), 
                 fg, 
                 g!)
     if t == Val{:levenberg_marquardt}
@@ -73,7 +73,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
-    nls = LeastSquaresOptim.LeastSquaresProblem(fsT, similar(fp.y), (x,y) -> f!(fp, x, y), fg, g!)
+    nls = LeastSquaresOptim.LeastSquaresProblem(fsT, similar(fp.y), (y, x) -> f!(y, x, fp), fg, g!)
     if t == Val{:levenberg_marquardt}
         optimizer = LeastSquaresOptim.LevenbergMarquardt()
     else
@@ -344,8 +344,7 @@ end
 ##
 ##############################################################################
 
-@generated function f!(fp::AbstractFactorModel{Rank}, 
-    fs::AbstractFactorSolution{Rank}, out::Vector{Float64}) where {Rank}
+@generated function f!(out::Vector{Float64}, fs::AbstractFactorSolution{Rank}, fp::AbstractFactorModel{Rank}) where {Rank}
     if Rank == 1
         ex = quote
             out[i] -= sqrtwi * fs.idpool[idi] * fs.timepool[timei]
@@ -376,7 +375,7 @@ end
 ##
 ##############################################################################
 
-@generated function g!(fs::AbstractFactorSolution{Rank}, fg::AbstractFactorGradient{Rank}) where {Rank}
+@generated function g!(fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}) where {Rank}
     if Rank == 1
         ex = quote
             fg.scalefs.idpool[idi] += abs2(sqrtwi * fg.fs.timepool[timei])

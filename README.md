@@ -1,11 +1,6 @@
 [![Build Status](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl)
 [![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
 
-## Install
-
-```julia
-Pkg.add("InteractiveFixedEffectModels")
-```
 
 
 ## Motivation
@@ -131,3 +126,8 @@ In presence of cross or time correlation beyond the factor structure, the estima
 - https://github.com/madeleineudell/LowRankModels.jl : fits general low rank approximations on matrices
 - https://github.com/aaw/IncrementalSVD.jl: implementation of the backpropagation algorithm
 
+## Install
+
+```julia
+Pkg.add("InteractiveFixedEffectModels")
+```
