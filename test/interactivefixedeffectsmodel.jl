@@ -1,11 +1,11 @@
-using DataFrames, InteractiveFixedEffectModels, Distances, Base.Test
+using DataFrames, InteractiveFixedEffectModels, Distances, CSV, Base.Test
 
 precision = 2e-1
-df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
+df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
 #df = readtable("/Users/Matthieu/Dropbox/Github/FixedEffectModels.jl/dataset/Cigar.csv.gz")
 
-df[:pState] = pool(df[:State])
-df[:pYear] = pool(df[:Year])
+df[:pState] = categorical(df[:State])
+df[:pYear] = categorical(df[:Year])
 method = :levenberg_marquardt
 
 for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
@@ -64,7 +64,7 @@ for method in [:levenberg_marquardt, :dogleg, :gauss_seidel]
 end
 
 # check high dimentional fixed effects are part of factor models
-df[:pState2] = pool(df[:State])
+df[:pState2] = categorical(df[:State])
 @test_throws ErrorException regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState2, weights = Pop, method = $(method), save = true))
 
 
@@ -77,8 +77,8 @@ for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
 	df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
-	df[:pState] = pool(df[:State])
-	df[:pYear] = pool(df[:Year])
+	df[:pState] = categorical(df[:State])
+	df[:pYear] = categorical(df[:Year])
 	model = @model Sales ~ Price ife = (pState + pYear, 1) fe = pState weights = Pop method = $(method) save = true
 	result = regife(df, model)
 	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState weights = Pop method = $(method) save = true
@@ -87,8 +87,8 @@ for method in [:levenberg_marquardt, :dogleg]
 	df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "EmplUK.csv.gz"))
 	df[:id1] = df[:Firm]
 	df[:id2] = df[:Year]
-	df[:pid1] = pool(df[:id1])
-	df[:pid2] = pool(df[:id2])
+	df[:pid1] = categorical(df[:id1])
+	df[:pid2] = categorical(df[:id2])
 	df[:y] = df[:Wage]
 	df[:x1] = df[:Emp]
 	df[:w] = df[:Output]

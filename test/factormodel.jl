@@ -1,8 +1,7 @@
 using DataFrames, InteractiveFixedEffectModels, Base.Test
-df = readtable(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv.gz"))
-#df = readtable("/Users/Matthieu/Dropbox/Github/FixedEffectModels.jl/dataset/Cigar.csv.gz")
-df[:pState] =  pool(df[:State])
-df[:pYear] =  pool(df[:Year])
+df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
+df[:pState] =  categorical(df[:State])
+df[:pYear] =  categorical(df[:Year])
 method = :gauss_seidel
 
 for method in [:gauss_seidel,  :dogleg, :levenberg_marquardt]

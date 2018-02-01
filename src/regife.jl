@@ -265,7 +265,6 @@ function regife(df::AbstractDataFrame,
     if !save 
         augmentdf = DataFrame()
     else
-
         augmentdf = DataFrame(fp, fs, esample)
         # save residuals in a dataframe
         if all(esample)
