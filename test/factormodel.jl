@@ -1,4 +1,4 @@
-using DataFrames, InteractiveFixedEffectModels, Base.Test
+using DataFrames, InteractiveFixedEffectModels, Base.Test, CSV
 df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
 df[:pState] =  categorical(df[:State])
 df[:pYear] =  categorical(df[:Year])

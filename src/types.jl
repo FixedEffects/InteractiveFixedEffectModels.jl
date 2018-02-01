@@ -134,11 +134,10 @@ function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample:
     end
     return df
 end
-function build_column(refs::Vector, pool::Vector{T}, esample::AbstractVector{Bool}) where {T}
-    T = eltype(refs)
-    newrefs = fill(zero(T), length(esample))
+function build_column(refs::Vector{T1}, pool::Vector{T2}, esample::AbstractVector{Bool}) where {T1, T2}
+    newrefs = fill(zero(T1), length(esample))
     newrefs[esample] = refs
-    return CategoricalArray{T, 1}(newrefs, CategoricalPool(pool))
+    return convert(Vector{Union{T2, Missing}}, CategoricalArray{Union{T2, Missing}, 1}(newrefs, CategoricalPool(pool)))
 end
 
 

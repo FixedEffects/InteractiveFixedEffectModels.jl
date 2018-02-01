@@ -6,7 +6,7 @@
 
 function get_weights(df::AbstractDataFrame, weights::Symbol) 
     out = df[weights]
-    # there are no NA in it. DataVector to Vector
+    # there are no missing in it
     out = convert(Vector{Float64}, out)
     map!(sqrt, out, out)
     return out
@@ -34,43 +34,19 @@ end
 
 
 #  remove observations with negative weights
-function isnaorneg(a::Vector{T}) where {T <: Real}
-    BitArray(a .> zero(eltype(a)))
-end
-function isnaorneg(a::DataVector{T}) where {T <: Real}
-    out = .!(a.na)
-    @inbounds @simd for i in 1:length(a)
-        if out[i]
-            out[i] = a[i] > zero(Float64)
-        end
+function isnaorneg(a::Vector{T}) where {T}
+    out = BitArray(length(a))
+    @simd for i in 1:length(a)
+        @inbounds out[i] = !ismissing(a[i]) && (a[i] > zero(T))
     end
-    BitArray(out)
+    return out
 end
-
-
-
-# used when removing certain rows in a dataset
-# NA always removed
-function dropUnusedLevels!(f::PooledDataVector)
-    uu = unique(f.refs)
-    length(uu) == length(f.pool) && return f
-    sort!(uu)
-    T = reftype(length(uu))
-    dict = Dict{eltype(uu), T}(zip(uu, collect(1:convert(T, length(uu)))))
-    @inbounds @simd for i in 1:length(f.refs)
-         f.refs[i] = dict[f.refs[i]]
-    end
-    f.pool = f.pool[uu]
-    f
-end
-
-dropUnusedLevels!(f::DataVector) = f
 
 
 function _split(df::AbstractDataFrame, ss::Vector{Symbol})
     catvars, contvars = Symbol[], Symbol[]
     for s in ss
-        isa(df[s], PooledDataVector) ? push!(catvars, s) : push!(contvars, s)
+        isa(df[s], CategoricalVector) ? push!(catvars, s) : push!(contvars, s)
     end
     return catvars, contvars
 end

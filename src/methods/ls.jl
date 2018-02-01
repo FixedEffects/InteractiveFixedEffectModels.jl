@@ -43,7 +43,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
         fsr = view(fs, :, r)
         full.x = fsr
         result = LeastSquaresOptim.optimize!(full,
-            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+            x_tol = 1e-32, g_tol = 1e-32, f_tol = tol,  iterations = maxiter)
         iter += result.mul_calls
         converged = result.converged && converged
         if r < fullrank 
@@ -82,7 +82,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer, LeastSquaresOptim.LSMR())
     temp = similar(fp.y)
     result = LeastSquaresOptim.optimize!(full;
-            xtol = 1e-32, grtol = 1e-32, ftol = tol,  iterations = maxiter)
+            x_tol = 1e-32, g_tol = 1e-32, f_tol = tol,  iterations = maxiter)
     # rescale factors and loadings so that factors' * factors = Id
     fs = InteractiveFixedEffectsSolution(fsT.b, fsT.idpool', fsT.timepool')
     return rescale(fs), result.mul_calls, result.converged

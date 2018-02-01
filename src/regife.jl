@@ -75,7 +75,9 @@ function regife(df::AbstractDataFrame,
     subdf = df[esample, all_vars]
     main_vars = unique(convert(Vector{Symbol}, vcat(vars, factor_vars)))
     for v in main_vars
-        dropUnusedLevels!(subdf[v])
+        if typeof(subdf[v]) <: CategoricalVector
+            droplevels!(subdf[v])
+        end
     end
 
     # Compute data needed for errors
