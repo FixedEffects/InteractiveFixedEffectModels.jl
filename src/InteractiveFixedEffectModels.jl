@@ -10,7 +10,7 @@ module InteractiveFixedEffectModels
 import Distances: chebyshev
 import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, view, clamp!, dot, vecdot, start, next, done
 using Base.Cartesian
-import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderr, confint, CoefTable,  df_residual
+import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderror, confint, CoefTable,  df_residual
 import Missings: Missing
 import DataArrays: DataArray
 import CategoricalArrays: CategoricalArray, CategoricalVector, compress, categorical, CategoricalPool, levels, droplevels!
