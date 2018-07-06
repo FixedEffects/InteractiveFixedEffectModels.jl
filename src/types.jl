@@ -40,7 +40,7 @@ end
 
 rank(::FactorModel{Rank}) where {Rank} = Rank
 
-type FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution{Rank}
+struct FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution{Rank}
     idpool::Tid
     timepool::Ttime
 end
@@ -83,17 +83,17 @@ function reverse(m::Matrix{R}) where {R}
 end
 function rescale!(fs::FactorSolution{1})
     out = norm(fs.timepool)
-    scale!(fs.idpool, out)
-    scale!(fs.timepool, 1/out)
+    rmul!(fs.idpool, out)
+    rmul!(fs.timepool, 1/out)
 end
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)
-    U = eigfact!(Symmetric(At_mul_B(fs.timepool, fs.timepool)))
-    sqrtDx = diagm(sqrt.(abs.(U[:values])))
-    A_mul_B!(newfs.idpool,  fs.idpool,  U[:vectors] * sqrtDx)
-    V = eigfact!(At_mul_B(newfs.idpool, newfs.idpool))
-    A_mul_B!(newfs.idpool, fs.idpool, reverse(U[:vectors] * sqrtDx * V[:vectors]))
-    A_mul_B!(newfs.timepool, fs.timepool, reverse(U[:vectors] * (sqrtDx \ V[:vectors])))
+    U = eigen!(Symmetric(fs.timepool' * fs.timepool))
+    sqrtDx = diagm(0 => sqrt.(abs.(U.values)))
+    mul!(newfs.idpool,  fs.idpool,  U.vectors * sqrtDx)
+    V = eigen!(newfs.idpool' * newfs.idpool)
+    mul!(newfs.idpool, fs.idpool, reverse(U.vectors * sqrtDx * V.vectors))
+    mul!(newfs.timepool, fs.timepool, reverse(U.vectors * (sqrtDx \ V.vectors)))
     return newfs
 end
 
@@ -117,7 +117,7 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
 end
 
 function build_interaction(refs::Vector, pool::AbstractVector)
-    interaction = Array{Float64}(length(refs))
+    interaction = Array{Float64}(undef, length(refs))
     @inbounds @simd for i in 1:length(refs)
         interaction[i] = pool[refs[i]]
     end
@@ -129,8 +129,8 @@ function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample:
     anyNA = all(esample)
     for r in 1:rank(fp)
         # loadings
-        df[convert(Symbol, "loadings$r")] = build_column(fp.idrefs, fs.idpool[:, r], esample)
-        df[convert(Symbol, "factors$r")] = build_column(fp.timerefs, fs.timepool[:, r], esample)
+        df[Symbol("loadings$r")] = build_column(fp.idrefs, fs.idpool[:, r], esample)
+        df[Symbol("factors$r")] = build_column(fp.timerefs, fs.timepool[:, r], esample)
     end
     return df
 end
@@ -266,12 +266,12 @@ predict(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("predict i
 residuals(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
 title(::InteractiveFixedEffectsResult) = "Linear Factor Model"
 top(x::InteractiveFixedEffectsResult) = [
-            "Number of obs" sprint(showcompact, nobs(x));
-            "Degree of freedom" sprint(showcompact, nobs(x) - df_residual(x));
+            "Number of obs" sprint(show, nobs(x); context=:compact => true);
+            "Degree of freedom" sprint(show, nobs(x) - df_residual(x); context=:compact => true);
             "R2"  @sprintf("%.3f", x.r2);
             "R2 within"  @sprintf("%.3f", x.r2_within);
-            "Iterations" sprint(showcompact, x.iterations);
-            "Converged" sprint(showcompact, x.converged)
+            "Iterations" sprint(show, x.iterations; context=:compact => true);
+            "Converged" sprint(show, x.converged; context=:compact => true)
             ]
 
 

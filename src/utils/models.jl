@@ -11,7 +11,7 @@ function get_weights(df::AbstractDataFrame, weights::Symbol)
     map!(sqrt, out, out)
     return out
 end
-get_weights(df::AbstractDataFrame, ::Void) = Ones{Float64}(size(df, 1))
+get_weights(df::AbstractDataFrame, ::Nothing) = Ones{Float64}(size(df, 1))
 
 
 ##############################################################################
@@ -35,7 +35,7 @@ end
 
 #  remove observations with negative weights
 function isnaorneg(a::Vector{T}) where {T}
-    out = BitArray(length(a))
+    out = BitArray(undef, length(a))
     @simd for i in 1:length(a)
         @inbounds out[i] = !ismissing(a[i]) && (a[i] > zero(T))
     end

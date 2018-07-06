@@ -25,8 +25,8 @@ function fit!(::Type{Val{:gauss_seidel}},
     converged = true
 
     fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
-    idscale = Array{Float64}(size(fs.idpool, 1))
-    timescale = Array{Float64}(size(fs.timepool, 1))
+    idscale = Array{Float64}(undef, size(fs.idpool, 1))
+    timescale = Array{Float64}(undef, size(fs.timepool, 1))
 
     for r in 1:rank(fp)
         fsr = view(fs, :, r)
@@ -74,14 +74,14 @@ function fit!(::Type{Val{:gauss_seidel}},
     T = size(fs.timepool, 1)
 
     #qr fact factorization cannot divide in place for now
-    crossx = cholfact!(At_mul_B(fp.X, fp.X))
+    crossx = cholesky!(fp.X' * fp.X)
     M = crossx \ fp.X'
 
     yoriginal = deepcopy(fp.y)
     fp = InteractiveFixedEffectsModel(deepcopy(fp.y), fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
 
-    idscale = Array{Float64}(size(fs.idpool, 1))
-    timescale = Array{Float64}(size(fs.timepool, 1))
+    idscale = Array{Float64}(undef, size(fs.idpool, 1))
+    timescale = Array{Float64}(undef, size(fs.timepool, 1))
 
     # starts loop
     converged = false
@@ -94,8 +94,8 @@ function fit!(::Type{Val{:gauss_seidel}},
         (f_x, oldf_x) = (oldf_x, f_x)
 
         # Given beta, compute incrementally an approximate factor model
-        copy!(fp.y, yoriginal)
-        BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
+        copyto!(fp.y, yoriginal)
+        gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
         for r in 1:rank(fp)
             fsr = view(fs, :, r)
             update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, idscale, fsr.timepool)
@@ -104,14 +104,14 @@ function fit!(::Type{Val{:gauss_seidel}},
         end
 
         # Given factor model, compute beta
-        copy!(fp.y, yoriginal)
+        copyto!(fp.y, yoriginal)
         subtract_factor!(fp, fs)
         ## corresponds to Gauss Niedel with acceleration
-        scale!(fs.b, -0.5)
-        BLAS.gemm!('N', 'N', 1.5, M, fp.y, 1.0, fs.b)
+        rmul!(fs.b, -0.5)
+        gemm!('N', 'N', 1.5, M, fp.y, 1.0, fs.b)
 
         # Check convergence
-        BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
+        gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
         f_x = sum(abs2, fp.y)
         if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
             converged = true

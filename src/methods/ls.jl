@@ -24,8 +24,8 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     N = size(fs.idpool, 1)
     T = size(fs.timepool, 1)
     fg = FactorGradient(fp,
-                        FactorSolution(Array{Float64}(N), Array{Float64}(T)),
-                        FactorSolution(Array{Float64}(N), Array{Float64}(T))
+                        FactorSolution(Array{Float64}(undef,N), Array{Float64}(undef, T)),
+                        FactorSolution(Array{Float64}(undef,N), Array{Float64}(undef, T))
                        )
     nls = LeastSquaresOptim.LeastSquaresProblem(
                 view(fs, :, 1), 
@@ -68,7 +68,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                          maxiter::Integer = 10_000,
                          tol::Real = 1e-9,
                          lambda::Number = 0.0) where {Rank}
-    scaleb = vec(sum(abs2, fp.X, 1))
+    scaleb = vec(sum(abs2, fp.X, dims = 1))
     fsT = InteractiveFixedEffectsSolutionT(fs.b, fs.idpool', fs.timepool')
     fg = InteractiveFixedEffectsGradientT(fp, 
                 similar(fsT),
@@ -122,10 +122,10 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
         end
     end
 
-    vars = [:(scale!(x.$field, α)) for field in fieldnames(t)]
+    vars = [:(rmul!(x.$field, α)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function scale!(x::$t, α::Number)
+        function rmul!(x::$t, α::Number)
             $expr
             return x
         end
@@ -141,10 +141,10 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     end
 
 
-    vars = [:(copy!(x1.$field, x2.$field)) for field in fieldnames(t)]
+    vars = [:(copyto!(x1.$field, x2.$field)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function copy!(x1::$t, x2::$t)
+        function copyto!(x1::$t, x2::$t)
             $expr
             return x1
         end
@@ -202,18 +202,17 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(x.$field) for field in fieldnames(t)]
     expr = Expr(:call, chain, vars...)
     @eval begin
-        start(x::$t) = start($expr)
-        next(x::$t, state) = next($expr, state)
-        done(x::$t, state) = done($expr, state)
+        iterate(x::$t) = iterate($expr)
+        iterate(x::$t, state) = iterate($expr, state)
     end
 end
 norm(x::AbstractFactorSolution) = sqrt(sum(abs2, x))
 
 eltype(fg::AbstractFactorSolution) = Float64
 
-function safe_scale!(x, β)
+function safe_rmul!(x, β)
     if β != 1
-        β == 0 ? fill!(x, zero(eltype(x))) : scale!(x, β)
+        β == 0 ? fill!(x, zero(eltype(x))) : rmul!(x, β)
     end
 end
 
@@ -226,7 +225,8 @@ end
 ##
 ##############################################################################
 
-abstract type AbstractFactorGradient{T} end
+abstract type AbstractFactorGradient{Rank} end
+
 
 struct FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} <: AbstractFactorGradient{Rank}
     fp::FactorModel{Rank, W, Rid, Rtime}
@@ -256,12 +256,13 @@ function size(fg::InteractiveFixedEffectsGradientT, i::Integer)
     end
 end
 
-Base.rank(f::AbstractFactorGradient{Rank}) where {Rank} = Rank 
+rank(f::AbstractFactorGradient{Rank}) where {Rank} = Rank 
 size(fg::AbstractFactorGradient) = (size(fg, 1), size(fg, 2))
 eltype(fg::AbstractFactorGradient) = Float64
-LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copy!(fs, fg.scalefs)
+adjoint(fg::AbstractFactorGradient) = Adjoint(fg)
+LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copyto!(fs, fg.scalefs)
 
-@generated function A_mul_B!(α::Number, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution{Rank}, β::Number, y::AbstractVector{Float64}) where {Rank}
+@generated function mul!(y::AbstractVector{Float64}, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution, α::Number, β::Number) where {Rank}
     if Rank == 1
         ex = quote
             out += (fg.fs.idpool[idi] * fs.timepool[timei] 
@@ -277,7 +278,7 @@ LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGrad
     end
     quote
         mα = convert(Float64, -α)
-        A_mul_B!_X(mα, fg.fp, fs, β, y)
+        mul!_X(y, fg.fp, fs, mα, β)
         @fastmath @inbounds @simd for i in 1:length(y)
             timei = fg.fp.timerefs[i]
             idi = fg.fp.idrefs[i]
@@ -289,14 +290,15 @@ LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGrad
     end
 end
 
-function A_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, fs::InteractiveFixedEffectsSolutionT, β::Number, y::AbstractVector{Float64})
-    Base.BLAS.gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
-end
-function A_mul_B!_X(::Number, ::FactorModel, ::FactorSolution, β::Number, y::AbstractVector{Float64})
-    safe_scale!(y, β)
+function mul!_X(y::AbstractVector{Float64}, fp::InteractiveFixedEffectsModel, fs::InteractiveFixedEffectsSolutionT, α::Number, β::Number)
+    gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
 end
 
-@generated function Ac_mul_B!(α::Number, fg::AbstractFactorGradient{Rank}, y::AbstractVector{Float64}, β::Number, fs::AbstractFactorSolution{Rank}) where {Rank}
+function mul!_X(y::AbstractVector{Float64}, ::FactorModel, ::FactorSolution, ::Number, β::Number)
+    safe_rmul!(y, β)
+end
+
+@generated function mul!(fs::AbstractFactorSolution{Rank}, Cfg::Adjoint{T, U}, y::AbstractVector{Float64}, α::Number, β::Number) where {Rank, T, U <: AbstractFactorGradient}
     if Rank == 1
         ex = quote
            fs.idpool[idi] += sqrtwi * fg.fs.timepool[timei]
@@ -311,8 +313,9 @@ end
         end
     end
     quote
+        fg = adjoint(Cfg)
         mα = convert(Float64, -α)
-        Ac_mul_B!_X(mα, fg.fp, y, β, fs)
+        mul!_X(fs, fg.fp, y, mα, β)
         @inbounds @simd for i in 1:length(y)
             sqrtwi = mα * y[i] * fg.fp.sqrtw[i]
             idi = fg.fp.idrefs[i]
@@ -323,8 +326,8 @@ end
     end
 end   
 
-function Ac_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, y::AbstractVector{Float64}, β::Number, fs::InteractiveFixedEffectsSolutionT)
-    safe_scale!(fs, β)
+function mul!_X(fs::InteractiveFixedEffectsSolutionT, fp::InteractiveFixedEffectsModel, y::AbstractVector{Float64}, α::Number, β::Number)
+    safe_rmul!(fs, β)
     @inbounds @simd for k in 1:length(fs.b)
         out = zero(Float64)
         for i in 1:length(y)
@@ -334,7 +337,7 @@ function Ac_mul_B!_X(α::Number, fp::InteractiveFixedEffectsModel, y::AbstractVe
     end
 end
 
-function Ac_mul_B!_X(::Number, ::FactorModel, ::AbstractVector{Float64}, β::Number, fs::FactorSolution) safe_scale!(fs, β)
+function mul!_X(fs::FactorSolution, ::FactorModel, ::AbstractVector{Float64}, ::Number, β::Number, ) safe_rmul!(fs, β)
 end
 
 
@@ -357,8 +360,8 @@ end
         end
     end
     quote
-        copy!(out, fp.y)
-        A_mul_B!_X(-1.0, fp, fs, 1.0, out)
+        copyto!(out, fp.y)
+        mul!_X(out, fp, fs, -1.0, 1.0)
         @fastmath @inbounds @simd for i in 1:length(out)
             sqrtwi = fp.sqrtw[i]
             idi = fp.idrefs[i]
@@ -390,7 +393,7 @@ end
         end
     end
     quote
-        copy!(fg.fs, fs)
+        copyto!(fg.fs, fs)
         fill!(fg.scalefs.idpool, zero(Float64))
         fill!(fg.scalefs.timepool, zero(Float64))
         @inbounds @simd for i in 1:length(fg.fp.y)

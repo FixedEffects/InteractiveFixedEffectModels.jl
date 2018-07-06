@@ -7,12 +7,13 @@ module InteractiveFixedEffectModels
 ##############################################################################
 
 
-import Distances: chebyshev
-import Base: length, copy!, axpy!, broadcast!, scale!, dot, similar, Ac_mul_B!, A_mul_B!, sumabs2!, map!, sumabs2, maxabs, fill!, norm, maxabs, size, length, eltype, rank, convert, view, clamp!, dot, vecdot, start, next, done
+import Base: length, copyto!, broadcast!, similar, map!, fill!, size, length, eltype,  convert, view, clamp!, adjoint, iterate
+import LinearAlgebra: mul!, rmul!, Adjoint, rank, norm, dot, vecdot, eigen!, axpy!, Symmetric, diagm, cholesky!
+import LinearAlgebra.BLAS: gemm!
+import Statistics: mean
+import Printf: @sprintf
 using Base.Cartesian
 import StatsBase: coef, nobs, coeftable, vcov, predict, residuals, var, RegressionModel, model_response, stderror, confint, CoefTable,  df_residual
-import Missings: Missing
-import DataArrays: DataArray
 import CategoricalArrays: CategoricalArray, CategoricalVector, compress, categorical, CategoricalPool, levels, droplevels!
 import DataFrames: DataFrame, AbstractDataFrame, completecases, names!, ismissing
 import StatsModels: ModelMatrix, ModelFrame, Terms, coefnames, Formula, completecases, names!,  @formula

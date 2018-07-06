@@ -10,16 +10,16 @@ end
 
 function regife(df::AbstractDataFrame, 
              f::Formula;
-             ife::Union{Symbol, Expr, Void} = nothing, 
-             fe::Union{Symbol, Expr, Void} = nothing, 
-             vcov::Union{Symbol, Expr, Void} = :(simple()), 
-             weights::Union{Symbol, Expr, Void} = nothing, 
-             subset::Union{Symbol, Expr, Void} = nothing, 
+             ife::Union{Symbol, Expr, Nothing} = nothing, 
+             fe::Union{Symbol, Expr, Nothing} = nothing, 
+             vcov::Union{Symbol, Expr, Nothing} = :(simple()), 
+             weights::Union{Symbol, Expr, Nothing} = nothing, 
+             subset::Union{Symbol, Expr, Nothing} = nothing, 
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
              maxiter::Integer = 10_000, 
              tol::Real = 1e-9, 
-             save::Union{Bool, Void} = nothing)
+             save::Union{Bool, Nothing} = nothing)
 
     ##############################################################################
     ##
@@ -190,8 +190,8 @@ function regife(df::AbstractDataFrame,
             end
             info("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
             map!(x -> randn() * x, fs, fs)
-            copy!(ym, y)
-            copy!(Xm, X)
+            copyto!(ym, y)
+            copyto!(Xm, X)
         end
     end
 
@@ -204,7 +204,7 @@ function regife(df::AbstractDataFrame,
     # compute residuals
     fp = FactorModel(deepcopy(y), sqrtw, id.refs, time.refs, m.rank)
     if has_regressors
-        BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
+        gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
     end
     subtract_factor!(fp, fs)
     fp.y .= fp.y ./ sqrtw
@@ -219,7 +219,7 @@ function regife(df::AbstractDataFrame,
         ess = sum(abs2, residuals)
     else
         residualsm = ym .- Xm * fs.b
-        crossxm = cholfact!(At_mul_B(Xm, Xm))
+        crossxm = cholesky!(Xm' * Xm)
         ## compute the right degree of freedom
         df_absorb_fe = 0
         if has_absorb 
@@ -237,8 +237,8 @@ function regife(df::AbstractDataFrame,
         newfes = getfactors(fp, fs)
         for fe in newfes
             df_absorb_factors += 
-                (isa(vcovformula, VcovClusterFormula) && in(fe.factorname, vcov_vars)) ? 
-                    0 : sum(fe.scale .!= zero(Float64))
+                (isa(vcovformula, VcovClusterFormula) & (in(fe.factorname, vcov_vars) ? 
+                    0 : sum(fe.scale .!= zero(Float64))))
         end
         df_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
 
@@ -272,7 +272,7 @@ function regife(df::AbstractDataFrame,
         if all(esample)
             augmentdf[:residuals] = residuals
         else
-            augmentdf[:residuals] =  DataArray(Float64, size(augmentdf, 1))
+            augmentdf[:residuals] =  Vector{Union{Float64, Missing}}(missing, size(augmentdf, 1))
             augmentdf[esample, :residuals] = residuals
         end
 
@@ -283,7 +283,7 @@ function regife(df::AbstractDataFrame,
             oldresiduals = model_response(mf)[:]
             if has_regressors
                 oldX = ModelMatrix(mf).m
-                BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
+                gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
             end
             fp = FactorModel(oldresiduals, sqrtw, id.refs, time.refs, m.rank)
             subtract_factor!(fp, fs)

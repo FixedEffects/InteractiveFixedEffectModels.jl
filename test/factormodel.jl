@@ -1,8 +1,7 @@
-using DataFrames, InteractiveFixedEffectModels, Base.Test, CSV
+using DataFrames, InteractiveFixedEffectModels,Test, CSV
 df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
 df[:pState] =  categorical(df[:State])
 df[:pYear] =  categorical(df[:Year])
-method = :gauss_seidel
 
 for method in [:gauss_seidel,  :dogleg, :levenberg_marquardt]
 	println(method)
