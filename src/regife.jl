@@ -214,7 +214,6 @@ function regife(df::AbstractDataFrame,
     ## Compute errors
     ##
     ##############################################################################
-   
     if !has_regressors
         ess = sum(abs2, residuals)
     else
@@ -223,7 +222,6 @@ function regife(df::AbstractDataFrame,
         ## compute the right degree of freedom
         df_absorb_fe = 0
         if has_absorb 
-            df_absorb_fe = 0
             ## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
             for fe in fes
                 if isa(vcovformula, VcovClusterFormula) && in(fe.factorname, vcov_vars)
@@ -234,11 +232,10 @@ function regife(df::AbstractDataFrame,
             end
         end
         df_absorb_factors = 0
-        newfes = getfactors(fp, fs)
-        for fe in newfes
-            df_absorb_factors += 
-                (isa(vcovformula, VcovClusterFormula) & (in(fe.factorname, vcov_vars) ? 
-                    0 : sum(fe.scale .!= zero(Float64))))
+        for fef in getfactors(fp, fs)
+            if isa(vcovformula, VcovClusterFormula) & in(fef.factorname, vcov_vars)
+                df_absorb_factors +=  sum(fef.scale .!= zero(Float64))
+            end
         end
         df_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
 
