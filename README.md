@@ -1,7 +1,6 @@
-[![InteractiveFixedEffectModels](http://pkg.julialang.org/badges/InteractiveFixedEffectModels_0.6.svg)](http://pkg.julialang.org/?pkg=InteractiveFixedEffectModels)
+[![InteractiveFixedEffectModels](http://pkg.julialang.org/badges/InteractiveFixedEffectModels_0.7.svg)](http://pkg.julialang.org/?pkg=InteractiveFixedEffectModels)
 [![Build Status](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl)
 [![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
-
 
 
 ## Motivation

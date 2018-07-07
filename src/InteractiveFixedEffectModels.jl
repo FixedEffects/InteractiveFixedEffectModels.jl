@@ -21,7 +21,7 @@ import LeastSquaresOptim
 using Reexport
 @reexport using FixedEffectModels
 import FixedEffectModels: title, top, Ones, reg
-import Iterators: chain
+import Itertools: chain
 
 
 ##############################################################################
