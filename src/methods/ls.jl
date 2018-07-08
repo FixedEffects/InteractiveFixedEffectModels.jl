@@ -200,7 +200,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     end
 
     vars = [:(x.$field) for field in fieldnames(t)]
-    expr = Expr(:call, chain, vars...)
+    expr = Expr(:call, Iterators.flatten, Expr(:call, tuple, vars...))
     @eval begin
         iterate(x::$t) = iterate($expr)
         iterate(x::$t, state) = iterate($expr, state)
@@ -215,7 +215,6 @@ function safe_rmul!(x, β)
         β == 0 ? fill!(x, zero(eltype(x))) : rmul!(x, β)
     end
 end
-
 
 
 

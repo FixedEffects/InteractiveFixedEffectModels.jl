@@ -4,6 +4,5 @@ CategoricalArrays
 DataFrames 0.11.0
 StatsModels 0.2.4
 Reexport
-Itertools
 LeastSquaresOptim 0.5.0
 FixedEffectModels 0.5.0

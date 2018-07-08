@@ -4,15 +4,13 @@
 ## 
 ##############################################################################
 
-function get_weights(df::AbstractDataFrame, weights::Symbol) 
-    out = df[weights]
-    # there are no missing in it
-    out = convert(Vector{Float64}, out)
+function get_weights(df::AbstractDataFrame, esample::AbstractVector, weights::Symbol) 
+    # there are no NA in it. DataVector to Vector
+    out = convert(Vector{Float64}, df[esample, weights])
     map!(sqrt, out, out)
     return out
 end
-get_weights(df::AbstractDataFrame, ::Nothing) = Ones{Float64}(size(df, 1))
-
+get_weights(df::AbstractDataFrame, esample::AbstractVector, ::Nothing) = Ones{Float64}(sum(esample))
 
 ##############################################################################
 ##
@@ -26,18 +24,23 @@ function reftype(sz)
     sz <= typemax(UInt32) ? UInt32 :
     UInt64
 end
-function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict = Dict())
-    mf = ModelFrame(trms, d; contrasts = contrasts)
-    mf.msng = esample
-    return mf
-end
 
+
+function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict = Dict())
+    df = DataFrame(map(x -> d[x], trms.eterms), Symbol.(trms.eterms))
+    df = df[esample, :]
+    names!(df, Symbol.(string.(trms.eterms)))
+    evaledContrasts = evalcontrasts(df, contrasts)
+    ## Check for non-redundant terms, modifying terms in place
+    check_non_redundancy!(trms, df)
+    ModelFrame(df, trms, esample, evaledContrasts)
+end
 
 #  remove observations with negative weights
 function isnaorneg(a::Vector{T}) where {T}
     out = BitArray(undef, length(a))
     @simd for i in 1:length(a)
-        @inbounds out[i] = !ismissing(a[i]) && (a[i] > zero(T))
+        @inbounds out[i] = !ismissing(a[i]) & (a[i] > zero(T))
     end
     return out
 end

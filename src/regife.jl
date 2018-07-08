@@ -4,8 +4,8 @@
 ## Fit is the only exported function
 ##
 ##############################################################################
-function regife(df::AbstractDataFrame, m::Model)
-    regife(df, m.f; m.dict...)
+function regife(df::AbstractDataFrame, m::Model; kwargs...)
+    regife(df, m.f; m.dict..., kwargs...)
 end
 
 function regife(df::AbstractDataFrame, 
@@ -59,7 +59,7 @@ function regife(df::AbstractDataFrame,
         error("The categorical variable $(rem[1]) appears in @fe but does not appear in @ife. Simply add it in @formula instead")
     end
     all_vars = vcat(vars, absorb_vars, factor_vars, vcov_vars)
-    all_vars = unique(convert(Vector{Symbol}, all_vars))
+    all_vars = unique(Symbol.(all_vars))
     esample = completecases(df[all_vars])
     if has_weights
         esample .&= isnaorneg(df[weights])
@@ -72,22 +72,18 @@ function regife(df::AbstractDataFrame,
         end
         esample .&= subset
     end
-    subdf = df[esample, all_vars]
-    main_vars = unique(convert(Vector{Symbol}, vcat(vars, factor_vars)))
-    for v in main_vars
-        if typeof(subdf[v]) <: CategoricalVector
-            droplevels!(subdf[v])
-        end
-    end
+    main_vars = unique(Symbol.(vcat(vars, factor_vars)))
+
 
     # Compute data needed for errors
-    vcov_method_data = VcovMethod(subdf, vcovformula)
+    vcov_method_data = VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcovformula)
 
     # Compute weights
-    sqrtw = get_weights(subdf, weights)
+    sqrtw = get_weights(df, esample, weights)
 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
+        subdf = df[esample, unique(Symbol.(absorb_vars))]
         fes = FixedEffect(subdf, feformula, sqrtw)
         # in case some FixedEffect is a FixedEffectIntercept, remove the intercept
         if any([typeof(f.interaction) <: Ones for f in fes]) 
@@ -103,16 +99,18 @@ function regife(df::AbstractDataFrame,
     # get two dimensions
 
     if isa(m.id, Symbol)
-        id = subdf[m.id]
+        # always factorize
+        id = group(df[esample, m.id])
     else
-        factorvars, interactionvars = _split(subdf, allvars(m.id))
-        id = group(subdf, factorvars)
+        factorvars, interactionvars = _split(df, allvars(m.id))
+        id = group(df[esample, factorvars], factorvars)
     end
     if isa(m.time, Symbol)
-        time = subdf[m.time]
+        # always factorize
+        time = group(df[esample, m.time])
     else
-        factorvars, interactionvars = _split(subdf, allvars(m.time))
-        time = group(subdf, factorvars)
+        factorvars, interactionvars = _split(df, allvars(m.time))
+        time = group(df[esample, factorvars], factorvars)
     end
 
     ##############################################################################
@@ -121,7 +119,7 @@ function regife(df::AbstractDataFrame,
     ##
     ##############################################################################
 
-    mf = ModelFrame2(rt, subdf, esample)
+    mf = ModelFrame2(rt, df, esample)
 
     # Compute demeaned X
     if has_regressors
@@ -244,7 +242,7 @@ function regife(df::AbstractDataFrame,
         matrix_vcov = vcov!(vcov_method_data, vcov_data)
 
         # compute various r2
-        nobs = size(subdf, 1)
+        nobs = sum(esample)
         ess = sum(abs2, residualsm)
         tss = compute_tss(ym, rt.intercept, sqrtw)
         r2_within = 1 - ess / tss 
@@ -276,7 +274,7 @@ function regife(df::AbstractDataFrame,
         # save fixed effects in a dataframe
         if has_absorb
             # residual before demeaning
-            mf = ModelFrame2(rt, subdf, esample)
+            mf = ModelFrame2(rt, df, esample)
             oldresiduals = model_response(mf)[:]
             if has_regressors
                 oldX = ModelMatrix(mf).m
