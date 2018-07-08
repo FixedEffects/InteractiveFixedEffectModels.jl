@@ -105,39 +105,27 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
-        idinteraction = build_interaction(fp.timerefs, view(fs.timepool, :, r))
-        idfe = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, idinteraction, :id, :time, :(idxtime))
+        idfe = FixedEffect(fp.idrefs, size(fs.idpool, 1), fp.sqrtw, fs.timepool[fp.timerefs, r], :id, :time, :(idxtime))
         push!(newfes, idfe)
-        timeinteraction = build_interaction(fp.idrefs, view(fs.idpool, :, r))
-        timefe = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, timeinteraction, :time, :id, :(timexid))
+        timefe = FixedEffect(fp.timerefs, size(fs.timepool, 1), fp.sqrtw, fs.idpool[fp.idrefs, r], :time, :id, :(timexid))
         push!(newfes, timefe)
     end
     # obtain the residuals and cross 
     return newfes
 end
 
-function build_interaction(refs::Vector, pool::AbstractVector)
-    interaction = Array{Float64}(undef, length(refs))
-    @inbounds @simd for i in 1:length(refs)
-        interaction[i] = pool[refs[i]]
-    end
-    return interaction
-end
 
 function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::AbstractVector{Bool})
     df = DataFrame()
-    anyNA = all(esample)
     for r in 1:rank(fp)
         # loadings
-        df[Symbol("loadings$r")] = build_column(fp.idrefs, fs.idpool[:, r], esample)
-        df[Symbol("factors$r")] = build_column(fp.timerefs, fs.timepool[:, r], esample)
+        df[Symbol("loadings$r")] = Vector{Union{Float64, Missing}}(missing, length(esample))
+        df[esample, Symbol("loadings$r")] = fs.idpool[:, r][fp.idrefs]
+
+        df[Symbol("factors$r")] = Vector{Union{Float64, Missing}}(missing, length(esample))
+        df[esample, Symbol("factors$r")] = fs.timepool[:, r][fp.timerefs]
     end
     return df
-end
-function build_column(refs::Vector{T1}, pool::Vector{T2}, esample::AbstractVector{Bool}) where {T1, T2}
-    newrefs = fill(zero(T1), length(esample))
-    newrefs[esample] = refs
-    return convert(Vector{Union{T2, Missing}}, CategoricalArray{Union{T2, Missing}, 1}(newrefs, CategoricalPool(pool)))
 end
 
 
