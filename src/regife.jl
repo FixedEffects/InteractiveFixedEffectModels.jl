@@ -138,7 +138,7 @@ function regife(df::AbstractDataFrame,
         y = py
     end
     y .= y .* sqrtw 
-    oldy = deepcopy(y)
+    oldy = copy(y)
     residualize!(y, pfe, Int[], Bool[])
 
     ##############################################################################
@@ -168,8 +168,8 @@ function regife(df::AbstractDataFrame,
 
         fs = InteractiveFixedEffectsSolution(coef, fs.idpool, fs.timepool)
         fp = InteractiveFixedEffectsModel(y, sqrtw, X, id.refs, time.refs, m.rank)
-        ym = deepcopy(y)
-        Xm = deepcopy(X)
+        ym = copy(y)
+        Xm = copy(X)
 
         while true 
             # estimate the model
@@ -200,7 +200,7 @@ function regife(df::AbstractDataFrame,
     ##############################################################################
 
     # compute residuals
-    fp = FactorModel(deepcopy(y), sqrtw, id.refs, time.refs, m.rank)
+    fp = FactorModel(copy(y), sqrtw, id.refs, time.refs, m.rank)
     if has_regressors
         gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
     end

@@ -24,7 +24,7 @@ function fit!(::Type{Val{:gauss_seidel}},
     iter = 0
     converged = true
 
-    fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
+    fp = FactorModel(copy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, rank(fp))
     idscale = Array{Float64}(undef, size(fs.idpool, 1))
     timescale = Array{Float64}(undef, size(fs.timepool, 1))
 
@@ -77,8 +77,8 @@ function fit!(::Type{Val{:gauss_seidel}},
     crossx = cholesky!(fp.X' * fp.X)
     M = crossx \ fp.X'
 
-    yoriginal = deepcopy(fp.y)
-    fp = InteractiveFixedEffectsModel(deepcopy(fp.y), fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
+    yoriginal = copy(fp.y)
+    fp = InteractiveFixedEffectsModel(copy(fp.y), fp.sqrtw, fp.X, fp.idrefs, fp.timerefs, rank(fp))
 
     idscale = Array{Float64}(undef, size(fs.idpool, 1))
     timescale = Array{Float64}(undef, size(fs.timepool, 1))

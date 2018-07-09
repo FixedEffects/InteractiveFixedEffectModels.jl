@@ -20,7 +20,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     iter = 0
     converged = true
     fullrank = rank(fp)
-    fp = FactorModel(deepcopy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, 1)
+    fp = FactorModel(copy(fp.y), fp.sqrtw, fp.idrefs, fp.timerefs, 1)
     N = size(fs.idpool, 1)
     T = size(fs.timepool, 1)
     fg = FactorGradient(fp,
