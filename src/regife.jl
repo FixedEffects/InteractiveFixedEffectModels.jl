@@ -8,6 +8,11 @@ function regife(df::AbstractDataFrame, m::Model; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
 
+#= salue 
+
+efe
+=#
+
 function regife(df::AbstractDataFrame, 
              f::Formula;
              ife::Union{Symbol, Expr, Nothing} = nothing, 

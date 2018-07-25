@@ -14,7 +14,7 @@ Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated wi
 
 
 ## Syntax
-To estimate an interactive fixed effect model, one needs to specify a formula, a factor model with `ife`, and, eventually, a set of fixed effects with `fe`, a way to compute standard errors with `vcov`, and a weight variable with `weights`.
+To estimate an interactive fixed effect model, one needs to specify a formula, a factor model with `ife`, and, optionally, a set of fixed effects with `fe`, a way to compute standard errors with `vcov`, and a weight variable with `weights`.
 
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
@@ -49,7 +49,7 @@ regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState, save = 
 	```julia
 	Sales ~ Price + Year
 	```
-- Interactive fixed effects are indicated with the keyword argument `ife`. Variables must be of type `PooledDataVector`. For instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
+- Interactive fixed effects are indicated with the keyword argument `ife`. Variables must be of type `PooledDataVector`. The rank is the number of components to use. facFor instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
 
 	```julia
 	df[:pState] =  categorical(df[:State])
