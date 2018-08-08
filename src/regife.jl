@@ -8,11 +8,6 @@ function regife(df::AbstractDataFrame, m::Model; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
 
-#= salue 
-
-efe
-=#
-
 function regife(df::AbstractDataFrame, 
              f::Formula;
              ife::Union{Symbol, Expr, Nothing} = nothing, 
@@ -83,21 +78,23 @@ function regife(df::AbstractDataFrame,
     # Compute data needed for errors
     vcov_method_data = VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcovformula)
 
-    # Compute weights
-    sqrtw = get_weights(df, esample, weights)
-
+ 
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
-        subdf = df[esample, unique(Symbol.(absorb_vars))]
-        fes = FixedEffect(subdf, feformula, sqrtw)
+        sqrtw = get_weights(df, trues(length(esample)), weights)
+        fixedeffects = FixedEffect(df, Terms(@eval(@formula(nothing ~ $(feformula)))), sqrtw)
+        fixedeffects = FixedEffect[x[esample] for x in fixedeffects]
         # in case some FixedEffect is a FixedEffectIntercept, remove the intercept
-        if any([typeof(f.interaction) <: Ones for f in fes]) 
+        if any([typeof(f.interactionname) <: Nothing for f in fixedeffects]) 
             rt.intercept = false
         end
-        pfe = FixedEffectProblem(fes, Val{:lsmr})
+        pfe = FixedEffectProblem(fixedeffects, Val{:lsmr})
     else
         pfe = nothing
     end
+
+    # Compute weights
+    sqrtw = get_weights(df, esample, weights)
 
     iterations = 0
     converged = false
@@ -144,7 +141,9 @@ function regife(df::AbstractDataFrame,
     end
     y .= y .* sqrtw 
     oldy = copy(y)
-    residualize!(y, pfe, Int[], Bool[])
+    v1 = Int[]
+    v2 = Bool[]
+    residualize!(y, pfe, v1, v2)
 
     ##############################################################################
     ##
@@ -226,7 +225,7 @@ function regife(df::AbstractDataFrame,
         df_absorb_fe = 0
         if has_absorb 
             ## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
-            for fe in fes
+            for fe in fixedeffects
                 if isa(vcovformula, VcovClusterFormula) && in(fe.factorname, vcov_vars)
                     df_absorb_fe += 0
                 else

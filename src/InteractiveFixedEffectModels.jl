@@ -1,5 +1,4 @@
 module InteractiveFixedEffectModels
-
 ##############################################################################
 ##
 ## Dependencies
