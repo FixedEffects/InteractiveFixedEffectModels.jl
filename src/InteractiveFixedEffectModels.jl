@@ -7,7 +7,7 @@ module InteractiveFixedEffectModels
 
 
 import Base: length, copyto!, broadcast!, similar, map!, fill!, size, length, eltype,  convert, view, clamp!, adjoint, iterate
-import LinearAlgebra: mul!, rmul!, Adjoint, rank, norm, dot, vecdot, eigen!, axpy!, Symmetric, diagm, cholesky!
+import LinearAlgebra: mul!, rmul!, Adjoint, rank, norm, dot, eigen!, axpy!, Symmetric, diagm, cholesky!
 import LinearAlgebra.BLAS: gemm!
 import Statistics: mean
 import Printf: @sprintf

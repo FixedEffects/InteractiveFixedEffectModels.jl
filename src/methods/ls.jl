@@ -95,7 +95,7 @@ end
 ##
 ##############################################################################
 
-function vecdot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
+function dot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
     out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(fs1)
         out += fs1[i] * fs2[i]
@@ -103,7 +103,7 @@ function vecdot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
     return out
 end
 
-function vecdot(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}) where {T}
+function dot(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}) where {T}
     out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(x)
         out += w[i] * x[i] * y[i]
@@ -167,7 +167,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
             return x1
         end
     end
-    vars = [:(vecdot(x1.$field, x2.$field)) for field in fieldnames(t)]
+    vars = [:(dot(x1.$field, x2.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :+, vars...)
     @eval begin
         function dot(x1::$t, x2::$t)
@@ -175,7 +175,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
         end
     end
 
-    vars = [:(vecdot(x1.$field, x2.$field, w.$field)) for field in fieldnames(t)]
+    vars = [:(dot(x1.$field, x2.$field, w.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :+, vars...)
     @eval begin
         function dot(x1::$t, x2::$t, w::$t)
