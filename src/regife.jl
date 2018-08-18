@@ -4,6 +4,26 @@
 ## Fit is the only exported function
 ##
 ##############################################################################
+
+function f(t::Vector{T}) where {T <: NamedTuple}
+    out = 0
+    for i in length(t)
+        out += t[i].age
+    end
+    return out
+end
+@time  f([(name = "Gomez", age = 31) for i in 1:1_000_000])
+
+function f(t::Vector{T}) where {T <: Tuple}
+    out = 0
+    for i in length(t)
+        out += t[i][2]
+    end
+    return out
+end
+@time  f([("Gomez", 31) for i in 1:1_000_000])
+
+
 function regife(df::AbstractDataFrame, m::Model; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
@@ -239,10 +259,10 @@ function regife(df::AbstractDataFrame,
                 df_absorb_factors +=  sum(fef.scale .!= zero(Float64))
             end
         end
-        df_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
+        dof_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
 
         ## estimate vcov matrix
-        vcov_data = VcovData(Xm, crossxm, residualsm, df_residual)
+        vcov_data = VcovData(Xm, crossxm, residualsm, dof_residual)
         matrix_vcov = vcov!(vcov_method_data, vcov_data)
 
         # compute various r2
@@ -254,7 +274,7 @@ function regife(df::AbstractDataFrame,
         ess = sum(abs2, residuals)
         tss = compute_tss(oldy, rt.intercept || has_absorb, sqrtw)
         r2 = 1 - ess / tss 
-        r2_a = 1 - ess / tss * (nobs - rt.intercept) / df_residual 
+        r2_a = 1 - ess / tss * (nobs - rt.intercept) / dof_residual 
     end
 
     ##############################################################################
@@ -297,7 +317,7 @@ function regife(df::AbstractDataFrame,
         return FactorResult(esample, augmentdf, ess, iterations, converged)
     else
         return InteractiveFixedEffectsResult(fs.b, matrix_vcov, esample, augmentdf, 
-            coef_names, yname, f, nobs, df_residual, r2, r2_a, r2_within, 
+            coef_names, yname, f, nobs, dof_residual, r2, r2_a, r2_within, 
             ess, sum(iterations), all(converged))
     end
 end

@@ -250,7 +250,7 @@ struct InteractiveFixedEffectsResult <: AbstractRegressionResult
     formula::Formula        # Original formula 
 
     nobs::Int64             # Number of observations
-    df_residual::Int64      # degree of freedoms
+    dof_residual::Int64      # degree of freedoms
 
     r2::Float64             # R squared
     r2_a::Float64           # R squared adjusted
@@ -267,7 +267,7 @@ residuals(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("residua
 title(::InteractiveFixedEffectsResult) = "Linear Factor Model"
 top(x::InteractiveFixedEffectsResult) = [
             "Number of obs" sprint(show, nobs(x); context=:compact => true);
-            "Degree of freedom" sprint(show, nobs(x) - df_residual(x); context=:compact => true);
+            "Degree of freedom" sprint(show, nobs(x) - dof_residual(x); context=:compact => true);
             "R2"  @sprintf("%.3f", x.r2);
             "R2 within"  @sprintf("%.3f", x.r2_within);
             "Iterations" sprint(show, x.iterations; context=:compact => true);
