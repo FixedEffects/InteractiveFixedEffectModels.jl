@@ -5,24 +5,6 @@
 ##
 ##############################################################################
 
-function f(t::Vector{T}) where {T <: NamedTuple}
-    out = 0
-    for i in length(t)
-        out += t[i].age
-    end
-    return out
-end
-@time  f([(name = "Gomez", age = 31) for i in 1:1_000_000])
-
-function f(t::Vector{T}) where {T <: Tuple}
-    out = 0
-    for i in length(t)
-        out += t[i][2]
-    end
-    return out
-end
-@time  f([("Gomez", 31) for i in 1:1_000_000])
-
 
 function regife(df::AbstractDataFrame, m::Model; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
