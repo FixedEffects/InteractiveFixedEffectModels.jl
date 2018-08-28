@@ -231,7 +231,7 @@ struct FactorResult
     esample::BitVector
     augmentdf::DataFrame
 
-    ess::Float64
+    rss::Float64
     iterations::Int64
     converged::Bool
 end
@@ -256,7 +256,7 @@ struct InteractiveFixedEffectsResult <: AbstractRegressionResult
     r2_a::Float64           # R squared adjusted
     r2_within::Float64      # R within
 
-    ess::Float64
+    rss::Float64
     iterations::Int         # Number of iterations        
     converged::Bool         # Has the demeaning algorithm converged?
 

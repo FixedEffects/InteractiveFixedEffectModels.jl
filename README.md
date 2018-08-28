@@ -129,5 +129,6 @@ In presence of cross or time correlation beyond the factor structure, the estima
 ## Install
 
 ```julia
+using Pkg
 Pkg.add("InteractiveFixedEffectModels")
 ```

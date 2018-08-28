@@ -219,7 +219,7 @@ function regife(df::AbstractDataFrame,
     ##
     ##############################################################################
     if !has_regressors
-        ess = sum(abs2, residuals)
+        rss = sum(abs2, residuals)
     else
         residualsm = ym .- Xm * fs.b
         crossxm = cholesky!(Xm' * Xm)
@@ -249,14 +249,14 @@ function regife(df::AbstractDataFrame,
 
         # compute various r2
         nobs = sum(esample)
-        ess = sum(abs2, residualsm)
+        rss = sum(abs2, residualsm)
         tss = compute_tss(ym, rt.intercept, sqrtw)
-        r2_within = 1 - ess / tss 
+        r2_within = 1 - rss / tss 
 
-        ess = sum(abs2, residuals)
+        rss = sum(abs2, residuals)
         tss = compute_tss(oldy, rt.intercept || has_absorb, sqrtw)
-        r2 = 1 - ess / tss 
-        r2_a = 1 - ess / tss * (nobs - rt.intercept) / dof_residual 
+        r2 = 1 - rss / tss 
+        r2_a = 1 - rss / tss * (nobs - rt.intercept) / dof_residual 
     end
 
     ##############################################################################
@@ -296,11 +296,11 @@ function regife(df::AbstractDataFrame,
 
 
     if !has_regressors
-        return FactorResult(esample, augmentdf, ess, iterations, converged)
+        return FactorResult(esample, augmentdf, rss, iterations, converged)
     else
         return InteractiveFixedEffectsResult(fs.b, matrix_vcov, esample, augmentdf, 
             coef_names, yname, f, nobs, dof_residual, r2, r2_a, r2_within, 
-            ess, sum(iterations), all(converged))
+            rss, sum(iterations), all(converged))
     end
 end
 
