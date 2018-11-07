@@ -34,11 +34,11 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                 fg, 
                 g!)
     if t == Val{:levenberg_marquardt}
-        optimizer = LeastSquaresOptim.LevenbergMarquardt()
+        optimizer = LeastSquaresOptim.LevenbergMarquardt(LeastSquaresOptim.LSMR())
     else
-        optimizer = LeastSquaresOptim.Dogleg()
+        optimizer = LeastSquaresOptim.Dogleg(LeastSquaresOptim.LSMR())
     end
-    full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer, LeastSquaresOptim.LSMR())
+    full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer)
     for r in 1:fullrank
         fsr = view(fs, :, r)
         full.x = fsr
@@ -75,11 +75,11 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                 InteractiveFixedEffectsSolutionT(scaleb, similar(fsT.idpool), similar(fsT.timepool)))
     nls = LeastSquaresOptim.LeastSquaresProblem(fsT, similar(fp.y), (y, x) -> f!(y, x, fp), fg, g!)
     if t == Val{:levenberg_marquardt}
-        optimizer = LeastSquaresOptim.LevenbergMarquardt()
+        optimizer = LeastSquaresOptim.LevenbergMarquardt(LeastSquaresOptim.LSMR())
     else
-        optimizer = LeastSquaresOptim.Dogleg()
+        optimizer = LeastSquaresOptim.Dogleg(LeastSquaresOptim.LSMR())
     end
-    full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer, LeastSquaresOptim.LSMR())
+    full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer)
     temp = similar(fp.y)
     result = LeastSquaresOptim.optimize!(full;
             x_tol = 1e-32, g_tol = 1e-32, f_tol = tol,  iterations = maxiter)
