@@ -3,10 +3,9 @@
 
 
 ## Motivation
-This package implements a novel, fast and robust algorithm to estimate interactive fixed effect models (Bai 2009).
+This package implements a novel, fast and robust algorithm to estimate interactive fixed effect models. 
 
-
-Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
+The definition of interactive fixed effects follows Bai (2009).Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
 
 ![minimization](img/minimization.png)
 
