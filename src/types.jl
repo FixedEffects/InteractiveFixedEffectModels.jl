@@ -105,21 +105,9 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
-        idfe = FixedEffect(fp.idrefs, fp.sqrtw, zeros(size(fs.idpool, 1)), fs.timepool[fp.timerefs, r], :id, :time, :(idxtime))
-        for i in 1:length(idfe.refs)
-            idfe.scale[idfe.refs[i]] += abs2(idfe.interaction[i] * idfe.sqrtw[i])
-        end
-        for i in 1:length(idfe.scale)
-            idfe.scale[i] = idfe.scale[i] > 0 ? (1.0 / sqrt(idfe.scale[i])) : 0.
-        end
+        idfe = FixedEffect(fp.idrefs, fs.timepool[fp.timerefs, r], length(fs.idpool))
         push!(newfes, idfe)
-        timefe = FixedEffect(fp.timerefs, fp.sqrtw, zeros(size(fs.timepool, 1)), fs.idpool[fp.idrefs, r], :time, :id, :(timexid))
-        for i in 1:length(timefe.refs)
-            timefe.scale[timefe.refs[i]] += abs2(timefe.interaction[i] * timefe.sqrtw[i])
-        end
-        for i in 1:length(timefe.scale)
-            timefe.scale[i] = timefe.scale[i] > 0 ? (1.0 / sqrt(timefe.scale[i])) : 0.
-        end
+        timefe = FixedEffect(fp.timerefs, fs.idpool[fp.idrefs, r], length(fs.timepool))
         push!(newfes, timefe)
     end
     # obtain the residuals and cross 

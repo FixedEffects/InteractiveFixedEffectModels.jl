@@ -37,7 +37,7 @@ function regife(df::AbstractDataFrame,
     m = InteractiveFixedEffectFormula(ife)
     ## parse formula 
     rf = deepcopy(f)
-    (has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = decompose_iv!(rf)
+    (has_iv, iv_formula, iv_terms, endo_formula, endo_terms) = FixedEffectModels.decompose_iv!(rf)
     if has_iv
         error("partial_out does not support instrumental variables")
     end
@@ -80,23 +80,23 @@ function regife(df::AbstractDataFrame,
     # Compute data needed for errors
     vcov_method_data = VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcovformula)
 
- 
+     # Compute weights
+     sqrtw = get_weights(df, esample, weights)
+
     ## Compute factors, an array of AbtractFixedEffects
     if has_absorb
-        sqrtw = get_weights(df, trues(length(esample)), weights)
-        fixedeffects = FixedEffect(df, Terms(@eval(@formula(nothing ~ $(feformula)))), sqrtw)
-        fixedeffects = FixedEffect[x[esample] for x in fixedeffects]
+        fes, ids = FixedEffectModels.parse_fixedeffect(df, Terms(@eval(@formula(nothing ~ $(feformula)))))
         # in case some FixedEffect is a FixedEffectIntercept, remove the intercept
-        if any([typeof(f.interactionname) <: Nothing for f in fixedeffects]) 
+        if any([isa(x.interaction, Ones) for x in fes]) 
             rt.intercept = false
         end
-        pfe = FixedEffectProblem(fixedeffects, Val{:lsmr})
+        fes = FixedEffect[x[esample] for x in fes]
+        pfe = FixedEffectModels.FixedEffectProblem(fes, sqrtw, Val{:lsmr})
     else
         pfe = nothing
     end
 
-    # Compute weights
-    sqrtw = get_weights(df, esample, weights)
+
 
     iterations = 0
     converged = false
@@ -130,7 +130,7 @@ function regife(df::AbstractDataFrame,
         coef_names = coefnames(mf)
         X = ModelMatrix(mf).m
         X .= X .* sqrtw 
-        residualize!(X, pfe, Int[], Bool[])
+        FixedEffectModels.residualize!(X, pfe, Int[], Bool[])
     end
 
     # Compute demeaned y
@@ -145,7 +145,7 @@ function regife(df::AbstractDataFrame,
     oldy = copy(y)
     v1 = Int[]
     v2 = Bool[]
-    residualize!(y, pfe, v1, v2)
+    FixedEffectModels.residualize!(y, pfe, v1, v2)
 
     ##############################################################################
     ##
@@ -185,9 +185,9 @@ function regife(df::AbstractDataFrame,
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newpfe = FixedEffectProblem(getfactors(fp, fs), Val{:lsmr})
-            residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
-            residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
+            newpfe = FixedEffectModels.FixedEffectProblem(getfactors(fp, fs), sqrtw, Val{:lsmr})
+            FixedEffectModels.residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
+            FixedEffectModels.residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
             ydiff = Xm * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
@@ -226,22 +226,11 @@ function regife(df::AbstractDataFrame,
         ## compute the right degree of freedom
         df_absorb_fe = 0
         if has_absorb 
-            ## poor man adjustement of df for clustedered errors + fe: only if fe name != cluster name
-            for fe in fixedeffects
-                if isa(vcovformula, VcovClusterFormula) && in(fe.factorname, vcov_vars)
-                    df_absorb_fe += 0
-                else
-                    df_absorb_fe += sum(fe.scale .!= zero(Float64))
-                end
+            for fe in fes
+                df_absorb_fe += length(unique(fe.refs))
             end
         end
-        df_absorb_factors = 0
-        for fef in getfactors(fp, fs)
-            if isa(vcovformula, VcovClusterFormula) & in(fef.factorname, vcov_vars)
-                df_absorb_factors +=  sum(fef.scale .!= zero(Float64))
-            end
-        end
-        dof_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe - df_absorb_factors, 1)
+        dof_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe, 1)
 
         ## estimate vcov matrix
         vcov_data = VcovData(Xm, crossxm, residualsm, dof_residual)
@@ -290,7 +279,11 @@ function regife(df::AbstractDataFrame,
             subtract_factor!(fp, fs)
             axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
-            augmentdf = hcat(augmentdf, getfe!(pfe, oldresiduals, esample))
+            fev = FixedEffectModels.getfe!(pfe, oldresiduals; tol = tol, maxiter = maxiter)
+             for j in 1:length(fes)
+                 augmentdf[ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
+                 augmentdf[esample, ids[j]] = fev[j][fes[j].refs]
+             end
         end
     end
 
