@@ -90,8 +90,8 @@ function regife(df::AbstractDataFrame,
         if any([isa(x.interaction, Ones) for x in fes]) 
             rt.intercept = false
         end
-        fes = FixedEffect[x[esample] for x in fes]
-        pfe = FixedEffectModels.FixedEffectProblem(fes, sqrtw, Val{:lsmr})
+        fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
+        pfe = FixedEffectModels.FixedEffectMatrix(fes, sqrtw, Val{:lsmr})
     else
         pfe = nothing
     end
@@ -107,14 +107,14 @@ function regife(df::AbstractDataFrame,
         id = group(df[esample, m.id])
     else
         factorvars, interactionvars = _split(df, allvars(m.id))
-        id = group(df[esample, factorvars], factorvars)
+        id = group((df[esample, v] for v in factorvars)...)
     end
     if isa(m.time, Symbol)
         # always factorize
         time = group(df[esample, m.time])
     else
         factorvars, interactionvars = _split(df, allvars(m.time))
-        time = group(df[esample, factorvars], factorvars)
+        time = group((df[esample, v] for v in factorvars)...)
     end
 
     ##############################################################################
@@ -130,7 +130,9 @@ function regife(df::AbstractDataFrame,
         coef_names = coefnames(mf)
         X = ModelMatrix(mf).m
         X .= X .* sqrtw 
-        FixedEffectModels.residualize!(X, pfe, Int[], Bool[])
+        if has_absorb
+            FixedEffectModels.solve_residuals!(X, pfe)
+        end
     end
 
     # Compute demeaned y
@@ -143,9 +145,9 @@ function regife(df::AbstractDataFrame,
     end
     y .= y .* sqrtw 
     oldy = copy(y)
-    v1 = Int[]
-    v2 = Bool[]
-    FixedEffectModels.residualize!(y, pfe, v1, v2)
+    if has_absorb
+        FixedEffectModels.solve_residuals!(y, pfe)
+    end
 
     ##############################################################################
     ##
@@ -185,9 +187,9 @@ function regife(df::AbstractDataFrame,
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newpfe = FixedEffectModels.FixedEffectProblem(getfactors(fp, fs), sqrtw, Val{:lsmr})
-            FixedEffectModels.residualize!(ym, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
-            FixedEffectModels.residualize!(Xm, newpfe, Int[], Bool[], tol = tol, maxiter = maxiter)
+            newpfe = FixedEffectModels.FixedEffectMatrix(getfactors(fp, fs), sqrtw, Val{:lsmr})
+            FixedEffectModels.solve_residuals!(ym, newpfe, tol = tol, maxiter = maxiter)
+            FixedEffectModels.solve_residuals!(Xm, newpfe, tol = tol, maxiter = maxiter)
             ydiff = Xm * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
@@ -279,11 +281,11 @@ function regife(df::AbstractDataFrame,
             subtract_factor!(fp, fs)
             axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
-            fev = FixedEffectModels.getfe!(pfe, oldresiduals; tol = tol, maxiter = maxiter)
-             for j in 1:length(fes)
-                 augmentdf[ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
-                 augmentdf[esample, ids[j]] = fev[j][fes[j].refs]
-             end
+            newfes, b, c = FixedEffectModels.solve_coefficients!(oldresiduals, pfe; tol = tol, maxiter = maxiter)
+            for j in 1:length(fes)
+                augmentdf[ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
+                augmentdf[esample, ids[j]] = newfes[j]
+            end
         end
     end
 

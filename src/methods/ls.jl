@@ -38,6 +38,7 @@ function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
     else
         optimizer = LeastSquaresOptim.Dogleg(LeastSquaresOptim.LSMR())
     end
+
     full = LeastSquaresOptim.LeastSquaresProblemAllocated(nls, optimizer)
     for r in 1:fullrank
         fsr = view(fs, :, r)
