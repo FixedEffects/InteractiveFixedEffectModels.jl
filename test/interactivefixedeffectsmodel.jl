@@ -7,7 +7,7 @@ df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
 df[:pState] = categorical(df[:State])
 df[:pYear] = categorical(df[:Year])
 
-for method in [:gauss_seidel, :dogleg, :levenberg_marquardt]
+for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 	println(method)
 	model = @model Sales ~ Price ife = (pState + pYear, 1) method = $(method) save = true
 	result = regife(df, model)

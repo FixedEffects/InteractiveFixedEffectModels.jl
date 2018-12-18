@@ -91,7 +91,7 @@ function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)
     U = eigen!(Symmetric(fs.timepool' * fs.timepool))
     sqrtDx = diagm(0 => sqrt.(abs.(U.values)))
     mul!(newfs.idpool,  fs.idpool,  U.vectors * sqrtDx)
-    V = eigen!(newfs.idpool' * newfs.idpool)
+    V = eigen!(Symmetric(newfs.idpool' * newfs.idpool))
     mul!(newfs.idpool, fs.idpool, reverse(U.vectors * sqrtDx * V.vectors))
     mul!(newfs.timepool, fs.timepool, reverse(U.vectors * (sqrtDx \ V.vectors)))
     return newfs

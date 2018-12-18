@@ -194,7 +194,7 @@ function regife(df::AbstractDataFrame,
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
             end
-            info("Algorithm ended up on a local minimum. Restarting from a new, random, x0.")
+            @info "Algorithm ended up on a local minimum. Restarting from a new, random, x0."
             map!(x -> randn() * x, fs, fs)
             copyto!(ym, y)
             copyto!(Xm, X)
