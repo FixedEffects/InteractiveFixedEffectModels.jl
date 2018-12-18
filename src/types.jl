@@ -105,9 +105,9 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
-        idfe = FixedEffect(fp.idrefs, fs.timepool[fp.timerefs, r], length(fs.idpool))
+        idfe = FixedEffect{typeof(id.refs), Float64}(fp.idrefs, fs.timepool[fp.timerefs, r], length(fs.idpool))
         push!(newfes, idfe)
-        timefe = FixedEffect(fp.timerefs, fs.idpool[fp.idrefs, r], length(fs.timepool))
+        timefe = FixedEffect{typeof(id.timerefs), Float64}(fp.timerefs, fs.idpool[fp.idrefs, r], length(fs.timepool))
         push!(newfes, timefe)
     end
     # obtain the residuals and cross 
