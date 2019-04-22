@@ -1,8 +1,7 @@
 using DataFrames, InteractiveFixedEffectModels, CSV, LinearAlgebra, Test
 
 precision = 2e-1
-df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
-#df = readtable("/Users/Matthieu/Dropbox/Github/FixedEffectModels.jl/dataset/Cigar.csv.gz")
+df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv"))
 
 df[:pState] = categorical(df[:State])
 df[:pYear] = categorical(df[:Year])
@@ -75,7 +74,7 @@ precision = 2e-1
 for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
-	global df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "Cigar.csv"))
+	df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv"))
 	df[:pState] = categorical(df[:State])
 	df[:pYear] = categorical(df[:Year])
 	model = @model Sales ~ Price ife = (pState + pYear, 1) fe = pState weights = Pop method = $(method) save = true
@@ -83,7 +82,7 @@ for method in [:levenberg_marquardt, :dogleg]
 	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState weights = Pop method = $(method) save = true
 	result = regife(df, model)
 
-	global df = CSV.read(joinpath(dirname(@__FILE__), "..", "dataset", "EmplUK.csv"))
+	df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/EmplUK.csv"))
 	df[:id1] = df[:Firm]
 	df[:id2] = df[:Year]
 	df[:pid1] = categorical(df[:id1])
