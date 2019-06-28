@@ -37,12 +37,8 @@ function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict
 end
 
 #  remove observations with negative weights
-function isnaorneg(a::Vector{T}) where {T}
-    out = BitArray(undef, length(a))
-    @simd for i in 1:length(a)
-        @inbounds out[i] = !ismissing(a[i]) & (a[i] > zero(T))
-    end
-    return out
+function isnaorneg(a::AbstractVector)
+    BitArray(!ismissing(x) & (x > 0) for x in a)
 end
 
 
