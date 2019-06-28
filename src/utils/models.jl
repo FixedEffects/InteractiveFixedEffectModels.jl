@@ -37,9 +37,7 @@ function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict
 end
 
 #  remove observations with negative weights
-function isnaorneg(a::AbstractVector)
-    BitArray(!ismissing(x) & (x > 0) for x in a)
-end
+isnaorneg(a::AbstractVector) = BitArray(!ismissing(x) & (x > 0) for x in a)
 
 
 function _split(df::AbstractDataFrame, ss::Vector{Symbol})
