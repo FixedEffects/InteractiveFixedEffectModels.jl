@@ -62,9 +62,9 @@ function regife(df::AbstractDataFrame,
     end
     all_vars = vcat(vars, absorb_vars, factor_vars, vcov_vars)
     all_vars = unique(Symbol.(all_vars))
-    esample = completecases(df[all_vars])
+    esample = completecases(df[!, all_vars])
     if has_weights
-        esample .&= isnaorneg(df[weights])
+        esample .&= isnaorneg(df[!, weights])
         all_vars = unique(vcat(all_vars, weights))
     end
     if subset != nothing
@@ -224,7 +224,7 @@ function regife(df::AbstractDataFrame,
         rss = sum(abs2, residuals)
     else
         residualsm = ym .- Xm * fs.b
-        crossxm = cholesky!(Xm' * Xm)
+        crossxm = cholesky!(Symmetric(Xm' * Xm))
         ## compute the right degree of freedom
         df_absorb_fe = 0
         if has_absorb 
@@ -237,7 +237,6 @@ function regife(df::AbstractDataFrame,
         ## estimate vcov matrix
         vcov_data = VcovData(Xm, crossxm, residualsm, dof_residual)
         matrix_vcov = vcov!(vcov_method_data, vcov_data)
-
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
@@ -262,9 +261,9 @@ function regife(df::AbstractDataFrame,
         augmentdf = DataFrame(fp, fs, esample)
         # save residuals in a dataframe
         if all(esample)
-            augmentdf[:residuals] = residuals
+            augmentdf[!, :residuals] = residuals
         else
-            augmentdf[:residuals] =  Vector{Union{Float64, Missing}}(missing, size(augmentdf, 1))
+            augmentdf[!, :residuals] =  Vector{Union{Float64, Missing}}(missing, size(augmentdf, 1))
             augmentdf[esample, :residuals] = residuals
         end
 
@@ -283,7 +282,7 @@ function regife(df::AbstractDataFrame,
             # get fixed effect
             newfes, b, c = FixedEffectModels.solve_coefficients!(oldresiduals, pfe; tol = tol, maxiter = maxiter)
             for j in 1:length(fes)
-                augmentdf[ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
+                augmentdf[!, ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
                 augmentdf[esample, ids[j]] = newfes[j]
             end
         end
@@ -308,5 +307,5 @@ function evaluate_subset(df, ex::Expr)
         return Expr(ex.head, (evaluate_subset(df, ex.args[i]) for i in 1:length(ex.args))...)
     end
 end
-evaluate_subset(df, ex::Symbol) = df[ex]
+evaluate_subset(df, ex::Symbol) = df[!, ex]
 evaluate_subset(df, ex)  = ex

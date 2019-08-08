@@ -3,8 +3,8 @@ using DataFrames, InteractiveFixedEffectModels, CSV, LinearAlgebra, Test
 precision = 2e-1
 df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv"))
 
-df[:pState] = categorical(df[:State])
-df[:pYear] = categorical(df[:Year])
+df.pState = categorical(df.State)
+df.pYear = categorical(df.Year)
 
 for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 	println(method)
@@ -53,16 +53,16 @@ for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState method = $(method) subset = (State .<= 30) save = true
 	result = regife(df, model)
 	@test size(result.augmentdf, 1) == size(df, 1)
-	@test norm(abs(result.augmentdf[:factors1][1]) / 0.25965 - 1) < precision
-	@test norm(abs(result.augmentdf[:loadings1][1]) / 107.832 - 1) < precision
-	@test norm(abs(result.augmentdf[:factors2][1])  / 0.2655  - 1) < precision
-	@test norm(abs(result.augmentdf[:loadings2][1]) / 15.551 - 1) < precision
-	@test norm(result.augmentdf[:residuals][1] / -3.8624  - 1) < precision
-	@test norm(result.augmentdf[:pState][1] / 131.6162 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :factors1]) / 0.25965 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 107.832 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :factors2])  / 0.2655  - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings2]) / 15.551 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals] / -3.8624  - 1) < precision
+	@test norm(result.augmentdf[1, :pState] / 131.6162 - 1) < precision
 end
 
 # check high dimentional fixed effects are part of factor models
-df[:pState2] = categorical(df[:State])
+df.pState2 = categorical(df.State)
 @test_throws ErrorException regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState2, weights = Pop, method = levenberg_marquardt, save = true))
 
 
@@ -75,21 +75,21 @@ for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
 	df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv"))
-	df[:pState] = categorical(df[:State])
-	df[:pYear] = categorical(df[:Year])
+	df.pState = categorical(df.State)
+	df.pYear = categorical(df.Year)
 	model = @model Sales ~ Price ife = (pState + pYear, 1) fe = pState weights = Pop method = $(method) save = true
 	result = regife(df, model)
 	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState weights = Pop method = $(method) save = true
 	result = regife(df, model)
 
 	df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/EmplUK.csv"))
-	df[:id1] = df[:Firm]
-	df[:id2] = df[:Year]
-	df[:pid1] = categorical(df[:id1])
-	df[:pid2] = categorical(df[:id2])
-	df[:y] = df[:Wage]
-	df[:x1] = df[:Emp]
-	df[:w] = df[:Output]
+	df.id1 = df.Firm
+	df.id2 = df.Year
+	df.pid1 = categorical(df.id1)
+	df.pid2 = categorical(df.id2)
+	df.y = df.Wage
+	df.x1 = df.Emp
+	df.w = df.Output
 	model = @model y ~ x1 ife = (pid1 + pid2, 2) method = $(method) save = true
 	result = regife(df, model)
 	@test norm(result.coef ./ [4.53965, -0.0160858] .- 1) < precision

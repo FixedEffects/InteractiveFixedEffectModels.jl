@@ -27,7 +27,7 @@ end
 
 
 function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict = Dict())
-    df = DataFrame(map(x -> d[x], trms.eterms), Symbol.(trms.eterms))
+    df = DataFrame(map(x -> d[!, x], trms.eterms), Symbol.(trms.eterms))
     df = df[esample, :]
     names!(df, Symbol.(string.(trms.eterms)))
     evaledContrasts = evalcontrasts(df, contrasts)

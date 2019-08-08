@@ -119,10 +119,10 @@ function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample:
     df = DataFrame()
     for r in 1:rank(fp)
         # loadings
-        df[Symbol("loadings$r")] = Vector{Union{Float64, Missing}}(missing, length(esample))
+        df[!, Symbol("loadings$r")] = Vector{Union{Float64, Missing}}(missing, length(esample))
         df[esample, Symbol("loadings$r")] = fs.idpool[:, r][fp.idrefs]
 
-        df[Symbol("factors$r")] = Vector{Union{Float64, Missing}}(missing, length(esample))
+        df[!, Symbol("factors$r")] = Vector{Union{Float64, Missing}}(missing, length(esample))
         df[esample, Symbol("factors$r")] = fs.timepool[:, r][fp.timerefs]
     end
     return df

@@ -17,8 +17,8 @@ To estimate an interactive fixed effect model, one needs to specify a formula, a
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-df[:pState] =  categorical(df[:State])
-df[:pYear] =  categorical(df[:Year])
+df.pState =  categorical(df.State)
+df.pYear =  categorical(df.Year)
 regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState, save = true))
 #                      Linear Factor Model                      
 #================================================================
@@ -50,8 +50,8 @@ regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState, save = 
 - Interactive fixed effects are indicated with the keyword argument `ife`. Variables must be of type `PooledDataVector`. The rank is the number of components to use. facFor instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
 
 	```julia
-	df[:pState] =  categorical(df[:State])
-	df[:pYear] =  categorical(df[:Year])
+	df.pState =  categorical(df.State)
+	df.pYear =  categorical(df.Year)
 	ife = (pState + pYear, 2)
 	```
 
@@ -96,8 +96,8 @@ Yes. Factor models are a particular case of interactive fixed effect models. Sim
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-df[:pState] =  categorical(df[:State])
-df[:pYear] =  categorical(df[:Year])
+df.pState =  categorical(df.State)
+df.pYear =  categorical(df.Year)
 regife(df, @model(Sales ~ 0, ife = (pState + pYear, 2), fe = pState, save = true))
 ```
 Compared to the usual SVD method, the package estimates models with multiple (or missing) observations per id x time.
