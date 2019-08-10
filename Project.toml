@@ -1,6 +1,6 @@
 name = "InteractiveFixedEffectModels"
 uuid = "80307280-efb2-5c5d-af8b-a9c15821677b"
-version = "0.3.5"
+version = "0.3.6"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
@@ -18,11 +18,11 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 DataFrames = "≥ 0.19.1"
-FixedEffectModels = "≥ 0.7.4"
+FixedEffectModels = "≥ 0.7.5"
 FixedEffects = "≥ 0.1.1"
 LeastSquaresOptim = "≥ 0.7.0"
 StatsBase = "≥ 0.22.0"
-julia = "≥ 0.7.0"
+julia = "≥ 1.1.0"
 
 [extras]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
