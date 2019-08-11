@@ -83,9 +83,8 @@ function reverse(m::Matrix{R}) where {R}
 end
 function rescale!(fs::FactorSolution{1})
     out = norm(fs.timepool)
-    @show out
     rmul!(fs.idpool, out)
-    rmul!(fs.timepool, 1/out)
+    rmul!(fs.timepool, 1 / out)
 end
 # normalize factors and loadings so that F'F = Id, Lambda'Lambda diagonal
 function rescale!(newfs::AbstractFactorSolution, fs::AbstractFactorSolution)
