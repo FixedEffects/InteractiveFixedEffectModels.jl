@@ -19,8 +19,10 @@ import DataFrames: DataFrame, AbstractDataFrame, completecases, names!, ismissin
 import LeastSquaresOptim
 using FillArrays
 using Reexport
+import StatsModels: @formula,  FormulaTerm, Term, InteractionTerm, ConstantTerm, MatrixTerm, AbstractTerm, coefnames, columntable, missing_omit, termvars, schema, apply_schema, modelmatrix, response, terms
 @reexport using FixedEffectModels
-import FixedEffectModels: title, top, ModelMatrix, ModelFrame, Terms, coefnames, Formula, completecases, names!, @formula, evalcontrasts, check_non_redundancy!
+import FixedEffectModels: title, top
+
 
 
 ##############################################################################

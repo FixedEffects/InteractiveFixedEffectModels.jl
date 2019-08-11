@@ -83,6 +83,7 @@ function reverse(m::Matrix{R}) where {R}
 end
 function rescale!(fs::FactorSolution{1})
     out = norm(fs.timepool)
+    @show out
     rmul!(fs.idpool, out)
     rmul!(fs.timepool, 1/out)
 end
@@ -235,7 +236,7 @@ struct InteractiveFixedEffectsResult <: AbstractRegressionResult
 
     coefnames::Vector       # Name of coefficients
     yname::Symbol           # Name of dependent variable
-    formula::Formula        # Original formula 
+    formula::FormulaTerm        # Original formula 
 
     nobs::Int64             # Number of observations
     dof_residual::Int64      # degree of freedoms

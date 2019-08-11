@@ -26,15 +26,7 @@ function reftype(sz)
 end
 
 
-function ModelFrame2(trms::Terms, d::AbstractDataFrame, esample; contrasts::Dict = Dict())
-    df = DataFrame(map(x -> d[!, x], trms.eterms), Symbol.(trms.eterms))
-    df = df[esample, :]
-    names!(df, Symbol.(string.(trms.eterms)))
-    evaledContrasts = evalcontrasts(df, contrasts)
-    ## Check for non-redundant terms, modifying terms in place
-    check_non_redundancy!(trms, df)
-    ModelFrame(df, trms, esample, evaledContrasts)
-end
+
 
 #  remove observations with negative weights
 isnaorneg(a::AbstractVector) = BitArray(!ismissing(x) & (x > 0) for x in a)
