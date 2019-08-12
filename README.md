@@ -31,54 +31,53 @@ regife(df, @model(Sales ~ Price, ife = (pState + pYear, 2), fe = pState), save =
 #Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
 #================================================================
 ```
+- The first argument of `regife` is a DataFrame
+- The second argument is a `model`. 
+	- A typical formula is composed of one dependent variable and a set of  regressors
+		```julia
+		using RDatasets, DataFrames, InteractiveFixedEffectModels
+		df = dataset("plm", "Cigar")
+		```
 
-- A typical formula is composed of one dependent variable and a set of  regressors
-	```julia
-	using RDatasets, DataFrames, InteractiveFixedEffectModels
-	df = dataset("plm", "Cigar")
-	```
+		When the only regressor is `0`, `fit` fits a factor model
+		```julia
+		Sales ~ 0
+		```
 
-	When the only regressor is `0`, `fit` fits a factor model
-	```julia
-	Sales ~ 0
-	```
+		Otherwise, `fit` fits a linear model with interactive fixed effects (Bai (2009))
+		```julia
+		Sales ~ Price + Year
+		```
+	- Interactive fixed effects are indicated with the keyword argument `ife`. Variables must be of type `PooledDataVector`. The rank is the number of components to use. facFor instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
 
-	Otherwise, `fit` fits a linear model with interactive fixed effects (Bai (2009))
-	```julia
-	Sales ~ Price + Year
-	```
-- Interactive fixed effects are indicated with the keyword argument `ife`. Variables must be of type `PooledDataVector`. The rank is the number of components to use. facFor instance, for a factor model with id variable `State`, time variable `Year`, and rank `r` equal to 2:
+		```julia
+		df.pState =  categorical(df.State)
+		df.pYear =  categorical(df.Year)
+		ife = (pState + pYear, 2)
+		```
 
-	```julia
-	df.pState =  categorical(df.State)
-	df.pYear =  categorical(df.Year)
-	ife = (pState + pYear, 2)
-	```
+	- Fixed effects are indicated with the keyword argument `fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
-- Fixed effects are indicated with the keyword argument `fe`. Use only the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+		```julia
+		fe = pState
+		fe = pYear
+		fe = pState + pYear
+		```
 
-	```julia
-	fe = pState
-	fe = pYear
-	fe = pState + pYear
-	```
+	- Standard errors are indicated with the keyword argument `vcov`
+		```julia
+		vcov = robust()
+		vcov = cluster(StatePooled)
+		vcov = cluster(StatePooled, YearPooled)
+		```
 
-- Standard errors are indicated with the keyword argument `vcov`
-	```julia
-	vcov = robust()
-	vcov = cluster(StatePooled)
-	vcov = cluster(StatePooled, YearPooled)
-	```
-
-- weights are indicated with the keyword argument `weights`
-	```julia
-	weights = Pop
-	```
-
-- `method` allows to choose between two algorithms:
+	- weights are indicated with the keyword argument `weights`
+		```julia
+		weights = Pop
+		```
+- The option `method` can be used to choose between two algorithms:
 	- `levenberg_marquardt`
 	- `dogleg` 
-
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with NA).
 
 
@@ -92,7 +91,7 @@ However, in these cases, the optimization problem may have local minima. The alg
 ## FAQ
 #### Does the package estimate PCA / factor models?
 
-Yes. Factor models are a particular case of interactive fixed effect models. Simply specify `0` as the lhs of the formula.
+Yes. Factor models are a particular case of interactive fixed effect models. Simply specify `0` as the RHS of the formula.
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
