@@ -167,7 +167,16 @@ function InteractiveFixedEffectsSolution(b::Tb, idpool::Tid, timepool::Ttime) wh
 end
 convert(::Type{FactorSolution}, f::InteractiveFixedEffectsSolution) = FactorSolution(f.idpool, f.timepool)
 
-
+struct InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}   
+    b::Tb   
+    idpool::Tid 
+    timepool::Ttime 
+end 
+function InteractiveFixedEffectsSolutionT(b::Tb, idpool::Tid, timepool::Ttime) where {Tb, Tid, Ttime}   
+    r = size(idpool, 1) 
+    r == size(timepool, 1) || throw("factors and loadings don't have same dimension")   
+    InteractiveFixedEffectsSolutionT{r, Tb, Tid, Ttime}(b, idpool, timepool)    
+end
 
 function rescale(fs::InteractiveFixedEffectsSolution)
     fss = FactorSolution(fs.idpool, fs.timepool)
