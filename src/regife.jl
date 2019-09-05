@@ -297,7 +297,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     if !has_regressors
         return FactorResult(esample, augmentdf, rss, iterations, converged)
     else
-        return InteractiveFixedEffectsResult(fs.b, matrix_vcov, esample, augmentdf, 
+        return InteractiveFixedEffectModel(fs.b, matrix_vcov, esample, augmentdf, 
             coef_names, yname, f, nobs, dof_residual, r2, r2_a, r2_within, 
             rss, sum(iterations), all(converged))
     end

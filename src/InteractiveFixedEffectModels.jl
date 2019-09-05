@@ -18,10 +18,10 @@ import CategoricalArrays: CategoricalArray, CategoricalVector, compress, categor
 import DataFrames: DataFrame, AbstractDataFrame, completecases, names!, ismissing
 import LeastSquaresOptim
 using FillArrays
+using Distributions
 using Reexport
 import StatsModels: @formula,  FormulaTerm, Term, InteractionTerm, ConstantTerm, MatrixTerm, AbstractTerm, coefnames, columntable, missing_omit, termvars, schema, apply_schema, modelmatrix, response, terms
 @reexport using FixedEffectModels
-import FixedEffectModels: title, top
 
 
 

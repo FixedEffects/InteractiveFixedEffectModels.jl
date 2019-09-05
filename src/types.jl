@@ -224,7 +224,7 @@ end
 
 
 # result
-struct InteractiveFixedEffectsResult <: AbstractRegressionResult
+struct InteractiveFixedEffectModel <: RegressionModel
     coef::Vector{Float64}   # Vector of coefficients
     vcov::Matrix{Float64}   # Covariance matrix
 
@@ -239,7 +239,7 @@ struct InteractiveFixedEffectsResult <: AbstractRegressionResult
     dof_residual::Int64      # degree of freedoms
 
     r2::Float64             # R squared
-    r2_a::Float64           # R squared adjusted
+    adjr2::Float64           # R squared adjusted
     r2_within::Float64      # R within
 
     rss::Float64
@@ -247,11 +247,25 @@ struct InteractiveFixedEffectsResult <: AbstractRegressionResult
     converged::Bool         # Has the demeaning algorithm converged?
 
 end
+coef(x::InteractiveFixedEffectModel) = x.coef
+coefnames(x::InteractiveFixedEffectModel) = x.coefnames
+vcov(x::InteractiveFixedEffectModel) = x.vcov
+nobs(x::InteractiveFixedEffectModel) = x.nobs
+dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
+r2(x::InteractiveFixedEffectModel) = x.r2
+adjr2(x::InteractiveFixedEffectModel) = x.adjr2
+islinear(x::InteractiveFixedEffectModel) = true
+rss(x::InteractiveFixedEffectModel) = x.rss
+predict(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
+residuals(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
+function confint(x::InteractiveFixedEffectModel)
+    scale = quantile(TDist(dof_residual(x)), 1 - (1-0.95)/2)
+    se = stderror(x)
+    hcat(x.coef -  scale * se, x.coef + scale * se)
+end
 
-predict(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
-residuals(::InteractiveFixedEffectsResult, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
-title(::InteractiveFixedEffectsResult) = "Linear Factor Model"
-top(x::InteractiveFixedEffectsResult) = [
+title(::InteractiveFixedEffectModel) = "Linear Factor Model"
+top(x::InteractiveFixedEffectModel) = [
             "Number of obs" sprint(show, nobs(x); context=:compact => true);
             "Degree of freedom" sprint(show, nobs(x) - dof_residual(x); context=:compact => true);
             "R2"  @sprintf("%.3f", x.r2);
@@ -260,6 +274,27 @@ top(x::InteractiveFixedEffectsResult) = [
             "Converged" sprint(show, x.converged; context=:compact => true)
             ]
 
-
-
-
+function Base.show(io::IO, x::InteractiveFixedEffectModel)
+    show(io, coeftable(x))
+end
+function coeftable(x::InteractiveFixedEffectModel)
+    ctitle = title(x)
+    ctop = top(x)
+    cc = coef(x)
+    se = stderror(x)
+    coefnms = coefnames(x)
+    conf_int = confint(x)
+    # put (intercept) last
+    if !isempty(coefnms) && ((coefnms[1] == Symbol("(Intercept)")) || (coefnms[1] == "(Intercept)"))
+        newindex = vcat(2:length(cc), 1)
+        cc = cc[newindex]
+        se = se[newindex]
+        conf_int = conf_int[newindex, :]
+        coefnms = coefnms[newindex]
+    end
+    tt = cc ./ se
+    FixedEffectModels.CoefTable2(
+        hcat(cc, se, tt, ccdf.(Ref(FDist(1, dof_residual(x))), abs2.(tt)), conf_int[:, 1:2]),
+        ["Estimate","Std.Error","t value", "Pr(>|t|)", "Lower 95%", "Upper 95%" ],
+        ["$(coefnms[i])" for i = 1:length(cc)], 4, ctitle, ctop)
+end
