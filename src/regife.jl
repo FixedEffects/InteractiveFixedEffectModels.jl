@@ -193,10 +193,11 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
             # restart with randomized coefficients, factors, loadings
             newfeM = FixedEffectModels.FixedEffectMatrix(getfactors(fp, fs), sqrtw, Val{:lsmr})
             ym .= ym ./sqrtw
-            Xm .= Xm ./sqrtw
             FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
-            FixedEffectModels.solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
+
+            Xm .= Xm ./sqrtw
+            FixedEffectModels.solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
             Xm .= Xm .* sqrtw
             ydiff = Xm * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
