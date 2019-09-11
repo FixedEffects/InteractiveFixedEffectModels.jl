@@ -88,7 +88,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
                 has_absorb_intercept = true
         end
         fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
-        pfe = FixedEffectModels.FixedEffectMatrix(fes, sqrtw, Val{:lsmr})
+        feM = FixedEffectModels.FixedEffectMatrix(fes, sqrtw, Val{:lsmr})
     end
 
     has_intercept = ConstantTerm(1) ∈ FixedEffectModels.eachterm(formula.rhs)
@@ -123,10 +123,8 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
     y = convert(Vector{Float64}, response(formula_schema, subdf))
-    y .= y .* sqrtw
     oldy = copy(y)
     X = convert(Matrix{Float64}, modelmatrix(formula_schema, subdf))
-    X .= X .* sqrtw
 
     # change default if has_regressors
     has_regressors = size(X, 2) > 0
@@ -147,9 +145,11 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
 
 
     if has_absorb
-        FixedEffectModels.solve_residuals!(y, pfe)
-        FixedEffectModels.solve_residuals!(X, pfe)
+        FixedEffectModels.solve_residuals!(y, feM)
+        FixedEffectModels.solve_residuals!(X, feM)
      end
+     y .= y .* sqrtw
+     X .= X .* sqrtw
 
  
 
@@ -191,9 +191,13 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newpfe = FixedEffectModels.FixedEffectMatrix(getfactors(fp, fs), sqrtw, Val{:lsmr})
-            FixedEffectModels.solve_residuals!(ym, newpfe, tol = tol, maxiter = maxiter)
-            FixedEffectModels.solve_residuals!(Xm, newpfe, tol = tol, maxiter = maxiter)
+            newfeM = FixedEffectModels.FixedEffectMatrix(getfactors(fp, fs), sqrtw, Val{:lsmr})
+            ym .= ym ./sqrtw
+            Xm .= Xm ./sqrtw
+            FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
+            FixedEffectModels.solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
+            ym .= ym .* sqrtw
+            Xm .= Xm .* sqrtw
             ydiff = Xm * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
@@ -285,7 +289,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
             subtract_factor!(fp, fs)
             axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
-            newfes, b, c = FixedEffectModels.solve_coefficients!(oldresiduals, pfe; tol = tol, maxiter = maxiter)
+            newfes, b, c = FixedEffectModels.solve_coefficients!(oldresiduals, feM; tol = tol, maxiter = maxiter)
             for j in 1:length(fes)
                 augmentdf[!, ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
                 augmentdf[esample, ids[j]] = newfes[j]
