@@ -6,7 +6,7 @@ matrix:
   allow_failures:
     - julia: nightly
 after_success:
-- julia -e 'using Pkg; cd(Pkg.dir("InteractiveFixedEffectModels")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+- julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
 notifications:
   on_success: never 
   on_failure: change
