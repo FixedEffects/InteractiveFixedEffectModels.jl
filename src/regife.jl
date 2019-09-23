@@ -88,7 +88,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
                 has_absorb_intercept = true
         end
         fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
-        feM = FixedEffectModels.FixedEffectMatrix(fes, sqrtw, Val{:lsmr})
+        feM = FixedEffectModels.AbstractFixedEffectMatrix{Float64}(fes, sqrtw, Val{:lsmr})
     end
 
     has_intercept = ConstantTerm(1) ∈ FixedEffectModels.eachterm(formula.rhs)
