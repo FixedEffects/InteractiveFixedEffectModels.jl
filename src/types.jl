@@ -3,24 +3,39 @@
 ## Object constructed by the user
 ##
 ##############################################################################
-
+ife(x) = nothing
 # Object constructed by the user
-struct InteractiveFixedEffectFormula
-    id::Union{Symbol, Expr}
-    time::Union{Symbol, Expr}
-    rank::Int64
-end
-function InteractiveFixedEffectFormula(arg)
-    arg.head == :tuple && length(arg.args) == 2 || throw("@ife does not have a correct syntax")
-    arg1 = arg.args[1]
-    arg2 = arg.args[2]
-    arg1.head == :call && arg1.args[1] == :+ && length(arg1.args) == 3 || throw("@ife does not have a correct syntax")
-    InteractiveFixedEffectFormula(arg1.args[2], arg1.args[3], arg2)
+struct InteractiveFixedEffectTerm
+    id::Symbol
+    time::Symbol
+    rank::Int
 end
 
+has_ife(x::FunctionTerm{typeof(ife)}) = true
+has_ife(x::AbstractTerm) = false
+function parse_interactivefixedeffect(df::AbstractDataFrame, formula::FormulaTerm)
+    m = nothing
+    for term in FixedEffectModels.eachterm(formula.rhs)
+        if has_ife(term)
+            m = InteractiveFixedEffectTerm(term.args_parsed[1].sym, term.args_parsed[2].sym, term.args_parsed[3].n)
+        end
+    end
+    return m, FormulaTerm(formula.lhs, tuple((term for term in FixedEffectModels.eachterm(formula.rhs) if !has_ife(term))...))
+end
 
 abstract type AbstractFactorModel{T} end
 abstract type AbstractFactorSolution{T} end
+
+# to deprecate
+function OldInteractiveFixedEffectFormula(arg)
+    arg.head == :tuple && length(arg.args) == 2 || throw("ife does not have a correct syntax")
+    arg1 = arg.args[1]
+    arg2 = arg.args[2]
+    arg1.head == :call && arg1.args[1] == :+ && length(arg1.args) == 3 || throw("ife does not have a correct syntax")
+    InteractiveFixedEffectTerm(arg1.args[2], arg1.args[3], arg2)
+end
+
+
 ##############################################################################
 ##
 ## Factor Model
@@ -277,7 +292,7 @@ top(x::InteractiveFixedEffectModel) = [
 function Base.show(io::IO, x::InteractiveFixedEffectModel)
     show(io, coeftable(x))
 end
-function coeftable(x::InteractiveFixedEffectModel)
+function StatsBase.coeftable(x::InteractiveFixedEffectModel)
     ctitle = title(x)
     ctop = top(x)
     cc = coef(x)

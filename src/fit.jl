@@ -4,6 +4,9 @@
 ## Fit is the only exported function
 ##
 ##############################################################################
+function StatsBase.fit(::Type{InteractiveFixedEffectModel}, m::Model, df::AbstractDataFrame; kwargs...)
+    regife(m, df; kwargs...)
+end
 
 
 function regife(df::AbstractDataFrame, m::Model; kwargs...)
@@ -11,8 +14,8 @@ function regife(df::AbstractDataFrame, m::Model; kwargs...)
 end
 
 function regife(df::AbstractDataFrame, f::FormulaTerm;
-             ife::Union{Symbol, Expr, Nothing} = nothing, 
-             fe::Union{Symbol, Expr, Nothing} = nothing, 
+             feformula::Union{Symbol, Expr, Nothing} = nothing,
+             ifeformula::Union{Symbol, Expr, Nothing} = nothing,
              vcov::Union{Symbol, Expr, Nothing} = :(simple()), 
              weights::Union{Symbol, Expr, Nothing} = nothing, 
              subset::Union{Symbol, Expr, Nothing} = nothing, 
@@ -34,33 +37,36 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     else 
         vcovformula = VcovFormula(Val{vcov.args[1]}, (vcov.args[i] for i in 2:length(vcov.args))...)
     end
-    m = InteractiveFixedEffectFormula(ife)
 
     if  (ConstantTerm(0) ∉ FixedEffectModels.eachterm(f.rhs)) & (ConstantTerm(1) ∉ FixedEffectModels.eachterm(f.rhs))
-        f = FormulaTerm(f.lhs, tuple(ConstantTerm(1), FixedEffectModels.eachterm(f.rhs)...))
+        formula = FormulaTerm(f.lhs, tuple(ConstantTerm(1), FixedEffectModels.eachterm(f.rhs)...))
     end
+
     formula, formula_endo, formula_iv = FixedEffectModels.decompose_iv(f)
+
+    m, formula = parse_interactivefixedeffect(df, formula)
+    if ifeformula != nothing # remove after depreciation
+        m = OldInteractiveFixedEffectFormula(ifeformula)
+    end
+
     ## parse formula 
     if formula_iv != nothing
         error("partial_out does not support instrumental variables")
     end
-    has_absorb = fe != nothing
     has_weights = (weights != nothing)
 
 
     ## create a dataframe without missing values & negative weightss
     vars = allvars(formula)
-    absorb_vars = allvars(fe)
+    if feformula != nothing # remove after depreciation
+        vars = vcat(vars, allvars(feformula))
+    end
     vcov_vars = allvars(vcovformula)
     factor_vars = vcat(allvars(m.id), allvars(m.time))
-    rem = setdiff(absorb_vars, factor_vars)
-    if length(rem) > 0
-        error("The categorical variable $(rem[1]) appears in @fe but does not appear in @ife. Simply add it in @formula instead")
-    end
-    all_vars = unique(vcat(vars, absorb_vars, factor_vars, vcov_vars))
+    all_vars = unique(vcat(vars, factor_vars, vcov_vars))
     esample = completecases(df[!, all_vars])
     if has_weights
-        esample .&= isnaorneg(df[!, weights])
+        esample .&= FixedEffectModels.isnaorneg(df[!, weights])
         all_vars = unique(vcat(all_vars, weights))
     end
     if subset != nothing
@@ -77,19 +83,33 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     vcov_method_data = VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcovformula)
 
      # Compute weights
-     sqrtw = get_weights(df, esample, weights)
-
+    sqrtw = Ones{Float64}(sum(esample))
+    if has_weights
+        sqrtw = convert(Vector{Float64}, sqrt.(view(df, esample, weights)))
+    end
+    for a in FixedEffectModels.eachterm(formula.rhs)
+       if has_fe(a)
+           isa(a, InteractionTerm) && error("Fixed effects cannot be interacted")
+           Symbol(first(a.args_parsed)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
+       end
+    end
+    fes, ids, formula = FixedEffectModels.parse_fixedeffect(df, formula)
+    if feformula != nothing # remove after depreciation
+        feformula = @eval(@formula(0 ~ $(feformula)))
+        fes, ids = FixedEffectModels.oldparse_fixedeffect(df, feformula)
+    end 
+    has_fes = !isempty(fes)
+    has_fes_intercept = false
     ## Compute factors, an array of AbtractFixedEffects
-    if has_absorb
-        feformula = @eval(@formula(nothing ~ $(fe)))
-        fes, ids = FixedEffectModels.parse_fixedeffect(df, feformula)
+    if has_fes
         if any([isa(fe.interaction, Ones) for fe in fes])
                 formula = FormulaTerm(formula.lhs, tuple(ConstantTerm(0), (t for t in FixedEffectModels.eachterm(formula.rhs) if t!= ConstantTerm(1))...))
-                has_absorb_intercept = true
+                has_fes_intercept = true
         end
         fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
-        feM = FixedEffectModels.AbstractFixedEffectMatrix{Float64}(fes, sqrtw, Val{:lsmr})
+        feM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(fes, sqrtw, Val{:lsmr})
     end
+
 
     has_intercept = ConstantTerm(1) ∈ FixedEffectModels.eachterm(formula.rhs)
 
@@ -98,20 +118,8 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     converged = false
     # get two dimensions
 
-    if isa(m.id, Symbol)
-        # always factorize
-        id = group(df[esample, m.id])
-    else
-        factorvars, interactionvars = _split(df, allvars(m.id))
-        id = group((df[esample, v] for v in factorvars)...)
-    end
-    if isa(m.time, Symbol)
-        # always factorize
-        time = group(df[esample, m.time])
-    else
-        factorvars, interactionvars = _split(df, allvars(m.time))
-        time = group((df[esample, v] for v in factorvars)...)
-    end
+    id = FixedEffects.group(df[esample, m.id])
+    time = FixedEffects.group(df[esample, m.time])
 
     ##############################################################################
     ##
@@ -144,7 +152,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
 
 
 
-    if has_absorb
+    if has_fes
         FixedEffectModels.solve_residuals!(y, feM)
         FixedEffectModels.solve_residuals!(X, feM)
      end
@@ -191,7 +199,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newfeM = FixedEffectModels.AbstractFixedEffectMatrix{Float64}(getfactors(fp, fs), sqrtw, Val{:lsmr})
+            newfeM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), sqrtw, Val{:lsmr})
             ym .= ym ./sqrtw
             FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
@@ -236,7 +244,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
         crossxm = cholesky!(Symmetric(Xm' * Xm))
         ## compute the right degree of freedom
         df_absorb_fe = 0
-        if has_absorb 
+        if has_fes 
             for fe in fes
                 df_absorb_fe += length(unique(fe.refs))
             end
@@ -249,13 +257,13 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
-        tss = compute_tss(ym, has_intercept || has_absorb_intercept, sqrtw)
-        r2_within = 1 - rss / tss 
+        _tss = FixedEffectModels.tss(ym, has_intercept || has_fes_intercept, sqrtw)
+        r2_within = 1 - rss / _tss 
 
         rss = sum(abs2, residuals)
-        tss = compute_tss(oldy, has_intercept || has_absorb_intercept, sqrtw)
-        r2 = 1 - rss / tss 
-        r2_a = 1 - rss / tss * (nobs - has_intercept) / dof_residual 
+        _tss = FixedEffectModels.tss(oldy, has_intercept || has_fes_intercept, sqrtw)
+        r2 = 1 - rss / _tss 
+        r2_a = 1 - rss / _tss * (nobs - has_intercept) / dof_residual 
     end
 
     ##############################################################################
@@ -277,7 +285,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
         end
 
         # save fixed effects in a dataframe
-        if has_absorb
+        if has_fes
             # residual before demeaning
              oldresiduals = convert(Vector{Float64}, response(formula_schema, subdf))
              oldresiduals .= oldresiduals .* sqrtw
