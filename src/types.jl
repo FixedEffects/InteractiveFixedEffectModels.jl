@@ -5,19 +5,22 @@
 ##############################################################################
 ife(x) = nothing
 # Object constructed by the user
-struct InteractiveFixedEffectTerm
+struct InteractiveFixedEffectTerm <: AbstractTerm
     id::Symbol
     time::Symbol
     rank::Int
 end
 
+has_ife(x::InteractiveFixedEffectTerm) = true
 has_ife(x::FunctionTerm{typeof(ife)}) = true
 has_ife(x::AbstractTerm) = false
 function parse_interactivefixedeffect(df::AbstractDataFrame, formula::FormulaTerm)
     m = nothing
     for term in FixedEffectModels.eachterm(formula.rhs)
-        if has_ife(term)
+        if term isa FunctionTerm{typeof(ife)}
             m = InteractiveFixedEffectTerm(term.args_parsed[1].sym, term.args_parsed[2].sym, term.args_parsed[3].n)
+        elseif term isa InteractiveFixedEffectTerm
+            m = term
         end
     end
     return m, FormulaTerm(formula.lhs, tuple((term for term in FixedEffectModels.eachterm(formula.rhs) if !has_ife(term))...))

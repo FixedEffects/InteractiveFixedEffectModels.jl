@@ -34,7 +34,8 @@ end
 ##
 ##############################################################################
 
-export InteractiveFixedEffectModel, 
+export InteractiveFixedEffectTerm,
+InteractiveFixedEffectModel, 
 ife,
 regife
 ##############################################################################
