@@ -4,12 +4,12 @@
 ## Fit is the only exported function
 ##
 ##############################################################################
-function StatsBase.fit(::Type{InteractiveFixedEffectModel}, m::Model, df::AbstractDataFrame; kwargs...)
-    regife(m, df; kwargs...)
+function StatsBase.fit(::Type{InteractiveFixedEffectModel}, m::ModelTerm, df::AbstractDataFrame; kwargs...)
+    regife(df, m; kwargs...)
 end
 
 
-function regife(df::AbstractDataFrame, m::Model; kwargs...)
+function regife(df::AbstractDataFrame, m::ModelTerm; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
 
@@ -33,9 +33,9 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     ##############################################################################
 
     if isa(vcov, Symbol)
-        vcovformula = VcovFormula(Val{vcov})
+        vcovformula = Vcov(Val{vcov})
     else 
-        vcovformula = VcovFormula(Val{vcov.args[1]}, (vcov.args[i] for i in 2:length(vcov.args))...)
+        vcovformula = Vcov(Val{vcov.args[1]}, (vcov.args[i] for i in 2:length(vcov.args))...)
     end
 
     if  (ConstantTerm(0) ∉ FixedEffectModels.eachterm(f.rhs)) & (ConstantTerm(1) ∉ FixedEffectModels.eachterm(f.rhs))
