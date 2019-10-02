@@ -37,7 +37,6 @@ for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 	model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState
 	result = regife(df, model, method = method, save = true)
 
-
 	model = @model Sales ~ Price + ife(pState, pYear, 2) + fe(pYear)
 	result = regife(df, model, method = method, save = true)
 	@test norm(result.coef ./ -0.3744296120563005 .- 1) < precision
@@ -46,14 +45,13 @@ for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 	@test norm(result.augmentdf[1, :residuals] / -2.2153 - 1) < precision
 	@test result.r2_within > 0.0
 
-	# not working since STatsModels 0.6. The issue is that  fs.timepool now has a zero eigenvalue
-	#model = @model Sales ~ Price + ife(pState, pYear, 2) + fe(pState) + fe(pYear)
-	#result = regife(df, model, method = method, save = true)
-	#@test norm(result.coef ./ -0.524157 .- 1) < precision
-	#@test norm(abs(result.augmentdf[1, :factors1]) / 0.256 - 1) < precision
-	#@test norm(abs(result.augmentdf[1, :loadings1]) / 60.0481 - 1) < precision
-	#@test norm(result.augmentdf[1, :residuals] / -5.614 - 1) < precision
-	#@test result.r2_within > 0.0
+	model = @model Sales ~ Price + ife(pState, pYear, 2) + fe(pState) + fe(pYear)
+	result = regife(df, model, method = method, save = true)
+	@test norm(result.coef ./ -0.524157 .- 1) < precision
+	@test norm(abs(result.augmentdf[1, :factors1]) / 0.256 - 1) < precision
+	@test norm(abs(result.augmentdf[1, :loadings1]) / 60.0481 - 1) < precision
+	@test norm(result.augmentdf[1, :residuals] / -5.614 - 1) < precision
+	@test result.r2_within > 0.0
 
 	# subset
 	model = @model Sales ~ Price + ife(pState, pYear, 2) + fe(pState) subset = (State .<= 30)
@@ -69,7 +67,7 @@ end
 
 # check high dimentional fixed effects are part of factor models
 df.pState2 = categorical(df.State)
-@test_throws ErrorException regife(df, @model(Sales ~ Price + ife(pState, pYear, 2) + fe(pState2)), weights = :Pop,  method = :levenberg_marquardt, save = true)
+@test_throws ErrorException regife(df, @model(Sales ~ Price + ife(pState, pYear, 2) + fe(pState2)))
 
 
 # local minima
