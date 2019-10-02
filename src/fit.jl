@@ -4,6 +4,7 @@
 ## Fit is the only exported function
 ##
 ##############################################################################
+
 function StatsBase.fit(::Type{InteractiveFixedEffectModel}, m::ModelTerm, df::AbstractDataFrame; kwargs...)
     regife(df, m; kwargs...)
 end

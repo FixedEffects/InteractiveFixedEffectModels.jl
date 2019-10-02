@@ -25,7 +25,9 @@ using FixedEffects
 if !isdefined(FixedEffects, :AbstractFixedEffectSolver)
 	AbstractFixedEffectSolver{T} = AbstractFixedEffectMatrix{T}
 end
-
+if !isdefined(FixedEffectModels, :ModelTerm)
+    ModelTerm = Model
+end
 ##############################################################################
 ##
 ## Exported methods and types 
