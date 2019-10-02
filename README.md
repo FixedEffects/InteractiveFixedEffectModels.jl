@@ -33,14 +33,14 @@ regife(df, @model(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 - The second argument is a `model`. 
 	- A typical formula is composed of one dependent variable and a set of  regressors.
 
-	Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
+		Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
 
-	High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+		High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
-	```julia
-	regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2)))
-	regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2) + fe(State)))
-	```
+		```julia
+		regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2)))
+		regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2) + fe(State)))
+		```
 
 	
 
