@@ -10,7 +10,7 @@
 ##
 ##############################################################################
 
-function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}}, 
+function StatsBase.fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}}, 
                          fp::FactorModel,
                          fs::FactorSolution; 
                          maxiter::Integer = 10_000,
@@ -63,7 +63,7 @@ end
 ##
 ##############################################################################
 
-function fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
+function StatsBase.fit!(t::Union{Type{Val{:levenberg_marquardt}}, Type{Val{:dogleg}}},
                          fp::InteractiveFixedEffectsModel{Rank},
                          fs::InteractiveFixedEffectsSolution{Rank}; 
                          maxiter::Integer = 10_000,
@@ -96,7 +96,7 @@ end
 ##
 ##############################################################################
 
-function dot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
+function LinearAlgebra.dot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
     out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(fs1)
         out += fs1[i] * fs2[i]
@@ -104,7 +104,7 @@ function dot(fs1::AbstractArray{T}, fs2::AbstractArray{T})   where {T}
     return out
 end
 
-function dot(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}) where {T}
+function LinearAlgebra.dot(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}) where {T}
     out = zero(typeof(one(T) * one(T)))
     @inbounds @simd for i in eachindex(x)
         out += w[i] * x[i] * y[i]
@@ -117,7 +117,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(fill!(x.$field, α)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function fill!(x::$t, α::Number)
+        function Base.fill!(x::$t, α::Number)
              $expr
             return x
         end
@@ -126,7 +126,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(rmul!(x.$field, α)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function rmul!(x::$t, α::Number)
+        function LinearAlgebra.rmul!(x::$t, α::Number)
             $expr
             return x
         end
@@ -135,7 +135,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(clamp!(x.$field, α, β)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function clamp!(x::$t, α::Number, β::Number)
+        function Base.clamp!(x::$t, α::Number, β::Number)
             $expr
             return x
         end
@@ -145,7 +145,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(copyto!(x1.$field, x2.$field)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function copyto!(x1::$t, x2::$t)
+        function Base.copyto!(x1::$t, x2::$t)
             $expr
             return x1
         end
@@ -154,7 +154,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(axpy!(α, x1.$field, x2.$field)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function axpy!(α::Number, x1::$t, x2::$t)
+        function LinearAlgebra.axpy!(α::Number, x1::$t, x2::$t)
             $expr
             return x2
         end
@@ -163,7 +163,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(map!(f, x1.$field, map(x -> x.$field, x2)...)) for field in fieldnames(t)]
     expr = Expr(:block, vars...)
     @eval begin
-        function map!(f, x1::$t,  x2::$t...)
+        function Base.map!(f, x1::$t,  x2::$t...)
             $expr
             return x1
         end
@@ -171,7 +171,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(dot(x1.$field, x2.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :+, vars...)
     @eval begin
-        function dot(x1::$t, x2::$t)
+        function LinearAlgebra.dot(x1::$t, x2::$t)
             $expr
         end
     end
@@ -179,7 +179,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(dot(x1.$field, x2.$field, w.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :+, vars...)
     @eval begin
-        function dot(x1::$t, x2::$t, w::$t)
+        function LinearAlgebra.dot(x1::$t, x2::$t, w::$t)
             $expr
         end
     end
@@ -187,7 +187,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(length(x.$field)) for field in fieldnames(t)]
     expr = Expr(:call, :+, vars...)
     @eval begin
-        function length(x::$t)
+        function Base.length(x::$t)
             $expr
         end
     end
@@ -195,7 +195,7 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(similar(x.$field)) for field in fieldnames(t)]
     expr = Expr(:call, t, vars...)
     @eval begin
-        function similar(x::$t)
+        function Base.similar(x::$t)
             $expr
         end
     end
@@ -203,13 +203,13 @@ for t in (FactorSolution, InteractiveFixedEffectsSolution, InteractiveFixedEffec
     vars = [:(x.$field) for field in fieldnames(t)]
     expr = Expr(:call, Iterators.flatten, Expr(:call, tuple, vars...))
     @eval begin
-        iterate(x::$t) = iterate($expr)
-        iterate(x::$t, state) = iterate($expr, state)
+        Base.iterate(x::$t) = iterate($expr)
+        Base.iterate(x::$t, state) = iterate($expr, state)
     end
 end
-norm(x::AbstractFactorSolution) = sqrt(sum(abs2, x))
+LinearAlgebra.norm(x::AbstractFactorSolution) = sqrt(sum(abs2, x))
 
-eltype(fg::AbstractFactorSolution) = Float64
+Base.eltype(fg::AbstractFactorSolution) = Float64
 
 function safe_rmul!(x, β)
     if β != 1
@@ -234,7 +234,7 @@ struct FactorGradient{Rank, W, Rid, Rtime, Tid, Ttime, sTid, sTtime} <: Abstract
     scalefs::FactorSolution{Rank, sTid, sTtime}
 end
 
-function size(fg::FactorGradient, i::Integer)
+function Base.size(fg::FactorGradient, i::Integer)
     if i == 1
         length(fg.fp.y)
     elseif i == 2
@@ -247,8 +247,9 @@ struct InteractiveFixedEffectsGradientT{Rank, W, Rid, Rtime, Tb, Tid, Ttime, sTb
     fs::InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime}
     scalefs::InteractiveFixedEffectsSolutionT{Rank, sTb, sTid, sTtime}
 end
+LinearAlgebra.rank(f::AbstractFactorGradient{Rank}) where {Rank} = Rank 
 
-function size(fg::InteractiveFixedEffectsGradientT, i::Integer)
+function Base.size(fg::InteractiveFixedEffectsGradientT, i::Integer)
     if i == 1
         length(fg.fp.y)
     elseif i == 2
@@ -256,13 +257,12 @@ function size(fg::InteractiveFixedEffectsGradientT, i::Integer)
     end
 end
 
-rank(f::AbstractFactorGradient{Rank}) where {Rank} = Rank 
-size(fg::AbstractFactorGradient) = (size(fg, 1), size(fg, 2))
-eltype(fg::AbstractFactorGradient) = Float64
-adjoint(fg::AbstractFactorGradient) = Adjoint(fg)
+Base.size(fg::AbstractFactorGradient) = (size(fg, 1), size(fg, 2))
+Base.eltype(fg::AbstractFactorGradient) = Float64
+LinearAlgebra.adjoint(fg::AbstractFactorGradient) = Adjoint(fg)
 LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGradient) = copyto!(fs, fg.scalefs)
 
-@generated function mul!(y::AbstractVector{Float64}, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution, α::Number, β::Number) where {Rank}
+@generated function LinearAlgebra.mul!(y::AbstractVector{Float64}, fg::AbstractFactorGradient{Rank}, fs::AbstractFactorSolution, α::Number, β::Number) where {Rank}
     if Rank == 1
         ex = quote
             out += (fg.fs.idpool[idi] * fs.timepool[timei] 
@@ -270,7 +270,7 @@ LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGrad
         end
     else
         ex = quote
-            @nexprs $Rank r -> begin
+            Base.Cartesian.@nexprs $Rank r -> begin
                 out += (fg.fs.idpool[r, idi] * fs.timepool[r, timei] 
                          + fg.fs.timepool[r, timei] * fs.idpool[r, idi])
             end
@@ -291,14 +291,14 @@ LeastSquaresOptim.colsumabs2!(fs::AbstractFactorSolution, fg::AbstractFactorGrad
 end
 
 function mul!_X(y::AbstractVector{Float64}, fp::InteractiveFixedEffectsModel, fs::InteractiveFixedEffectsSolutionT, α::Number, β::Number)
-    gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
+    LinearAlgebra.BLAS.gemm!('N', 'N', α, fp.X, fs.b, convert(Float64, β), y)
 end
 
 function mul!_X(y::AbstractVector{Float64}, ::FactorModel, ::FactorSolution, ::Number, β::Number)
     safe_rmul!(y, β)
 end
 
-@generated function mul!(fs::AbstractFactorSolution{Rank}, Cfg::Adjoint{T, U}, y::AbstractVector{Float64}, α::Number, β::Number) where {Rank, T, U <: AbstractFactorGradient}
+@generated function LinearAlgebra.mul!(fs::AbstractFactorSolution{Rank}, Cfg::Adjoint{T, U}, y::AbstractVector{Float64}, α::Number, β::Number) where {Rank, T, U <: AbstractFactorGradient}
     if Rank == 1
         ex = quote
            fs.idpool[idi] += sqrtwi * fg.fs.timepool[timei]
@@ -306,7 +306,7 @@ end
         end
     else
         ex = quote
-            @nexprs $Rank r -> begin
+            Base.Cartesian.@nexprs $Rank r -> begin
                 fs.idpool[r, idi] += sqrtwi * fg.fs.timepool[r, timei]
                 fs.timepool[r, timei] += sqrtwi * fg.fs.idpool[r, idi]
             end
@@ -354,7 +354,7 @@ end
         end
     else
         ex = quote
-           @nexprs $Rank r -> begin
+           Base.Cartesian.@nexprs $Rank r -> begin
                out[i] -= sqrtwi * fs.idpool[r, idi] * fs.timepool[r, timei]
            end
         end
@@ -386,7 +386,7 @@ end
         end
     else
         ex = quote
-            @nexprs $Rank r -> begin
+            Base.Cartesian.@nexprs $Rank r -> begin
                 fg.scalefs.idpool[r, idi] += abs2(sqrtwi * fg.fs.timepool[r, timei])
                 fg.scalefs.timepool[r, timei] += abs2(sqrtwi * fg.fs.idpool[r, idi])
             end

@@ -11,7 +11,7 @@
 ##
 ##############################################################################
 
-function fit!(::Type{Val{:gauss_seidel}}, 
+function StatsBase.fit!(::Type{Val{:gauss_seidel}}, 
     fp::FactorModel,
     fs::FactorSolution;
     maxiter::Integer  = 100_000,
@@ -61,7 +61,7 @@ end
 ##
 ##############################################################################
 
-function fit!(::Type{Val{:gauss_seidel}},
+function StatsBase.fit!(::Type{Val{:gauss_seidel}},
     fp::InteractiveFixedEffectsModel,
     fs::InteractiveFixedEffectsSolution; 
     maxiter::Integer = 100_000, 
@@ -95,7 +95,7 @@ function fit!(::Type{Val{:gauss_seidel}},
 
         # Given beta, compute incrementally an approximate factor model
         copyto!(fp.y, yoriginal)
-        gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
+        LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
         for r in 1:rank(fp)
             fsr = view(fs, :, r)
             update!(Val{:gauss_seidel}, fp.y, fp.sqrtw, fp.idrefs, fp.timerefs, fsr.idpool, idscale, fsr.timepool)
@@ -108,10 +108,10 @@ function fit!(::Type{Val{:gauss_seidel}},
         subtract_factor!(fp, fs)
         ## corresponds to Gauss Niedel with acceleration
         rmul!(fs.b, -0.5)
-        gemm!('N', 'N', 1.5, M, fp.y, 1.0, fs.b)
+        LinearAlgebra.BLAS.gemm!('N', 'N', 1.5, M, fp.y, 1.0, fs.b)
 
         # Check convergence
-        gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
+        LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, fp.X, fs.b, 1.0, fp.y)
         f_x = sum(abs2, fp.y)
         if abs(f_x - oldf_x) < (abs(f_x) + tol) * tol
             converged = true

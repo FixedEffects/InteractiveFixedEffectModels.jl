@@ -56,7 +56,7 @@ function FactorModel(y::Vector{Float64}, sqrtw::W, idrefs::Vector{Rid}, timerefs
     FactorModel{rank, W, Rid, Rtime}(y, sqrtw, idrefs, timerefs)
 end
 
-rank(::FactorModel{Rank}) where {Rank} = Rank
+LinearAlgebra.rank(::FactorModel{Rank}) where {Rank} = Rank
 
 struct FactorSolution{Rank, Tid, Ttime} <: AbstractFactorSolution{Rank}
     idpool::Tid
@@ -69,7 +69,7 @@ function FactorSolution(idpool::Tid, timepool::Ttime) where {Tid, Ttime}
     FactorSolution{r, Tid, Ttime}(idpool, timepool)
 end
 
-function view(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...)
+function Base.view(f::AbstractFactorSolution, I::Union{AbstractArray,Colon,Int64}...)
     FactorSolution(view(f.idpool, I...), view(f.timepool, I...))
 end
 
@@ -133,7 +133,7 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
 end
 
 
-function DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::AbstractVector{Bool})
+function DataFrames.DataFrame(fp::AbstractFactorModel, fs::AbstractFactorSolution, esample::AbstractVector{Bool})
     df = DataFrame()
     for r in 1:rank(fp)
         # loadings
@@ -166,9 +166,9 @@ function InteractiveFixedEffectsModel(y::Vector{Float64}, sqrtw::W, X::Matrix{Fl
     InteractiveFixedEffectsModel{rank, W, Rid, Rtime}(y, sqrtw, X, idrefs, timerefs)
 end
 
-rank(::InteractiveFixedEffectsModel{Rank}) where {Rank} = Rank
+LinearAlgebra.rank(::InteractiveFixedEffectsModel{Rank}) where {Rank} = Rank
 
-function convert(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) where {Rank, W, Rid, Rtime}
+function Base.convert(::Type{FactorModel}, f::InteractiveFixedEffectsModel{Rank, W, Rid, Rtime}) where {Rank, W, Rid, Rtime}
     FactorModel{Rank, W, Rid, Rtime}(f.y, f.sqrtw, f.idrefs, f.timerefs)
 end
 
@@ -183,7 +183,7 @@ function InteractiveFixedEffectsSolution(b::Tb, idpool::Tid, timepool::Ttime) wh
     r == size(timepool, 2) || throw("factors and loadings don't have same dimension")
     InteractiveFixedEffectsSolution{r, Tb, Tid, Ttime}(b, idpool, timepool)
 end
-convert(::Type{FactorSolution}, f::InteractiveFixedEffectsSolution) = FactorSolution(f.idpool, f.timepool)
+Base.convert(::Type{FactorSolution}, f::InteractiveFixedEffectsSolution) = FactorSolution(f.idpool, f.timepool)
 
 struct InteractiveFixedEffectsSolutionT{Rank, Tb, Tid, Ttime} <: AbstractFactorSolution{Rank}   
     b::Tb   
@@ -265,18 +265,18 @@ struct InteractiveFixedEffectModel <: RegressionModel
     converged::Bool         # Has the demeaning algorithm converged?
 
 end
-coef(x::InteractiveFixedEffectModel) = x.coef
-coefnames(x::InteractiveFixedEffectModel) = x.coefnames
-vcov(x::InteractiveFixedEffectModel) = x.vcov
-nobs(x::InteractiveFixedEffectModel) = x.nobs
-dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
-r2(x::InteractiveFixedEffectModel) = x.r2
-adjr2(x::InteractiveFixedEffectModel) = x.adjr2
-islinear(x::InteractiveFixedEffectModel) = true
-rss(x::InteractiveFixedEffectModel) = x.rss
-predict(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
-residuals(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
-function confint(x::InteractiveFixedEffectModel)
+StatsBase.coef(x::InteractiveFixedEffectModel) = x.coef
+StatsBase.coefnames(x::InteractiveFixedEffectModel) = x.coefnames
+StatsBase.vcov(x::InteractiveFixedEffectModel) = x.vcov
+StatsBase.nobs(x::InteractiveFixedEffectModel) = x.nobs
+StatsBase.dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
+StatsBase.r2(x::InteractiveFixedEffectModel) = x.r2
+StatsBase.adjr2(x::InteractiveFixedEffectModel) = x.adjr2
+StatsBase.islinear(x::InteractiveFixedEffectModel) = true
+StatsBase.rss(x::InteractiveFixedEffectModel) = x.rss
+StatsBase.predict(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
+StatsBase.residuals(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
+function StatsBase.confint(x::InteractiveFixedEffectModel)
     scale = quantile(TDist(dof_residual(x)), 1 - (1-0.95)/2)
     se = stderror(x)
     hcat(x.coef -  scale * se, x.coef + scale * se)

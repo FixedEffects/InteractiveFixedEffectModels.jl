@@ -126,7 +126,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     ## Construict vector y and matrix X
     ##
     ##############################################################################
-    subdf = columntable(df[esample, unique(vcat(vars))])
+    subdf = StatsModels.columntable(df[esample, unique(vcat(vars))])
 
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
@@ -227,7 +227,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     # compute residuals
     fp = FactorModel(copy(y), sqrtw, id.refs, time.refs, m.rank)
     if has_regressors
-        gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
+        LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
     end
     subtract_factor!(fp, fs)
     fp.y .= fp.y ./ sqrtw
@@ -292,7 +292,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
              oldX = convert(Matrix{Float64}, modelmatrix(formula_schema, subdf))
              oldX .= oldX .* sqrtw
             if has_regressors
-                gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
+                LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
             end
             fp = FactorModel(oldresiduals, sqrtw, id.refs, time.refs, m.rank)
             subtract_factor!(fp, fs)
