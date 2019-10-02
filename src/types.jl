@@ -272,7 +272,7 @@ StatsBase.nobs(x::InteractiveFixedEffectModel) = x.nobs
 StatsBase.dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
 StatsBase.r2(x::InteractiveFixedEffectModel) = x.r2
 StatsBase.adjr2(x::InteractiveFixedEffectModel) = x.adjr2
-StatsBase.islinear(x::InteractiveFixedEffectModel) = true
+StatsBase.islinear(x::InteractiveFixedEffectModel) = false
 StatsBase.rss(x::InteractiveFixedEffectModel) = x.rss
 StatsBase.predict(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
 StatsBase.residuals(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
@@ -282,7 +282,7 @@ function StatsBase.confint(x::InteractiveFixedEffectModel)
     hcat(x.coef -  scale * se, x.coef + scale * se)
 end
 
-title(::InteractiveFixedEffectModel) = "Linear Factor Model"
+title(::InteractiveFixedEffectModel) = "Interactive Fixed Effect Model"
 top(x::InteractiveFixedEffectModel) = [
             "Number of obs" sprint(show, nobs(x); context=:compact => true);
             "Degree of freedom" sprint(show, nobs(x) - dof_residual(x); context=:compact => true);
