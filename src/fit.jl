@@ -67,7 +67,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     all_vars = unique(vcat(vars, factor_vars, vcov_vars))
     esample = completecases(df[!, all_vars])
     if has_weights
-        esample .&= FixedEffectModels.isnaorneg(df[!, weights])
+        esample .&= BitArray(!ismissing(x) & (x > 0) for x in df[!, weights])
         all_vars = unique(vcat(all_vars, weights))
     end
     if subset != nothing

@@ -22,9 +22,7 @@ using Reexport
 using FixedEffects
 @reexport using FixedEffectModels
 
-if !isdefined(FixedEffects, :AbstractFixedEffectSolver)
-	AbstractFixedEffectSolver{T} = AbstractFixedEffectMatrix{T}
-end
+
 if !isdefined(FixedEffectModels, :ModelTerm)
     ModelTerm = Model
 end
