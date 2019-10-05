@@ -58,12 +58,12 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
 
 
     ## create a dataframe without missing values & negative weightss
-    vars = allvars(formula)
+    vars = StatsModels.termvars(formula)
     if feformula != nothing # remove after depreciation
-        vars = vcat(vars, allvars(feformula))
+        vars = vcat(vars, StatsModels.termvars(@eval(@formula(0 ~ $(feformula)))))
     end
-    vcov_vars = allvars(vcovformula)
-    factor_vars = vcat(allvars(m.id), allvars(m.time))
+    vcov_vars = StatsModels.termvars(vcovformula)
+    factor_vars = [m.id, m.time]
     all_vars = unique(vcat(vars, factor_vars, vcov_vars))
     esample = completecases(df[!, all_vars])
     if has_weights
@@ -75,7 +75,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
         if length(subset) != size(df, 1)
             error("df has $(size(df, 1)) rows but the subset vector has $(length(subset)) elements")
         end
-        esample .&= subset
+        esample .&= BitArray(!ismissing(x) && x for x in subset)
     end
     main_vars = unique(vcat(vars, factor_vars))
 
