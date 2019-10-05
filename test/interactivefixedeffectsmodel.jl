@@ -32,10 +32,6 @@ for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 	@test norm(result.augmentdf[1, :residuals] / -5.222 - 1) < precision
 	@test result.r2_within > 0.0
 
-
-	model = @model Sales ~ Price ife = (State + Year, 2) fe = State
-	result = regife(df, model, method = method, save = true)
-
 	model = @model Sales ~ Price + ife(State, Year, 2) + fe(Year)
 	result = regife(df, model, method = method, save = true)
 	@test norm(result.coef ./ -0.3744296120563005 .- 1) < precision
@@ -104,8 +100,13 @@ for method in [:levenberg_marquardt, :dogleg]
 	@test norm(result.coef ./ [ -2.62105, -0.0470005] .- 1) < precision
 end
 
+# Check old syntax still works
+df[!, :pState] = categorical(df.State)
+df[!, :pYear] = categorical(df.Year)
+model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState
+result = regife(df, model)
 
-# programatically
+# Check formula can be constructed programatically
 using StatsModels
 result1 = regife(df, @model(Sales ~ NDI + fe(State) + ife(State, Year, 2), vcov = cluster(State)))
 result2 = regife(df, ModelTerm(Term(:Sales) ~ Term(:NDI) + fe(Term(:State)) + ife(Term(:State), Term(:Year), 2), vcov = :(cluster(State))))
