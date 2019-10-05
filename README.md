@@ -64,6 +64,14 @@ regife(df, @model(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 - The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with `missing`s).
 
 
+## Construct Model Programatically
+You can use
+```julia
+using StatsModels, DataFrames, RDatasets, InteractiveFixedEffectModels
+df = dataset("plm", "Cigar")
+regife(df, ModelTerm(Term(:Sales) ~ Term(:NDI) + fe(Term(:State)) + ife(Term(:State), Term(:Year), 2), vcov = :(cluster(State))))
+```
+
 
 
 ## Local minimum vs global minimum

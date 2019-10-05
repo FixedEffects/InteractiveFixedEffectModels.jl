@@ -3,7 +3,11 @@
 ## Object constructed by the user
 ##
 ##############################################################################
-ife(x) = nothing
+function ife(id::Term, time::Term, rank::Int) 
+    InteractiveFixedEffectTerm(Symbol(id), Symbol(time), rank)
+end
+
+
 # Object constructed by the user
 struct InteractiveFixedEffectTerm <: AbstractTerm
     id::Symbol

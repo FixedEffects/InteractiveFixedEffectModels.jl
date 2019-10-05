@@ -91,7 +91,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     for a in FixedEffectModels.eachterm(formula.rhs)
        if has_fe(a)
            isa(a, InteractionTerm) && error("Fixed effects cannot be interacted")
-           Symbol(first(a.args_parsed)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
+           Symbol(FixedEffectModels.fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
        end
     end
     fes, ids, formula = FixedEffectModels.parse_fixedeffect(df, formula)
