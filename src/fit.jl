@@ -32,7 +32,7 @@ function regife(df, f::FormulaTerm;
     ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
-    df = DataFrame(df)
+    df = DataFrame(df; copycols = false)
     if isa(vcov, Symbol)
         vcovformula = Vcov(Val{vcov})
     else 
