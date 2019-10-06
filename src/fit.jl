@@ -10,11 +10,11 @@ function StatsBase.fit(::Type{InteractiveFixedEffectModel}, m::ModelTerm, df::Ab
 end
 
 
-function regife(df::AbstractDataFrame, m::ModelTerm; kwargs...)
+function regife(df, m::ModelTerm; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
 
-function regife(df::AbstractDataFrame, f::FormulaTerm;
+function regife(df, f::FormulaTerm;
              feformula::Union{Symbol, Expr, Nothing} = nothing,
              ifeformula::Union{Symbol, Expr, Nothing} = nothing,
              vcov::Union{Symbol, Expr, Nothing} = :(simple()), 
@@ -32,7 +32,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
     ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
-
+    df = DataFrame(df)
     if isa(vcov, Symbol)
         vcovformula = Vcov(Val{vcov})
     else 
