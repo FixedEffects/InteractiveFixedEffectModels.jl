@@ -12,7 +12,7 @@ The definition of interactive fixed effects follows Bai (2009).Formally, denote 
 
 
 ## Syntax
-To estimate an interactive fixed effect model, one needs to specify a formula, a factor model with `ife`, and, optionally, a set of fixed effects with `fe`, a way to compute standard errors with `vcov`, and a weight variable with `weights`.
+To estimate a `@model`, specify  a formula with a way to compute standard errors with the argument `vcov`.
 
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
@@ -29,26 +29,24 @@ regife(df, @model(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 #Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
 #================================================================
 ```
-- The first argument of `regife` is a DataFrame
-- The second argument is a `model`. 
-	- A typical formula is composed of one dependent variable and a set of  regressors.
+- A typical formula is composed of one dependent variable and a set of  regressors.
 
-		Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
+	Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
 
-		High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+	High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
-		```julia
-		regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2)))
-		regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2) + fe(State)))
-		```
+	```julia
+	regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2)))
+	regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2) + fe(State)))
+	```
 
-	
 
-	- Standard errors are indicated with the keyword argument `vcov`
-		```julia
-		vcov = robust()
-		vcov = cluster(State)
-		vcov = cluster(State, Year)
+
+- Standard errors are indicated with the keyword argument `vcov`
+	```julia
+	vcov = robust()
+	vcov = cluster(State)
+	vcov = cluster(State, Year)
 		```
 
 - The option `weights` can add weights
