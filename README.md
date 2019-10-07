@@ -12,12 +12,12 @@ The definition of interactive fixed effects follows Bai (2009).Formally, denote 
 
 
 ## Syntax
-To estimate a `@model`, specify  a formula with a way to compute standard errors with the argument `vcov`.
+Specify  a formula with a way to compute standard errors with the argument `vcov`.
 
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-regife(df, @model(Sales ~ Price + fe(State) + ife(State, Year, 2)))
+regife(df, @formula(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 #                      Linear Factor Model                      
 #================================================================
 #Number of obs:             1380  Degree of freedom:          199
@@ -29,30 +29,32 @@ regife(df, @model(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 #Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
 #================================================================
 ```
-- A typical formula is composed of one dependent variable and a set of  regressors.
+A typical formula is composed of one dependent variable and a set of  regressors.
 
 	Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
 
 	High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
 	```julia
-	regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2)))
-	regife(df, @model(Sales ~ Price + Year +  ife(State, Year, 2) + fe(State)))
+	regife(df, @formula(Sales ~ Price + Year +  ife(State, Year, 2)))
+	regife(df, @formula(Sales ~ Price + Year +  ife(State, Year, 2) + fe(State)))
 	```
 
 
-
-- Standard errors are indicated with the keyword argument `vcov`
+## Options
+- Standard errors are indicated as follows
 	```julia
-	vcov = robust()
-	vcov = cluster(State)
-	vcov = cluster(State, Year)
+	vcov.robust()
+	vcov.cluster(:State)
+	vcov.cluster(:State, :Year)
 		```
-
 - The option `weights` can add weights
-
 	```julia
 	weights = :Pop
+	```
+- The option `subset` estimates the model on a subset of the dataframe
+	```julia
+	subset = df.State .>= 30
 	```
 	
 - The option `method` can be used to choose between two algorithms:
@@ -67,7 +69,7 @@ You can use
 ```julia
 using StatsModels, DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-regife(df, ModelTerm(Term(:Sales) ~ Term(:NDI) + fe(Term(:State)) + ife(Term(:State), Term(:Year), 2), vcov = :(cluster(State))))
+regife(df, Term(:Sales) ~ Term(:NDI) + fe(Term(:State)) + ife(Term(:State), Term(:Year), 2), Vcov.cluster(:State))
 ```
 
 
@@ -86,14 +88,14 @@ To estimate a factor model without any demeaning
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-regife(df, @model(Sales ~ 0 + ife(State, Year, 2)), save = true)
+regife(df, @formula(Sales ~ 0 + ife(State, Year, 2)), save = true)
 ```
 
 To demean with respect to one dimension, use 
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-regife(df, @model(Sales ~ ife(State, Year, 2) + fe(State)), save = true)
+regife(df, @formula(Sales ~ ife(State, Year, 2) + fe(State)), save = true)
 ```
 
 The algorithm used in this package allows one to estimate models with multiple (or missing) observations per id x time.

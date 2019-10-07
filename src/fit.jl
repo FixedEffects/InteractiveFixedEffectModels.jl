@@ -5,27 +5,26 @@
 ##
 ##############################################################################
 
-function StatsBase.fit(::Type{InteractiveFixedEffectModel}, m::ModelTerm, df::AbstractDataFrame; kwargs...)
-    regife(df, m; kwargs...)
-end
 
 
-function regife(df, m::ModelTerm; kwargs...)
+
+function regife(df, m::FixedEffectModels.ModelTerm; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
 
-function regife(df, f::FormulaTerm;
-             feformula::Union{Symbol, Expr, Nothing} = nothing,
-             ifeformula::Union{Symbol, Expr, Nothing} = nothing,
-             vcov::Union{Symbol, Expr, Nothing} = :(simple()), 
-             weights::Union{Symbol, Expr, Nothing} = nothing, 
-             subset::Union{Symbol, Expr, Nothing} = nothing, 
+function regife(df, f::FormulaTerm, vcov::Vcov.AbstractVcov = Vcov.simple();
+            weights::Union{Symbol, Nothing} = nothing, 
+            subset::Union{AbstractVector, Nothing} = nothing,
              method::Symbol = :dogleg, 
              lambda::Number = 0.0, 
              maxiter::Integer = 10_000, 
              tol::Real = 1e-9, 
              save::Union{Bool, Nothing} = nothing,
-             contrasts::Dict = Dict{Symbol, Any}())
+             contrasts::Dict = Dict{Symbol, Any}(),
+             feformula::Union{Symbol, Expr, Nothing} = nothing,
+            ifeformula::Union{Symbol, Expr, Nothing} = nothing,
+            vcovformula::Union{Symbol, Expr, Nothing} = nothing,
+            subsetformula::Union{Symbol, Expr, Nothing} = nothing)
 
     ##############################################################################
     ##
@@ -33,10 +32,19 @@ function regife(df, f::FormulaTerm;
     ##
     ##############################################################################
     df = DataFrame(df; copycols = false)
-    if isa(vcov, Symbol)
-        vcovformula = Vcov(Val{vcov})
-    else 
-        vcovformula = Vcov(Val{vcov.args[1]}, (vcov.args[i] for i in 2:length(vcov.args))...)
+
+    # to deprecate
+    if vcovformula != nothing
+        if (vcovformula == :simple) | (vcovformula == :(simple()))
+            vcov = Vcov.Simple()
+        elseif (vcovformula == :robust) | (vcovformula == :(robust()))
+            vcov = Vcov.Robust()
+        else
+            vcov = Vcov.cluster(StatsModels.termvars(@eval(@formula(0 ~ $(vcovformula.args[2]))))...)
+        end
+    end
+    if subsetformula != nothing
+        subset = eval(evaluate_subset(df, subsetformula))
     end
 
     if  (ConstantTerm(0) ∉ FixedEffectModels.eachterm(f.rhs)) & (ConstantTerm(1) ∉ FixedEffectModels.eachterm(f.rhs))
@@ -62,7 +70,7 @@ function regife(df, f::FormulaTerm;
     if feformula != nothing # remove after depreciation
         vars = vcat(vars, StatsModels.termvars(@eval(@formula(0 ~ $(feformula)))))
     end
-    vcov_vars = StatsModels.termvars(vcovformula)
+    vcov_vars = StatsModels.termvars(vcov)
     factor_vars = [m.id, m.time]
     all_vars = unique(vcat(vars, factor_vars, vcov_vars))
     esample = completecases(df[!, all_vars])
@@ -71,7 +79,6 @@ function regife(df, f::FormulaTerm;
         all_vars = unique(vcat(all_vars, weights))
     end
     if subset != nothing
-        subset = eval(evaluate_subset(df, subset))
         if length(subset) != size(df, 1)
             error("df has $(size(df, 1)) rows but the subset vector has $(length(subset)) elements")
         end
@@ -81,7 +88,7 @@ function regife(df, f::FormulaTerm;
 
 
     # Compute data needed for errors
-    vcov_method_data = VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcovformula)
+    vcov_method_data = Vcov.VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcov)
 
      # Compute weights
     sqrtw = Ones{Float64}(sum(esample))
@@ -253,8 +260,8 @@ function regife(df, f::FormulaTerm;
         dof_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe, 1)
 
         ## estimate vcov matrix
-        vcov_data = VcovData(Xm, crossxm, residualsm, dof_residual)
-        matrix_vcov = vcov!(vcov_method_data, vcov_data)
+        vcov_data = Vcov.VcovData(Xm, crossxm, residualsm, dof_residual)
+        matrix_vcov = Vcov.vcov!(vcov_method_data, vcov_data)
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
