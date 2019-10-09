@@ -12,7 +12,7 @@ function regife(df, m::FixedEffectModels.ModelTerm; kwargs...)
     regife(df, m.f; m.dict..., kwargs...)
 end
 
-function regife(df, f::FormulaTerm, vcov::Vcov.AbstractVcov = Vcov.simple();
+function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
             weights::Union{Symbol, Nothing} = nothing, 
             subset::Union{AbstractVector, Nothing} = nothing,
              method::Symbol = :dogleg, 
@@ -70,10 +70,10 @@ function regife(df, f::FormulaTerm, vcov::Vcov.AbstractVcov = Vcov.simple();
     if feformula != nothing # remove after depreciation
         vars = vcat(vars, StatsModels.termvars(@eval(@formula(0 ~ $(feformula)))))
     end
-    vcov_vars = StatsModels.termvars(vcov)
     factor_vars = [m.id, m.time]
-    all_vars = unique(vcat(vars, factor_vars, vcov_vars))
+    all_vars = unique(vcat(vars, factor_vars))
     esample = completecases(df[!, all_vars])
+    esample .&= completecases(df, vcov)
     if has_weights
         esample .&= BitArray(!ismissing(x) & (x > 0) for x in df[!, weights])
         all_vars = unique(vcat(all_vars, weights))
@@ -88,7 +88,7 @@ function regife(df, f::FormulaTerm, vcov::Vcov.AbstractVcov = Vcov.simple();
 
 
     # Compute data needed for errors
-    vcov_method_data = Vcov.VcovMethod(df[esample, unique(Symbol.(vcov_vars))], vcov)
+    vcov_method_data = Vcov.materialize(vcov, view(df, esample,:))
 
      # Compute weights
     sqrtw = Ones{Float64}(sum(esample))
@@ -260,8 +260,8 @@ function regife(df, f::FormulaTerm, vcov::Vcov.AbstractVcov = Vcov.simple();
         dof_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe, 1)
 
         ## estimate vcov matrix
-        vcov_data = Vcov.VcovData(Xm, crossxm, residualsm, dof_residual)
-        matrix_vcov = Vcov.vcov!(vcov_method_data, vcov_data)
+        vcov_data = FixedEffectModels.VcovData(Xm, crossxm, residualsm, dof_residual)
+        matrix_vcov = StatsBase.vcov(vcov_data, vcov_method_data)
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
@@ -318,7 +318,7 @@ function regife(df, f::FormulaTerm, vcov::Vcov.AbstractVcov = Vcov.simple();
     if !has_regressors
         return FactorResult(esample, augmentdf, rss, iterations, converged)
     else
-        return InteractiveFixedEffectModel(fs.b, matrix_vcov, esample, augmentdf, 
+        return InteractiveFixedEffectModel(fs.b, matrix_vcov, vcov, esample, augmentdf, 
             coef_names, yname, f, nobs, dof_residual, r2, r2_a, r2_within, 
             rss, sum(iterations), all(converged))
     end
