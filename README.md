@@ -26,18 +26,18 @@ regife(df, @formula(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 #Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
 #================================================================
 ```
-A typical formula is composed of one dependent variable and a set of  regressors.
 
-Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
 
-High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+- Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
 
-```julia
-regife(df, @formula(Sales ~ Price +  ife(State, Year, 2)))
-regife(df, @formula(Sales ~ Price +  ife(State, Year, 2) + fe(State)))
-```
+- High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
-To construct formula programatically, you can use
+	```julia
+	regife(df, @formula(Sales ~ Price +  ife(State, Year, 2)))
+	regife(df, @formula(Sales ~ Price +  ife(State, Year, 2) + fe(State)))
+	```
+
+To construct formula programatically, use
 ```julia
 regife(df, Term(:Sales) ~ Term(:Price) + ife(Term(:State), Term(:Year), 2) + fe(Term(:State)))
 ```
