@@ -69,7 +69,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     factor_vars = [m.id, m.time]
     all_vars = unique(vcat(vars, factor_vars))
     esample = completecases(df[!, all_vars])
-    esample .&= completecases(df, vcov)
+    esample .&= Vcov.completecases(df, vcov)
     if has_weights
         esample .&= BitArray(!ismissing(x) & (x > 0) for x in df[!, weights])
         all_vars = unique(vcat(all_vars, weights))
@@ -84,7 +84,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
 
 
     # Compute data needed for errors
-    vcov_method_data = Vcov.materialize(vcov, view(df, esample,:))
+    vcov_method_data = Vcov.materialize(view(df, esample,:), vcov)
 
      # Compute weights
     sqrtw = Ones{Float64}(sum(esample))
