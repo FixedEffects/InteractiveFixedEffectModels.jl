@@ -42,10 +42,8 @@ regife
 ##
 ##############################################################################
 include("types.jl")
-
 include("methods/gauss_seidel.jl")
 include("methods/ls.jl")
-
 include("fit.jl")
-
+include("deprecated.jl")
 end
