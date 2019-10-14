@@ -9,8 +9,6 @@ The definition of interactive fixed effects follows Bai (2009).Formally, denote 
 
 ![minimization](img/minimization.png)
 
-## Formula Syntax
-
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
@@ -28,27 +26,27 @@ regife(df, @formula(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 ```
 
 
-- Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
+## Syntax
+- Formula
 
-- High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+	- Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
 
+	- High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
+
+		```julia
+		regife(df, @formula(Sales ~ Price +  ife(State, Year, 2)))
+		regife(df, @formula(Sales ~ Price +  ife(State, Year, 2) + fe(State)))
+		```
+
+	To construct formula programatically, use
 	```julia
-	regife(df, @formula(Sales ~ Price +  ife(State, Year, 2)))
-	regife(df, @formula(Sales ~ Price +  ife(State, Year, 2) + fe(State)))
+	regife(df, Term(:Sales) ~ Term(:Price) + ife(Term(:State), Term(:Year), 2) + fe(Term(:State)))
 	```
-
-To construct formula programatically, use
-```julia
-regife(df, Term(:Sales) ~ Term(:Price) + ife(Term(:State), Term(:Year), 2) + fe(Term(:State)))
-```
-
-
-## Options
 - Standard errors are indicated as follows
 	```julia
-	vcov.robust()
-	vcov.cluster(:State)
-	vcov.cluster(:State, :Year)
+	Vcov.robust()
+	Vcov.cluster(:State)
+	Vcov.cluster(:State, :Year)
 	```
 - The option `weights` can add weights
 	```julia
