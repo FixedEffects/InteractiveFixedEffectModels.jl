@@ -11,9 +11,10 @@ using LinearAlgebra
 using Statistics
 using Printf
 
+
 using StatsBase
 using StatsModels
-using CategoricalArrays
+using Tables
 using DataFrames
 using LeastSquaresOptim
 using FillArrays

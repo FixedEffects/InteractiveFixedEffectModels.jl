@@ -130,7 +130,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     ## Construict vector y and matrix X
     ##
     ##############################################################################
-    subdf = StatsModels.columntable(df[esample, unique(vcat(vars))])
+    subdf = columntable(df[esample, unique(vcat(vars))])
 
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
