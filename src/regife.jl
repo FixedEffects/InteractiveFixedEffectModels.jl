@@ -191,7 +191,7 @@ function regife(df::AbstractDataFrame, f::FormulaTerm;
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newfeM = FixedEffectModels.FixedEffectMatrix(getfactors(fp, fs), sqrtw, Val{:lsmr})
+            newfeM = FixedEffectModels.AbstractFixedEffectMatrix{Float64}(getfactors(fp, fs), sqrtw, Val{:lsmr})
             ym .= ym ./sqrtw
             FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
