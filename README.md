@@ -1,6 +1,10 @@
 [![Build Status](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl.svg?branch=master)](https://travis-ci.org/matthieugomez/InteractiveFixedEffectModels.jl)
 [![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
 
+## Installation
+The package is registered in the [`General`](https://github.com/JuliaRegistries/General) registry and so can be installed at the REPL with 
+
+`] add InteractiveFixedEffectModels`.
 
 ## Motivation
 This package implements a novel, fast and robust algorithm to estimate interactive fixed effect models. 
@@ -12,7 +16,7 @@ The definition of interactive fixed effects follows Bai (2009).Formally, denote 
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
-regife(df, @formula(Sales ~ Price + fe(State) + ife(State, Year, 2)))
+regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State)))
 #                      Linear Factor Model                      
 #================================================================
 #Number of obs:             1380  Degree of freedom:          199
@@ -34,8 +38,8 @@ regife(df, @formula(Sales ~ Price + fe(State) + ife(State, Year, 2)))
 	- High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
 
 		```julia
-		regife(df, @formula(Sales ~ Price +  ife(State, Year, 2)))
-		regife(df, @formula(Sales ~ Price +  ife(State, Year, 2) + fe(State)))
+		regife(df, @formula(Sales ~ Price + ife(State, Year, 2)))
+		regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State)))
 		```
 
 	To construct formula programatically, use
@@ -113,10 +117,3 @@ In presence of cross or time correlation beyond the factor structure, the estima
 - https://github.com/joidegn/FactorModels.jl : fits and predict factor models on matrices
 - https://github.com/madeleineudell/LowRankModels.jl : fits general low rank approximations on matrices
 - https://github.com/aaw/IncrementalSVD.jl: implementation of the backpropagation algorithm
-
-## Install
-
-```julia
-using Pkg
-Pkg.add("InteractiveFixedEffectModels")
-```

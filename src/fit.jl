@@ -87,10 +87,13 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     vcov_method_data = Vcov.materialize(view(df, esample,:), vcov)
 
      # Compute weights
-    sqrtw = Ones{Float64}(sum(esample))
-    if has_weights
-        sqrtw = convert(Vector{Float64}, sqrt.(view(df, esample, weights)))
-    end
+     # Compute weights
+     if has_weights
+         weights = Weights(convert(Vector{Float64}, view(df, esample, weights)))
+     else
+         weights = Weights(Ones{Float64}(sum(esample)))
+     end
+     sqrtw = sqrt.(values(weights))
     for a in FixedEffectModels.eachterm(formula.rhs)
        if has_fe(a)
            isa(a, InteractionTerm) && error("Fixed effects cannot be interacted")
@@ -111,7 +114,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
                 has_fes_intercept = true
         end
         fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
-        feM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(fes, sqrtw, Val{:lsmr})
+        feM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(fes, weights, Val{:lsmr})
     end
 
 
@@ -203,7 +206,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newfeM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), sqrtw, Val{:lsmr})
+            newfeM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), weights, Val{:lsmr})
             ym .= ym ./sqrtw
             FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
