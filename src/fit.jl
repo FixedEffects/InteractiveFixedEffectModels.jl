@@ -47,7 +47,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
         formula = FormulaTerm(f.lhs, tuple(ConstantTerm(1), FixedEffectModels.eachterm(f.rhs)...))
     end
 
-    formula, formula_endo, formula_iv = FixedEffectModels.decompose_iv(f)
+    formula, formula_endo, formula_iv = FixedEffectModels.parse_iv(f)
 
     m, formula = parse_interactivefixedeffect(df, formula)
     if ifeformula != nothing # remove after depreciation
@@ -114,7 +114,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
                 has_fes_intercept = true
         end
         fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
-        feM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(fes, weights, Val{:lsmr})
+        feM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(fes, weights, Val{:cpu})
     end
 
 
@@ -138,7 +138,8 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
     y = convert(Vector{Float64}, response(formula_schema, subdf))
-    oldy = copy(y)
+    tss_total = FixedEffectModels.tss(y, has_intercept || has_fes_intercept, weights)
+
     X = convert(Matrix{Float64}, modelmatrix(formula_schema, subdf))
 
     # change default if has_regressors
@@ -158,14 +159,12 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     coef_names = Symbol.(coef_names)
 
 
-
+    # demean variables
     if has_fes
         FixedEffectModels.solve_residuals!(y, feM)
         FixedEffectModels.solve_residuals!(X, feM)
-     end
-     y .= y .* sqrtw
-     X .= X .* sqrtw
-
+    end
+    
  
 
     ##############################################################################
@@ -178,16 +177,16 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     idpool = fill(0.1, length(id.pool), m.rank)
     timepool = fill(0.1, length(time.pool), m.rank)
   
+    y .= y .* sqrtw 
+    X .= X .* sqrtw
     if !has_regressors
+        # factor model 
         fp = FactorModel(y, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
-        # factor model 
-
         (fs, iterations, converged) = 
             fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
     else 
         # interactive fixed effect
-        # initialize fs
         coef = X \ y
         fp = FactorModel(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
         fs = FactorSolution(idpool, timepool)
@@ -195,6 +194,8 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
 
         fs = InteractiveFixedEffectsSolution(coef, fs.idpool, fs.timepool)
         fp = InteractiveFixedEffectsModel(y, sqrtw, X, id.refs, time.refs, m.rank)
+
+
         ym = copy(y)
         Xm = copy(X)
 
@@ -206,15 +207,14 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newfeM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), weights, Val{:lsmr})
-            ym .= ym ./sqrtw
+            newfeM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), weights, Val{:cpu})
+            ym .= ym ./ sqrtw
             FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
-
-            Xm .= Xm ./sqrtw
+            Xm .= Xm ./ sqrtw
             FixedEffectModels.solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
             Xm .= Xm .* sqrtw
-            ydiff = Xm * (fs.b - Xm \ ym)
+            ydiff = Xm  * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
                 break
             end
@@ -264,13 +264,12 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
-        _tss = FixedEffectModels.tss(ym, has_intercept || has_fes_intercept, sqrtw)
+        _tss = FixedEffectModels.tss(ym ./ sqrtw, has_intercept || has_fes_intercept, weights)
         r2_within = 1 - rss / _tss 
 
         rss = sum(abs2, residuals)
-        _tss = FixedEffectModels.tss(oldy, has_intercept || has_fes_intercept, sqrtw)
-        r2 = 1 - rss / _tss 
-        r2_a = 1 - rss / _tss * (nobs - has_intercept) / dof_residual 
+        r2 = 1 - rss / tss_total 
+        r2_a = 1 - rss / tss_total * (nobs - has_intercept) / dof_residual 
     end
 
     ##############################################################################

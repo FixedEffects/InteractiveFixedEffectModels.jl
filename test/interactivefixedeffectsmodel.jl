@@ -100,11 +100,6 @@ for method in [:levenberg_marquardt, :dogleg]
 	@test norm(result.coef ./ [ -2.62105, -0.0470005] .- 1) < precision
 end
 
-# Check old syntax still works
-df[!, :pState] = categorical(df.State)
-df[!, :pYear] = categorical(df.Year)
-model = @model Sales ~ Price ife = (pState + pYear, 2) fe = pState
-result = regife(df, model)
 
 # Check formula can be constructed programatically
 using StatsModels
