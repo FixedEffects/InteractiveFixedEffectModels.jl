@@ -102,8 +102,8 @@ The algorithm used in this package allows one to estimate models with multiple (
 Some litterature using this estimation procedure::
 
 - Eberhardt, Helmers, Strauss (2013) *Do spillovers matter when estimating private returns to R&D?*
-- Hagedorn, Karahan, Movskii (2015) *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
-- Hagedorn, Karahan, Movskii (2015) *The impact of unemployment benefit extensions on employment: the 2014 employment miracle?* 
+- Hagedorn, Karahan, Manovskii (2015) *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
+- Hagedorn, Karahan, Manovskii (2015) *The impact of unemployment benefit extensions on employment: the 2014 employment miracle?* 
 - Totty (2015) *The Effect of Minimum Wages on Employment: A Factor Model Approach*
 
 #### How are standard errors computed?
