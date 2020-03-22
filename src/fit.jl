@@ -93,7 +93,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
      else
          weights = Weights(Ones{Float64}(sum(esample)))
      end
-     sqrtw = sqrt.(values(weights))
+     sqrtw = sqrt.(weights)
     for a in FixedEffectModels.eachterm(formula.rhs)
        if has_fe(a)
            isa(a, InteractionTerm) && error("Fixed effects cannot be interacted")
