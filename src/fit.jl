@@ -259,7 +259,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
         dof_residual = max(size(X, 1) - size(X, 2) - df_absorb_fe, 1)
 
         ## estimate vcov matrix
-        vcov_data = FixedEffectModels.VcovData(Xm, crossxm, residualsm, dof_residual)
+        vcov_data = Vcov.VcovData(Xm, crossxm, residualsm, dof_residual)
         matrix_vcov = StatsBase.vcov(vcov_data, vcov_method_data)
         # compute various r2
         nobs = sum(esample)
