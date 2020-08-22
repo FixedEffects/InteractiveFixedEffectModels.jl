@@ -23,10 +23,6 @@ using Reexport
 using FixedEffects
 @reexport using FixedEffectModels
 
-
-if !isdefined(FixedEffectModels, :ModelTerm)
-    ModelTerm = Model
-end
 ##############################################################################
 ##
 ## Exported methods and types 
