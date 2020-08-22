@@ -5,13 +5,10 @@ module InteractiveFixedEffectModels
 ##
 ##############################################################################
 
-
 using Base
 using LinearAlgebra
 using Statistics
 using Printf
-
-
 using StatsBase
 using StatsModels
 using Tables
@@ -42,5 +39,4 @@ include("types.jl")
 include("methods/gauss_seidel.jl")
 include("methods/ls.jl")
 include("fit.jl")
-include("deprecated.jl")
 end

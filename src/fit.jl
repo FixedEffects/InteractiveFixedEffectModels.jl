@@ -4,9 +4,6 @@
 ## Fit is the only exported function
 ##
 ##############################################################################
-function regife(df, m::FixedEffectModels.ModelTerm; kwargs...)
-    regife(df, m.f; m.dict..., kwargs...)
-end
 
 function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
             weights::Union{Symbol, Nothing} = nothing, 
