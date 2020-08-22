@@ -17,16 +17,16 @@ The definition of interactive fixed effects follows Bai (2009).Formally, denote 
 using DataFrames, RDatasets, InteractiveFixedEffectModels
 df = dataset("plm", "Cigar")
 regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State)))
-#                      Linear Factor Model                      
-#================================================================
-#Number of obs:             1380  Degree of freedom:          199
-#R2:                       0.976  R2 within:                0.435
-#Iterations:                 436  Converged:                 true
-#================================================================
-#        Estimate Std.Error  t value Pr(>|t|) Lower 95% Upper 95%
-#----------------------------------------------------------------
-#Price  -0.425372 0.0141163 -30.1334    0.000 -0.453068 -0.397677
-#================================================================
+                 Interactive Fixed Effect Model
+================================================================
+Number of obs:             1380  Degree of freedom:           47
+R2:                       0.976  R2 within:                0.435
+Iterations:                 436  Converged:                 true
+================================================================
+        Estimate Std.Error  t value Pr(>|t|) Lower 95% Upper 95%
+----------------------------------------------------------------
+Price  -0.425372 0.0132871 -32.0139    0.000 -0.451438 -0.399306
+================================================================
 ```
 
 
