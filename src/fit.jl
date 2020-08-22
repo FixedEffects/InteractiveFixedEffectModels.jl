@@ -1,9 +1,4 @@
 
-##############################################################################
-##
-## Fit is the only exported function
-##
-##############################################################################
 
 function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
             weights::Union{Symbol, Nothing} = nothing, 
