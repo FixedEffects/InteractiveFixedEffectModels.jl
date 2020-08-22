@@ -1,7 +1,7 @@
 using DataFrames, InteractiveFixedEffectModels, CSV, LinearAlgebra, Test
 
 precision = 2e-1
-df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv"))
+df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
 
 
 
@@ -73,7 +73,7 @@ precision = 2e-1
 for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
-	df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv"))
+	local df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
 	df.State = categorical(df.State)
 	df.Year = categorical(df.Year)
 	model = @formula Sales ~ Price + ife(State, Year, 1) + fe(State)
@@ -81,7 +81,7 @@ for method in [:levenberg_marquardt, :dogleg]
 	model = @formula Sales ~ Price + ife(State, Year, 2) + fe(State)
 	result = regife(df, model, weights = :Pop, method = method, save = true)
 
-	df = CSV.read(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/EmplUK.csv"))
+	local df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/EmplUK.csv")))
 	df.id1 = df.Firm
 	df.id2 = df.Year
 	df.pid1 = categorical(df.id1)
