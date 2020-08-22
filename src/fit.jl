@@ -1,12 +1,4 @@
 
-##############################################################################
-##
-## Fit is the only exported function
-##
-##############################################################################
-function regife(df, m::FixedEffectModels.ModelTerm; kwargs...)
-    regife(df, m.f; m.dict..., kwargs...)
-end
 
 function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
             weights::Union{Symbol, Nothing} = nothing, 
@@ -16,11 +8,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
              maxiter::Integer = 10_000, 
              tol::Real = 1e-9, 
              save::Union{Bool, Nothing} = nothing,
-             contrasts::Dict = Dict{Symbol, Any}(),
-             feformula::Union{Symbol, Expr, Nothing} = nothing,
-            ifeformula::Union{Symbol, Expr, Nothing} = nothing,
-            vcovformula::Union{Symbol, Expr, Nothing} = nothing,
-            subsetformula::Union{Symbol, Expr, Nothing} = nothing)
+             contrasts::Dict = Dict{Symbol, Any}())
 
     ##############################################################################
     ##
@@ -28,21 +16,6 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     ##
     ##############################################################################
     df = DataFrame(df; copycols = false)
-
-    # to deprecate
-    if vcovformula != nothing
-        if (vcovformula == :simple) | (vcovformula == :(simple()))
-            vcov = Vcov.Simple()
-        elseif (vcovformula == :robust) | (vcovformula == :(robust()))
-            vcov = Vcov.Robust()
-        else
-            vcov = Vcov.cluster(StatsModels.termvars(@eval(@formula(0 ~ $(vcovformula.args[2]))))...)
-        end
-    end
-    if subsetformula != nothing
-        subset = eval(evaluate_subset(df, subsetformula))
-    end
-
     if  (ConstantTerm(0) ∉ FixedEffectModels.eachterm(f.rhs)) & (ConstantTerm(1) ∉ FixedEffectModels.eachterm(f.rhs))
         formula = FormulaTerm(f.lhs, tuple(ConstantTerm(1), FixedEffectModels.eachterm(f.rhs)...))
     end
@@ -50,22 +23,11 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     formula, formula_endo, formula_iv = FixedEffectModels.parse_iv(f)
 
     m, formula = parse_interactivefixedeffect(df, formula)
-    if ifeformula != nothing # remove after depreciation
-        m = OldInteractiveFixedEffectFormula(ifeformula)
-    end
-
-    ## parse formula 
-    if formula_iv != nothing
-        error("partial_out does not support instrumental variables")
-    end
     has_weights = (weights != nothing)
 
 
     ## create a dataframe without missing values & negative weightss
     vars = StatsModels.termvars(formula)
-    if feformula != nothing # remove after depreciation
-        vars = vcat(vars, StatsModels.termvars(@eval(@formula(0 ~ $(feformula)))))
-    end
     factor_vars = [m.id, m.time]
     all_vars = unique(vcat(vars, factor_vars))
     esample = completecases(df[!, all_vars])
@@ -101,10 +63,6 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
        end
     end
     fes, ids, formula = FixedEffectModels.parse_fixedeffect(df, formula)
-    if feformula != nothing # remove after depreciation
-        feformula = @eval(@formula(0 ~ $(feformula)))
-        fes, ids = FixedEffectModels.oldparse_fixedeffect(df, feformula)
-    end 
     has_fes = !isempty(fes)
     has_fes_intercept = false
     ## Compute factors, an array of AbtractFixedEffects
