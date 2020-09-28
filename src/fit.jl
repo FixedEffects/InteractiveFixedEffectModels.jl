@@ -1,14 +1,17 @@
 
 
-function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
-            weights::Union{Symbol, Nothing} = nothing, 
-            subset::Union{AbstractVector, Nothing} = nothing,
-             method::Symbol = :dogleg, 
-             lambda::Number = 0.0, 
-             maxiter::Integer = 10_000, 
-             tol::Real = 1e-9, 
-             save::Union{Bool, Nothing} = nothing,
-             contrasts::Dict = Dict{Symbol, Any}())
+function regife(
+    @nospecialize(df), 
+    @nospecialize(f::FormulaTerm),
+    @nospecialize(vcov::CovarianceEstimator = Vcov.simple());
+    @nospecialize(weights::Union{Symbol, Nothing} = nothing), 
+    @nospecialize(subset::Union{AbstractVector, Nothing} = nothing),
+    @nospecialize(method::Symbol = :dogleg), 
+    @nospecialize(lambda::Number = 0.0), 
+    @nospecialize(maxiter::Integer = 10_000), 
+    @nospecialize(tol::Real = 1e-9), 
+    @nospecialize(save::Union{Bool, Nothing} = nothing),
+    @nospecialize(contrasts::Dict = Dict{Symbol, Any}()))
 
     ##############################################################################
     ##
@@ -52,10 +55,11 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
      # Compute weights
      if has_weights
          weights = Weights(convert(Vector{Float64}, view(df, esample, weights)))
+         sqrtw = sqrt.(weights)
      else
-         weights = Weights(Ones{Float64}(sum(esample)))
+         weights = uweights(sum(esample))
+         sqrtw = ones(length(weights))
      end
-     sqrtw = sqrt.(weights)
     for a in FixedEffectModels.eachterm(formula.rhs)
        if has_fe(a)
            isa(a, InteractionTerm) && error("Fixed effects cannot be interacted")
@@ -120,7 +124,7 @@ function regife(df, f::FormulaTerm, vcov::CovarianceEstimator = Vcov.simple();
     # demean variables
     if has_fes
         FixedEffectModels.solve_residuals!(y, feM)
-        FixedEffectModels.solve_residuals!(X, feM)
+        FixedEffectModels.solve_residuals!(X, feM, progress_bar = false)
     end
     
  

@@ -4,20 +4,20 @@ module InteractiveFixedEffectModels
 ## Dependencies
 ##
 ##############################################################################
-
-using Base
+using DataFrames
+using Distributions
+using FillArrays
+using FixedEffects
+using LeastSquaresOptim
 using LinearAlgebra
-using Statistics
 using Printf
+using Statistics
 using StatsBase
 using StatsModels
 using Tables
-using DataFrames
-using LeastSquaresOptim
-using FillArrays
-using Distributions
+using Vcov
+
 using Reexport
-using FixedEffects
 @reexport using FixedEffectModels
 
 ##############################################################################
