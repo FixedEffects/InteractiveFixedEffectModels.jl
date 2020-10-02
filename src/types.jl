@@ -281,11 +281,36 @@ StatsBase.islinear(x::InteractiveFixedEffectModel) = false
 StatsBase.rss(x::InteractiveFixedEffectModel) = x.rss
 StatsBase.predict(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
 StatsBase.residuals(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
-function StatsBase.confint(x::InteractiveFixedEffectModel)
-    scale = quantile(TDist(dof_residual(x)), 1 - (1-0.95)/2)
+function StatsBase.confint(x::InteractiveFixedEffectModel; level::Real = 0.95)
+    scale = tdistinvcdf(dof_residual(x), 1 - (1 - level) / 2)
     se = stderror(x)
     hcat(x.coef -  scale * se, x.coef + scale * se)
 end
+function StatsBase.coeftable(x::InteractiveFixedEffectModel; level = 0.95)
+    cc = coef(x)
+    se = stderror(x)
+    coefnms = coefnames(x)
+    conf_int = confint(x; level = level)
+    # put (intercept) last
+    if !isempty(coefnms) && ((coefnms[1] == Symbol("(Intercept)")) || (coefnms[1] == "(Intercept)"))
+        newindex = vcat(2:length(cc), 1)
+        cc = cc[newindex]
+        se = se[newindex]
+        conf_int = conf_int[newindex, :]
+        coefnms = coefnms[newindex]
+    end
+    tt = cc ./ se
+    FixedEffectModels.CoefTable(
+        hcat(cc, se, tt, fdistccdf.(Ref(1), Ref(dof_residual(x)), abs2.(tt)), conf_int[:, 1:2]),
+        ["Estimate","Std.Error","t value", "Pr(>|t|)", "Lower 95%", "Upper 95%" ],
+        ["$(coefnms[i])" for i = 1:length(cc)], 4)
+end
+
+##############################################################################
+##
+## Display Result
+##
+##############################################################################
 
 title(::InteractiveFixedEffectModel) = "Interactive Fixed Effect Model"
 top(x::InteractiveFixedEffectModel) = [
@@ -297,10 +322,9 @@ top(x::InteractiveFixedEffectModel) = [
             "Converged" sprint(show, x.converged; context=:compact => true)
             ]
 
+format_scientific(x) = @sprintf("%.3f", x)
+
 function Base.show(io::IO, x::InteractiveFixedEffectModel)
-    show(io, coeftable(x))
-end
-function StatsBase.coeftable(x::InteractiveFixedEffectModel)
     ctitle = title(x)
     ctop = top(x)
     cc = coef(x)
@@ -316,8 +340,73 @@ function StatsBase.coeftable(x::InteractiveFixedEffectModel)
         coefnms = coefnms[newindex]
     end
     tt = cc ./ se
-    FixedEffectModels.CoefTable2(
-        hcat(cc, se, tt, ccdf.(Ref(FDist(1, dof_residual(x))), abs2.(tt)), conf_int[:, 1:2]),
-        ["Estimate","Std.Error","t value", "Pr(>|t|)", "Lower 95%", "Upper 95%" ],
-        ["$(coefnms[i])" for i = 1:length(cc)], 4, ctitle, ctop)
+    mat = hcat(cc, se, tt, fdistccdf.(Ref(1), Ref(dof_residual(x)), abs2.(tt)), conf_int[:, 1:2])
+    nr, nc = size(mat)
+    colnms = ["Estimate","Std.Error","t value", "Pr(>|t|)", "Lower 95%", "Upper 95%"]
+    rownms = ["$(coefnms[i])" for i = 1:length(cc)]
+    pvc = 4
+
+
+    # print
+    if length(rownms) == 0
+        rownms = AbstractString[lpad("[$i]",floor(Integer, log10(nr))+3) for i in 1:nr]
+    end
+    if length(rownms) > 0
+        rnwidth = max(4,maximum([length(nm) for nm in rownms]) + 1)
+        else
+            # if only intercept, rownms is empty collection, so previous would return error
+        rnwidth = 4
+    end
+    rownms = [rpad(nm,rnwidth) for nm in rownms]
+    widths = [length(cn)::Int for cn in colnms]
+    str = [sprint(show, mat[i,j]; context=:compact => true) for i in 1:nr, j in 1:nc]
+    if pvc != 0                         # format the p-values column
+        for i in 1:nr
+            str[i, pvc] = format_scientific(mat[i, pvc])
+        end
+    end
+    for j in 1:nc
+        for i in 1:nr
+            lij = length(str[i, j])
+            if lij > widths[j]
+                widths[j] = lij
+            end
+        end
+    end
+    widths .+= 1
+    totalwidth = sum(widths) + rnwidth
+    if length(ctitle) > 0
+        halfwidth = div(totalwidth - length(ctitle), 2)
+        println(io, " " ^ halfwidth * string(ctitle) * " " ^ halfwidth)
+    end
+    if length(ctop) > 0
+        for i in 1:size(ctop, 1)
+            ctop[i, 1] = ctop[i, 1] * ":"
+        end
+        println(io, "=" ^totalwidth)
+        halfwidth = div(totalwidth, 2) - 1
+        interwidth = 2 +  mod(totalwidth, 2)
+        for i in 1:(div(size(ctop, 1) - 1, 2)+1)
+            print(io, ctop[2*i-1, 1])
+            print(io, lpad(ctop[2*i-1, 2], halfwidth - length(ctop[2*i-1, 1])))
+            print(io, " " ^interwidth)
+            if size(ctop, 1) >= 2*i
+                print(io, ctop[2*i, 1])
+                print(io, lpad(ctop[2*i, 2], halfwidth - length(ctop[2*i, 1])))
+            end
+            println(io)
+        end
+    end
+    println(io,"=" ^totalwidth)
+    println(io," " ^ rnwidth *
+            join([lpad(string(colnms[i]), widths[i]) for i = 1:nc], ""))
+    println(io,"-" ^totalwidth)
+    for i in 1:nr
+        print(io, rownms[i])
+        for j in 1:nc
+            print(io, lpad(str[i,j],widths[j]))
+        end
+        println(io)
+    end
+    println(io,"=" ^totalwidth)
 end
