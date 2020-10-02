@@ -19,13 +19,12 @@ function regife(
     ##
     ##############################################################################
     df = DataFrame(df; copycols = false)
-    if  (ConstantTerm(0) ∉ FixedEffectModels.eachterm(f.rhs)) & (ConstantTerm(1) ∉ FixedEffectModels.eachterm(f.rhs))
-        formula = FormulaTerm(f.lhs, tuple(ConstantTerm(1), FixedEffectModels.eachterm(f.rhs)...))
+    if  (ConstantTerm(0) ∉ eachterm(f.rhs)) & (ConstantTerm(1) ∉ eachterm(f.rhs))
+        formula = FormulaTerm(f.lhs, tuple(ConstantTerm(1), eachterm(f.rhs)...))
     end
 
-    formula, formula_endo, formula_iv = FixedEffectModels.parse_iv(f)
 
-    m, formula = parse_interactivefixedeffect(df, formula)
+    m, formula = parse_interactivefixedeffect(df, f)
     has_weights = (weights != nothing)
 
 
@@ -60,10 +59,10 @@ function regife(
          weights = uweights(sum(esample))
          sqrtw = ones(length(weights))
      end
-    for a in FixedEffectModels.eachterm(formula.rhs)
+    for a in eachterm(formula.rhs)
        if has_fe(a)
            isa(a, InteractionTerm) && error("Fixed effects cannot be interacted")
-           Symbol(FixedEffectModels.fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
+           Symbol(fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
        end
     end
     fes, ids, formula = FixedEffectModels.parse_fixedeffect(df, formula)
@@ -72,15 +71,15 @@ function regife(
     ## Compute factors, an array of AbtractFixedEffects
     if has_fes
         if any([isa(fe.interaction, Ones) for fe in fes])
-                formula = FormulaTerm(formula.lhs, tuple(ConstantTerm(0), (t for t in FixedEffectModels.eachterm(formula.rhs) if t!= ConstantTerm(1))...))
+                formula = FormulaTerm(formula.lhs, tuple(ConstantTerm(0), (t for t in eachterm(formula.rhs) if t!= ConstantTerm(1))...))
                 has_fes_intercept = true
         end
-        fes = FixedEffect[FixedEffectModels._subset(fe, esample) for fe in fes]
-        feM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(fes, weights, Val{:cpu})
+        fes = FixedEffect[fe[esample] for fe in fes]
+        feM = AbstractFixedEffectSolver{Float64}(fes, weights, Val{:cpu})
     end
 
 
-    has_intercept = ConstantTerm(1) ∈ FixedEffectModels.eachterm(formula.rhs)
+    has_intercept = ConstantTerm(1) ∈ eachterm(formula.rhs)
 
 
     iterations = 0
@@ -100,7 +99,7 @@ function regife(
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
     y = convert(Vector{Float64}, response(formula_schema, subdf))
-    tss_total = FixedEffectModels.tss(y, has_intercept || has_fes_intercept, weights)
+    tss_total = tss(y, has_intercept || has_fes_intercept, weights)
 
     X = convert(Matrix{Float64}, modelmatrix(formula_schema, subdf))
 
@@ -123,8 +122,8 @@ function regife(
 
     # demean variables
     if has_fes
-        FixedEffectModels.solve_residuals!(y, feM)
-        FixedEffectModels.solve_residuals!(X, feM, progress_bar = false)
+        solve_residuals!(y, feM)
+        solve_residuals!(X, feM, progress_bar = false)
     end
     
  
@@ -136,8 +135,8 @@ function regife(
     ##############################################################################
 
     # initialize factor models at 0.1
-    idpool = fill(0.1, length(id.pool), m.rank)
-    timepool = fill(0.1, length(time.pool), m.rank)
+    idpool = fill(0.1, id.n, m.rank)
+    timepool = fill(0.1, time.n, m.rank)
   
     y .= y .* sqrtw 
     X .= X .* sqrtw
@@ -169,12 +168,12 @@ function regife(
             # y ~ x + γ1 x factors + γ2 x loadings
             # if not, this means fit! ended up on a a local minimum. 
             # restart with randomized coefficients, factors, loadings
-            newfeM = FixedEffectModels.AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), weights, Val{:cpu})
+            newfeM = AbstractFixedEffectSolver{Float64}(getfactors(fp, fs), weights, Val{:cpu})
             ym .= ym ./ sqrtw
-            FixedEffectModels.solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
+            solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
             Xm .= Xm ./ sqrtw
-            FixedEffectModels.solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
+            solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
             Xm .= Xm .* sqrtw
             ydiff = Xm  * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
@@ -226,7 +225,7 @@ function regife(
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
-        _tss = FixedEffectModels.tss(ym ./ sqrtw, has_intercept || has_fes_intercept, weights)
+        _tss = tss(ym ./ sqrtw, has_intercept || has_fes_intercept, weights)
         r2_within = 1 - rss / _tss 
 
         rss = sum(abs2, residuals)
@@ -266,7 +265,7 @@ function regife(
             subtract_factor!(fp, fs)
             axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
-            newfes, b, c = FixedEffectModels.solve_coefficients!(oldresiduals, feM; tol = tol, maxiter = maxiter)
+            newfes, b, c = solve_coefficients!(oldresiduals, feM; tol = tol, maxiter = maxiter)
             for j in 1:length(fes)
                 augmentdf[!, ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
                 augmentdf[esample, ids[j]] = newfes[j]
