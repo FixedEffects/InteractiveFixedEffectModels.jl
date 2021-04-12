@@ -65,7 +65,7 @@ function regife(
            Symbol(fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
        end
     end
-    fes, ids, ids_fes, formula = FixedEffectModels.parse_fixedeffect(df, formula)
+    fes, ids, fekeys, formula = FixedEffectModels.parse_fixedeffect(df, formula)
     has_fes = !isempty(fes)
     has_fes_intercept = false
     ## Compute factors, an array of AbtractFixedEffects
@@ -266,9 +266,6 @@ function regife(
             axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
             newfes, b, c = solve_coefficients!(oldresiduals, feM; tol = tol, maxiter = maxiter)
-            for fename in ids_fes
-                augmentdf[!, fename] = deepcopy(df[!, fename])
-            end
             for j in 1:length(fes)
                 augmentdf[!, ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
                 augmentdf[esample, ids[j]] = newfes[j]
