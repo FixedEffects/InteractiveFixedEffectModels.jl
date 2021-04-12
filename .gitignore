@@ -10,3 +10,4 @@ src/other/*
 *.out
 *.synctex.gz
 examples/runbenchmark.jl
+.DS_Store
