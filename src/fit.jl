@@ -87,7 +87,7 @@ function regife(
     # get two dimensions
 
     id = GroupedArray(df[esample, m.id])
-    time = GroupdArray(df[esample, m.time])
+    time = GroupedArray(df[esample, m.time])
 
     ##############################################################################
     ##
