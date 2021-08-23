@@ -86,8 +86,8 @@ function regife(
     converged = false
     # get two dimensions
 
-    id = FixedEffects.group(df[esample, m.id])
-    time = FixedEffects.group(df[esample, m.time])
+    id = GroupedArray(df[esample, m.id])
+    time = GroupdArray(df[esample, m.time])
 
     ##############################################################################
     ##
@@ -135,26 +135,26 @@ function regife(
     ##############################################################################
 
     # initialize factor models at 0.1
-    idpool = fill(0.1, id.n, m.rank)
-    timepool = fill(0.1, time.n, m.rank)
+    idpool = fill(0.1, id.ngroups, m.rank)
+    timepool = fill(0.1, time.ngroups, m.rank)
   
     y .= y .* sqrtw 
     X .= X .* sqrtw
     if !has_regressors
         # factor model 
-        fp = FactorModel(y, sqrtw, id.refs, time.refs, m.rank)
+        fp = FactorModel(y, sqrtw, id.groups, time.groups, m.rank)
         fs = FactorSolution(idpool, timepool)
         (fs, iterations, converged) = 
             fit!(Val{method}, fp, fs; maxiter = maxiter, tol = tol, lambda = lambda)
     else 
         # interactive fixed effect
         coef = X \ y
-        fp = FactorModel(y - X * coef, sqrtw, id.refs, time.refs, m.rank)
+        fp = FactorModel(y - X * coef, sqrtw, id.groups, time.groups, m.rank)
         fs = FactorSolution(idpool, timepool)
         fit!(Val{:levenberg_marquardt}, fp, fs; maxiter = 100, tol = 1e-3, lambda = lambda)
 
         fs = InteractiveFixedEffectsSolution(coef, fs.idpool, fs.timepool)
-        fp = InteractiveFixedEffectsModel(y, sqrtw, X, id.refs, time.refs, m.rank)
+        fp = InteractiveFixedEffectsModel(y, sqrtw, X, id.groups, time.groups, m.rank)
 
 
         ym = copy(y)
@@ -193,7 +193,7 @@ function regife(
     ##############################################################################
 
     # compute residuals
-    fp = FactorModel(copy(y), sqrtw, id.refs, time.refs, m.rank)
+    fp = FactorModel(copy(y), sqrtw, id.groups, time.groups, m.rank)
     if has_regressors
         LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, X, fs.b, 1.0, fp.y)
     end
@@ -261,7 +261,7 @@ function regife(
             if has_regressors
                 LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
             end
-            fp = FactorModel(oldresiduals, sqrtw, id.refs, time.refs, m.rank)
+            fp = FactorModel(oldresiduals, sqrtw, id.groups, time.groups, m.rank)
             subtract_factor!(fp, fs)
             axpy!(-1.0, residuals, oldresiduals)
             # get fixed effect
