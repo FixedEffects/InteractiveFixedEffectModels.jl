@@ -61,7 +61,7 @@ for method in [:dogleg, :levenberg_marquardt, :gauss_seidel]
 end
 
 # check high dimentional fixed effects are part of factor models
-df.State2 = categorical(df.State)
+df.State2 = deepcopy(df.State)
 @test_throws ErrorException regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State2)))
 
 
@@ -74,8 +74,6 @@ for method in [:levenberg_marquardt, :dogleg]
 	println(method)
 
 	local df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
-	df.State = categorical(df.State)
-	df.Year = categorical(df.Year)
 	model = @formula Sales ~ Price + ife(State, Year, 1) + fe(State)
 	result = regife(df, model, weights = :Pop, method = method, save = true)
 	model = @formula Sales ~ Price + ife(State, Year, 2) + fe(State)
@@ -84,18 +82,16 @@ for method in [:levenberg_marquardt, :dogleg]
 	local df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/EmplUK.csv")))
 	df.id1 = df.Firm
 	df.id2 = df.Year
-	df.pid1 = categorical(df.id1)
-	df.pid2 = categorical(df.id2)
 	df.y = df.Wage
 	df.x1 = df.Emp
 	df.w = df.Output
-	model = @formula y ~ x1 + ife(pid1, pid2, 2) 
+	model = @formula y ~ x1 + ife(id1, id2, 2) 
 	result = regife(df, model, method = method, save = true)
 	@test norm(result.coef ./ [4.53965, -0.0160858] .- 1) < precision
-	model = @formula y ~ x1 + ife(pid1, pid2, 2)
+	model = @formula y ~ x1 + ife(id1, id2, 2)
 	result = regife(df, model, weights = :w, method = method, save = true)
 	@test norm(result.coef ./ [3.47551,-0.017366] .- 1) < precision
-	model = @formula y ~ x1 + ife(pid1, pid2, 1)
+	model = @formula y ~ x1 + ife(id1, id2, 1)
 	result = regife(df, model, weights = :w, method = method, save = true)
 	@test norm(result.coef ./ [ -2.62105, -0.0470005] .- 1) < precision
 end

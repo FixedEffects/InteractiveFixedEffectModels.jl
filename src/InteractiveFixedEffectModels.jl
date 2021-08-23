@@ -7,6 +7,7 @@ module InteractiveFixedEffectModels
 using DataFrames
 using FillArrays
 using FixedEffects
+using GroupedArrays
 using LeastSquaresOptim
 using LinearAlgebra
 using Printf
