@@ -94,8 +94,8 @@ function regife(
     ## Construict vector y and matrix X
     ##
     ##############################################################################
-    subdf = columntable(df[esample, unique(vcat(vars))])
-
+    subdf = Tables.columntable((; (x => disallowmissing(view(df[!, x], esample)) for x in unique(vcat(vars))...))
+                
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
     y = convert(Vector{Float64}, response(formula_schema, subdf))
