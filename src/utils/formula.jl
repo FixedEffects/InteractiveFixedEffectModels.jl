@@ -6,7 +6,6 @@
 
 eachterm(@nospecialize(x::AbstractTerm)) = (x,)
 eachterm(@nospecialize(x::NTuple{N, AbstractTerm})) where {N} = x
-TermOrTerms = Union{AbstractTerm, NTuple{N, AbstractTerm} where N}
 
 ##############################################################################
 ##
