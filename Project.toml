@@ -1,6 +1,6 @@
 name = "InteractiveFixedEffectModels"
 uuid = "80307280-efb2-5c5d-af8b-a9c15821677b"
-version = "1.1.8"
+version = "1.1.9"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -28,7 +28,7 @@ GroupedArrays = "0.3"
 LeastSquaresOptim = "0.7, 0.8"
 Reexport = "0.2, 1"
 StatsBase = "0.33"
-StatsModels = "0.6"
+StatsModels = "0.6, 0.7"
 StatsFuns = "0.9, 1"
 Tables = "1"
 Vcov = "0.5, 0.6, 0.7"
