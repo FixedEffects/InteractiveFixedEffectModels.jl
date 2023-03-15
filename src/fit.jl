@@ -2,7 +2,7 @@
 
 function regife(
     @nospecialize(df), 
-    @nospecialize(f::FormulaTerm),
+    @nospecialize(formula::FormulaTerm),
     @nospecialize(vcov::CovarianceEstimator = Vcov.simple());
     @nospecialize(weights::Union{Symbol, Nothing} = nothing), 
     @nospecialize(subset::Union{AbstractVector, Nothing} = nothing),
@@ -18,13 +18,15 @@ function regife(
     ## Transform DataFrame -> Matrix
     ##
     ##############################################################################
+    formula_origin = formula
+
     df = DataFrame(df; copycols = false)
-    if  (ConstantTerm(0) ∉ eachterm(f.rhs)) & (ConstantTerm(1) ∉ eachterm(f.rhs))
-        formula = FormulaTerm(f.lhs, tuple(ConstantTerm(1), eachterm(f.rhs)...))
+    if  (ConstantTerm(0) ∉ eachterm(formula.rhs)) & (ConstantTerm(1) ∉ eachterm(formula.rhs))
+        formula = FormulaTerm(formula.lhs, tuple(ConstantTerm(1), eachterm(formula.rhs)...))
     end
 
 
-    m, formula = parse_interactivefixedeffect(df, f)
+    m, formula = parse_interactivefixedeffect(df, formula)
     has_weights = (weights != nothing)
 
 
@@ -112,11 +114,11 @@ function regife(
 
 
     # Compute demeaned X
-    yname, coef_names = coefnames(formula_schema)
+    responsename, coef_names = coefnames(formula_schema)
     if !isa(coef_names, Vector)
         coef_names = [coef_names]
     end
-    yname = Symbol(yname)
+    responsename = Symbol(responsename)
     coef_names = Symbol.(coef_names)
 
 
@@ -278,7 +280,6 @@ function regife(
         return FactorResult(esample, augmentdf, rss, iterations, converged)
     else
         return InteractiveFixedEffectModel(fs.b, matrix_vcov, vcov, esample, augmentdf, 
-            coef_names, yname, f, nobs, dof_residual, r2, r2_a, r2_within, 
-            rss, sum(iterations), all(converged))
+            coef_names, responsename, formula_origin, formula, nobs, dof_residual, rss, tss_total, r2, r2_a, r2_within, sum(iterations), all(converged))
     end
 end
