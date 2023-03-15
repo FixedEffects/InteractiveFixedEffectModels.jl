@@ -22,7 +22,7 @@ function parse_interactivefixedeffect(df::AbstractDataFrame, formula::FormulaTer
     m = nothing
     for term in FixedEffectModels.eachterm(formula.rhs)
         if term isa FunctionTerm{typeof(ife)}
-            m = InteractiveFixedEffectTerm(term.args_parsed[1].sym, term.args_parsed[2].sym, term.args_parsed[3].n)
+            m = InteractiveFixedEffectTerm(term.args[1].sym, term.args[2].sym, term.args[3].n)
         elseif term isa InteractiveFixedEffectTerm
             m = term
         end
