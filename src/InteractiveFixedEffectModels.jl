@@ -12,6 +12,7 @@ using LeastSquaresOptim
 using LinearAlgebra
 using Printf
 using Statistics
+using StatsAPI
 using StatsBase
 using StatsFuns
 using StatsModels

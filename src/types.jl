@@ -22,7 +22,7 @@ function parse_interactivefixedeffect(df::AbstractDataFrame, formula::FormulaTer
     m = nothing
     for term in FixedEffectModels.eachterm(formula.rhs)
         if term isa FunctionTerm{typeof(ife)}
-            m = InteractiveFixedEffectTerm(term.args_parsed[1].sym, term.args_parsed[2].sym, term.args_parsed[3].n)
+            m = InteractiveFixedEffectTerm(term.args[1].sym, term.args[2].sym, term.args[3].n)
         elseif term isa InteractiveFixedEffectTerm
             m = term
         end
@@ -255,30 +255,38 @@ struct InteractiveFixedEffectModel <: RegressionModel
     augmentdf::DataFrame
 
     coefnames::Vector       # Name of coefficients
-    yname::Symbol           # Name of dependent variable
-    formula::FormulaTerm        # Original formula 
+    responsename::Symbol           # Name of dependent variable
+    formula::FormulaTerm        # Original formula
+    formula_schema::FormulaTerm # Schema for predict
 
     nobs::Int64             # Number of observations
     dof_residual::Int64      # degree of freedoms
 
+    rss::Float64
+    tss::Float64
     r2::Float64             # R squared
     adjr2::Float64           # R squared adjusted
     r2_within::Float64      # R within
 
-    rss::Float64
     iterations::Int         # Number of iterations        
     converged::Bool         # Has the demeaning algorithm converged?
 
 end
-StatsBase.coef(x::InteractiveFixedEffectModel) = x.coef
-StatsBase.coefnames(x::InteractiveFixedEffectModel) = x.coefnames
-StatsBase.vcov(x::InteractiveFixedEffectModel) = x.vcov
-StatsBase.nobs(x::InteractiveFixedEffectModel) = x.nobs
-StatsBase.dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
-StatsBase.r2(x::InteractiveFixedEffectModel) = x.r2
-StatsBase.adjr2(x::InteractiveFixedEffectModel) = x.adjr2
-StatsBase.islinear(x::InteractiveFixedEffectModel) = false
-StatsBase.rss(x::InteractiveFixedEffectModel) = x.rss
+StatsAPI.coef(x::InteractiveFixedEffectModel) = x.coef
+StatsAPI.coefnames(x::InteractiveFixedEffectModel) = x.coefnames
+StatsAPI.responsename(m::InteractiveFixedEffectModel) = m.responsename
+StatsAPI.vcov(x::InteractiveFixedEffectModel) = x.vcov
+StatsAPI.nobs(x::InteractiveFixedEffectModel) = x.nobs
+StatsAPI.dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
+StatsAPI.r2(x::InteractiveFixedEffectModel) = x.r2
+StatsAPI.adjr2(x::InteractiveFixedEffectModel) = x.adjr2
+StatsAPI.islinear(x::InteractiveFixedEffectModel) = false
+StatsAPI.deviance(x::InteractiveFixedEffectModel) = x.tss
+StatsAPI.rss(x::InteractiveFixedEffectModel) = x.rss
+StatsAPI.mss(m::InteractiveFixedEffectModel) = deviance(m) - rss(m)
+StatsModels.formula(m::InteractiveFixedEffectModel) = m.formula_schema
+
+
 StatsBase.predict(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("predict is not defined for linear factor models. Use the option save = true")
 StatsBase.residuals(::InteractiveFixedEffectModel, ::AbstractDataFrame) = error("residuals is not defined for linear factor models. Use the option save = true")
 function StatsBase.confint(x::InteractiveFixedEffectModel; level::Real = 0.95)
@@ -316,97 +324,69 @@ title(::InteractiveFixedEffectModel) = "Interactive Fixed Effect Model"
 top(x::InteractiveFixedEffectModel) = [
             "Number of obs" sprint(show, nobs(x); context=:compact => true);
             "Degree of freedom" sprint(show, nobs(x) - dof_residual(x); context=:compact => true);
-            "R2"  @sprintf("%.3f", x.r2);
-            "R2 within"  @sprintf("%.3f", x.r2_within);
+            "R²"  @sprintf("%.3f", x.r2);
+            "R² within"  @sprintf("%.3f", x.r2_within);
             "Iterations" sprint(show, x.iterations; context=:compact => true);
             "Converged" sprint(show, x.converged; context=:compact => true)
             ]
 
-format_scientific(x) = @sprintf("%.3f", x)
-
-function Base.show(io::IO, x::InteractiveFixedEffectModel)
-    ctitle = title(x)
-    ctop = top(x)
-    cc = coef(x)
-    se = stderror(x)
-    coefnms = coefnames(x)
-    conf_int = confint(x)
-    # put (intercept) last
-    if !isempty(coefnms) && ((coefnms[1] == Symbol("(Intercept)")) || (coefnms[1] == "(Intercept)"))
-        newindex = vcat(2:length(cc), 1)
-        cc = cc[newindex]
-        se = se[newindex]
-        conf_int = conf_int[newindex, :]
-        coefnms = coefnms[newindex]
-    end
-    tt = cc ./ se
-    mat = hcat(cc, se, tt, fdistccdf.(Ref(1), Ref(dof_residual(x)), abs2.(tt)), conf_int[:, 1:2])
-    nr, nc = size(mat)
-    colnms = ["Estimate","Std.Error","t value", "Pr(>|t|)", "Lower 95%", "Upper 95%"]
-    rownms = ["$(coefnms[i])" for i = 1:length(cc)]
-    pvc = 4
-
-
-    # print
+import StatsBase: NoQuote, PValue
+function Base.show(io::IO, m::InteractiveFixedEffectModel)
+    ct = coeftable(m)
+    #copied from show(iio,cf::Coeftable)
+    cols = ct.cols; rownms = ct.rownms; colnms = ct.colnms;
+    nc = length(cols)
+    nr = length(cols[1])
     if length(rownms) == 0
-        rownms = AbstractString[lpad("[$i]",floor(Integer, log10(nr))+3) for i in 1:nr]
+        rownms = [lpad("[$i]",floor(Integer, log10(nr))+3) for i in 1:nr]
     end
-    if length(rownms) > 0
-        rnwidth = max(4,maximum([length(nm) for nm in rownms]) + 1)
-        else
-            # if only intercept, rownms is empty collection, so previous would return error
-        rnwidth = 4
+    mat = [j == 1 ? NoQuote(rownms[i]) :
+           j-1 == ct.pvalcol ? NoQuote(sprint(show, PValue(cols[j-1][i]))) :
+           j-1 in ct.teststatcol ? TestStat(cols[j-1][i]) :
+           cols[j-1][i] isa AbstractString ? NoQuote(cols[j-1][i]) : cols[j-1][i]
+           for i in 1:nr, j in 1:nc+1]
+    io = IOContext(io, :compact=>true, :limit=>false)
+    A = Base.alignment(io, mat, 1:size(mat, 1), 1:size(mat, 2),
+                       typemax(Int), typemax(Int), 3)
+    nmswidths = pushfirst!(length.(colnms), 0)
+    A = [nmswidths[i] > sum(A[i]) ? (A[i][1]+nmswidths[i]-sum(A[i]), A[i][2]) : A[i]
+         for i in 1:length(A)]
+    totwidth = sum(sum.(A)) + 2 * (length(A) - 1)
+
+
+    #intert my stuff which requires totwidth
+    ctitle = string(typeof(m))
+    halfwidth = div(totwidth - length(ctitle), 2)
+    print(io, " " ^ halfwidth * ctitle * " " ^ halfwidth)
+    ctop = top(m)
+    for i in 1:size(ctop, 1)
+        ctop[i, 1] = ctop[i, 1] * ":"
     end
-    rownms = [rpad(nm,rnwidth) for nm in rownms]
-    widths = [length(cn)::Int for cn in colnms]
-    str = [sprint(show, mat[i,j]; context=:compact => true) for i in 1:nr, j in 1:nc]
-    if pvc != 0                         # format the p-values column
-        for i in 1:nr
-            str[i, pvc] = format_scientific(mat[i, pvc])
-        end
-    end
-    for j in 1:nc
-        for i in 1:nr
-            lij = length(str[i, j])
-            if lij > widths[j]
-                widths[j] = lij
-            end
-        end
-    end
-    widths .+= 1
-    totalwidth = sum(widths) + rnwidth
-    if length(ctitle) > 0
-        halfwidth = div(totalwidth - length(ctitle), 2)
-        println(io, " " ^ halfwidth * string(ctitle) * " " ^ halfwidth)
-    end
-    if length(ctop) > 0
-        for i in 1:size(ctop, 1)
-            ctop[i, 1] = ctop[i, 1] * ":"
-        end
-        println(io, "=" ^totalwidth)
-        halfwidth = div(totalwidth, 2) - 1
-        interwidth = 2 +  mod(totalwidth, 2)
-        for i in 1:(div(size(ctop, 1) - 1, 2)+1)
-            print(io, ctop[2*i-1, 1])
-            print(io, lpad(ctop[2*i-1, 2], halfwidth - length(ctop[2*i-1, 1])))
-            print(io, " " ^interwidth)
-            if size(ctop, 1) >= 2*i
-                print(io, ctop[2*i, 1])
-                print(io, lpad(ctop[2*i, 2], halfwidth - length(ctop[2*i, 1])))
-            end
-            println(io)
-        end
-    end
-    println(io,"=" ^totalwidth)
-    println(io," " ^ rnwidth *
-            join([lpad(string(colnms[i]), widths[i]) for i = 1:nc], ""))
-    println(io,"-" ^totalwidth)
-    for i in 1:nr
-        print(io, rownms[i])
-        for j in 1:nc
-            print(io, lpad(str[i,j],widths[j]))
+    println(io, '\n', repeat('=', totwidth))
+    halfwidth = div(totwidth, 2) - 1
+    interwidth = 2 +  mod(totwidth, 2)
+    for i in 1:(div(size(ctop, 1) - 1, 2)+1)
+        print(io, ctop[2*i-1, 1])
+        print(io, lpad(ctop[2*i-1, 2], halfwidth - length(ctop[2*i-1, 1])))
+        print(io, " " ^interwidth)
+        if size(ctop, 1) >= 2*i
+            print(io, ctop[2*i, 1])
+            print(io, lpad(ctop[2*i, 2], halfwidth - length(ctop[2*i, 1])))
         end
         println(io)
     end
-    println(io,"=" ^totalwidth)
+   
+    # rest of coeftable code
+    println(io, repeat('=', totwidth))
+    print(io, repeat(' ', sum(A[1])))
+    for j in 1:length(colnms)
+        print(io, "  ", lpad(colnms[j], sum(A[j+1])))
+    end
+    println(io, '\n', repeat('─', totwidth))
+    for i in 1:size(mat, 1)
+        Base.print_matrix_row(io, mat, A, i, 1:size(mat, 2), "  ")
+        i != size(mat, 1) && println(io)
+    end
+    println(io, '\n', repeat('=', totwidth))
+    nothing
 end

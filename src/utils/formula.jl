@@ -6,7 +6,6 @@
 
 eachterm(@nospecialize(x::AbstractTerm)) = (x,)
 eachterm(@nospecialize(x::NTuple{N, AbstractTerm})) where {N} = x
-TermOrTerms = Union{AbstractTerm, NTuple{N, AbstractTerm} where N}
 
 ##############################################################################
 ##
@@ -14,4 +13,4 @@ TermOrTerms = Union{AbstractTerm, NTuple{N, AbstractTerm} where N}
 ##
 ##############################################################################
 fesymbol(t::FixedEffectModels.FixedEffectTerm) = t.x
-fesymbol(t::FunctionTerm{typeof(fe)}) = Symbol(t.args_parsed[1])
+fesymbol(t::FunctionTerm{typeof(fe)}) = Symbol(t.args[1])
