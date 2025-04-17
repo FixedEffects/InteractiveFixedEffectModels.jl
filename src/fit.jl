@@ -67,12 +67,12 @@ function regife(
            Symbol(fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
        end
     end
-    fes, ids, fekeys, formula = FixedEffectModels.parse_fixedeffect(df, formula)
+    fes, ids, fekeys, formula = parse_fixedeffect(df, formula)
     has_fes = !isempty(fes)
     has_fes_intercept = false
     ## Compute factors, an array of AbtractFixedEffects
     if has_fes
-        if any([isa(fe.interaction, Ones) for fe in fes])
+        if any([isa(fe.interaction, UnitWeights) for fe in fes])
                 formula = FormulaTerm(formula.lhs, tuple(ConstantTerm(0), (t for t in eachterm(formula.rhs) if t!= ConstantTerm(1))...))
                 has_fes_intercept = true
         end
@@ -93,7 +93,7 @@ function regife(
 
     ##############################################################################
     ##
-    ## Construict vector y and matrix X
+    ## Construct vector y and matrix X
     ##
     ##############################################################################
     subdf = Tables.columntable((; (x => disallowmissing(view(df[!, x], esample)) for x in unique(vcat(vars)))...))
