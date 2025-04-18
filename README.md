@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/FixedEffects/InteractiveFixedEffectModels.jl.svg?branch=master)](https://travis-ci.com/FixedEffects/InteractiveFixedEffectModels.jl)
+[![Build status](https://github.com/matthieugomez/InteractiveFixedEffectModels.jl/workflows/CI/badge.svg)](https://github.com/matthieugomez/InteractiveFixedEffectModels.jl/actions)
 [![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
 
 ## Installation
