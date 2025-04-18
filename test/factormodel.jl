@@ -1,5 +1,5 @@
 using DataFrames, InteractiveFixedEffectModels,Test, CSV
-df = df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
+df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
 
 for method in [:gauss_seidel,  :dogleg, :levenberg_marquardt]
 	println(method)
