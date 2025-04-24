@@ -270,8 +270,8 @@ function regife(
             # get fixed effect
             newfes, b, c = solve_coefficients!(oldresiduals, feM; tol = tol, maxiter = maxiter)
             for j in 1:length(fes)
-                augmentdf[!, ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
-                augmentdf[esample, ids[j]] = newfes[j]
+                augmentdf[!, feids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
+                augmentdf[esample, feids[j]] = newfes[j]
             end
         end
     end
