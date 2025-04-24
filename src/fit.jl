@@ -67,21 +67,29 @@ function regife(
            Symbol(fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
        end
     end
-    fes, ids, fekeys, formula = FixedEffectModels.parse_fixedeffect(df, formula)
-    has_fes = !isempty(fes)
-    has_fes_intercept = false
-    ## Compute factors, an array of AbtractFixedEffects
+    formula, formula_fes = FixedEffectModels.parse_fe(formula)
+    has_fes = formula_fes != FormulaTerm(ConstantTerm(0), ConstantTerm(0))
+    
+    fes, feids, fekeys = FixedEffectModels.parse_fixedeffect(df, formula_fes)    
+    has_fe_intercept = any(fe.interaction isa UnitWeights for fe in fes)
+    
+    # remove intercept if absorbed by fixed effects
+    if has_fe_intercept
+        formula = FormulaTerm(formula.lhs, tuple(InterceptTerm{false}(), (term for term in eachterm(formula.rhs) if !isa(term, Union{ConstantTerm,InterceptTerm}))...))
+    end
+    has_intercept = hasintercept(formula)
+   
+
     if has_fes
-        if any([isa(fe.interaction, Ones) for fe in fes])
-                formula = FormulaTerm(formula.lhs, tuple(ConstantTerm(0), (t for t in eachterm(formula.rhs) if t!= ConstantTerm(1))...))
-                has_fes_intercept = true
+        if any(fe.interaction isa UnitWeights for fe in fes)
+            has_fe_intercept = true
         end
         fes = FixedEffect[fe[esample] for fe in fes]
         feM = AbstractFixedEffectSolver{Float64}(fes, weights, Val{:cpu})
     end
 
 
-    has_intercept = ConstantTerm(1) ∈ eachterm(formula.rhs)
+
 
 
     iterations = 0
@@ -101,7 +109,7 @@ function regife(
     formula_schema = apply_schema(formula, schema(formula, subdf, contrasts), StatisticalModel)
 
     y = convert(Vector{Float64}, response(formula_schema, subdf))
-    tss_total = tss(y, has_intercept || has_fes_intercept, weights)
+    tss_total = tss(y, has_intercept | has_fe_intercept, weights)
 
     X = convert(Matrix{Float64}, modelmatrix(formula_schema, subdf))
 
@@ -227,7 +235,7 @@ function regife(
         # compute various r2
         nobs = sum(esample)
         rss = sum(abs2, residualsm)
-        _tss = tss(ym ./ sqrtw, has_intercept || has_fes_intercept, weights)
+        _tss = tss(ym ./ sqrtw, has_intercept | has_fe_intercept, weights)
         r2_within = 1 - rss / _tss 
 
         rss = sum(abs2, residuals)
@@ -269,8 +277,8 @@ function regife(
             # get fixed effect
             newfes, b, c = solve_coefficients!(oldresiduals, feM; tol = tol, maxiter = maxiter)
             for j in 1:length(fes)
-                augmentdf[!, ids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
-                augmentdf[esample, ids[j]] = newfes[j]
+                augmentdf[!, feids[j]] = Vector{Union{Float64, Missing}}(missing, length(esample))
+                augmentdf[esample, feids[j]] = newfes[j]
             end
         end
     end
