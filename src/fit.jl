@@ -67,8 +67,9 @@ function regife(
            Symbol(fesymbol(a)) ∉ factor_vars && error("FixedEffect should correspond to id or time dimension of the factor model")
        end
     end
-    fes, ids, fekeys, formula = FixedEffectModels.parse_fixedeffect(df, formula)
-    has_fes = !isempty(fes)
+    formula, formula_fes = FixedEffectModels.parse_fe(formula)
+    has_fes = formula_fes != FormulaTerm(ConstantTerm(0), ConstantTerm(0))
+    fes, feids, fekeys = FixedEffectModels.parse_fixedeffect(df, formula_fes)    
     has_fes_intercept = false
     ## Compute factors, an array of AbtractFixedEffects
     if has_fes
