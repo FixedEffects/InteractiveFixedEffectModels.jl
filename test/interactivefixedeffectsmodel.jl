@@ -1,4 +1,4 @@
-using DataFrames, InteractiveFixedEffectModels, CSV, LinearAlgebra, Test
+using DataFrames, InteractiveFixedEffectModels, CSV, LinearAlgebra, StatsAPI, Test, Vcov
 
 precision = 2e-1
 df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
@@ -63,6 +63,25 @@ end
 # check high dimentional fixed effects are part of factor models
 df.State2 = deepcopy(df.State)
 @test_throws ErrorException regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State2)))
+@test_throws ArgumentError regife(df, @formula(Sales ~ Price))
+@test_throws ArgumentError regife(df, @formula(Sales ~ Price + ife(State, Year, 1) + ife(State, Year, 2)))
+
+# smoke tests for vcov choices, missing-data handling, and regression diagnostics
+df_missing = deepcopy(df)
+allowmissing!(df_missing, [:Price, :Sales])
+df_missing[1, :Price] = missing
+df_missing[2, :Sales] = missing
+result = regife(df_missing, @formula(Sales ~ Price + ife(State, Year, 1)), Vcov.robust(), save = true)
+@test nobs(result) == nrow(df_missing) - 2
+@test !result.esample[1]
+@test !result.esample[2]
+@test ismissing(result.augmentdf[1, :residuals])
+@test ismissing(result.augmentdf[2, :residuals])
+@test deviance(result) ≈ rss(result)
+@test nulldeviance(result) ≈ result.tss
+
+result = regife(df, @formula(Sales ~ Price + ife(State, Year, 1)), Vcov.cluster(:State))
+@test size(vcov(result)) == (length(coef(result)), length(coef(result)))
 
 
 # local minima
@@ -75,7 +94,7 @@ for method in [:levenberg_marquardt, :dogleg]
 
 	local df = DataFrame(CSV.File(joinpath(dirname(pathof(InteractiveFixedEffectModels)), "../dataset/Cigar.csv")))
 	model = @formula Sales ~ Price + ife(State, Year, 1) + fe(State)
-	result = regife(df, model, weights = :Pop, method = method, save = true)
+	local result = regife(df, model, weights = :Pop, method = method, save = true)
 	model = @formula Sales ~ Price + ife(State, Year, 2) + fe(State)
 	result = regife(df, model, weights = :Pop, method = method, save = true)
 
@@ -102,5 +121,3 @@ using StatsModels
 result1 = regife(df, @formula(Sales ~ NDI + fe(State) + ife(State, Year, 2)))
 result2 = regife(df, Term(:Sales) ~ Term(:NDI) + fe(Term(:State)) + ife(Term(:State), Term(:Year), 2))
 @test result1.coef ≈ result2.coef
-
-

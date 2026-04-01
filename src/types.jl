@@ -22,11 +22,14 @@ function parse_interactivefixedeffect(df::AbstractDataFrame, formula::FormulaTer
     m = nothing
     for term in FixedEffectModels.eachterm(formula.rhs)
         if term isa FunctionTerm{typeof(ife)}
+            m === nothing || throw(ArgumentError("regife formulas must contain exactly one ife(id, time, rank) term"))
             m = InteractiveFixedEffectTerm(term.args[1].sym, term.args[2].sym, term.args[3].n)
         elseif term isa InteractiveFixedEffectTerm
+            m === nothing || throw(ArgumentError("regife formulas must contain exactly one ife(id, time, rank) term"))
             m = term
         end
     end
+    m === nothing && throw(ArgumentError("regife formulas must contain exactly one ife(id, time, rank) term"))
     return m, FormulaTerm(formula.lhs, tuple((term for term in FixedEffectModels.eachterm(formula.rhs) if !has_ife(term))...))
 end
 
@@ -127,9 +130,9 @@ function getfactors(fp::AbstractFactorModel, fs::AbstractFactorSolution)
     # partial out Y and X with respect to i.id x factors and i.time x loadings
     newfes = FixedEffect[]
     for r in 1:rank(fp)
-        idfe = FixedEffect{typeof(fp.idrefs), Vector{Float64}}(fp.idrefs, fs.timepool[fp.timerefs, r], length(fs.idpool))
+        idfe = FixedEffect{typeof(fp.idrefs), Vector{Float64}}(fp.idrefs, fs.timepool[fp.timerefs, r], size(fs.idpool, 1))
         push!(newfes, idfe)
-        timefe = FixedEffect{typeof(fp.timerefs), Vector{Float64}}(fp.timerefs, fs.idpool[fp.idrefs, r], length(fs.timepool))
+        timefe = FixedEffect{typeof(fp.timerefs), Vector{Float64}}(fp.timerefs, fs.idpool[fp.idrefs, r], size(fs.timepool, 1))
         push!(newfes, timefe)
     end
     # obtain the residuals and cross 
@@ -281,9 +284,10 @@ StatsAPI.dof_residual(x::InteractiveFixedEffectModel) = x.dof_residual
 StatsAPI.r2(x::InteractiveFixedEffectModel) = x.r2
 StatsAPI.adjr2(x::InteractiveFixedEffectModel) = x.adjr2
 StatsAPI.islinear(x::InteractiveFixedEffectModel) = false
-StatsAPI.deviance(x::InteractiveFixedEffectModel) = x.tss
+StatsAPI.deviance(x::InteractiveFixedEffectModel) = x.rss
+StatsAPI.nulldeviance(x::InteractiveFixedEffectModel) = x.tss
 StatsAPI.rss(x::InteractiveFixedEffectModel) = x.rss
-StatsAPI.mss(m::InteractiveFixedEffectModel) = deviance(m) - rss(m)
+StatsAPI.mss(m::InteractiveFixedEffectModel) = nulldeviance(m) - rss(m)
 StatsModels.formula(m::InteractiveFixedEffectModel) = m.formula_schema
 
 

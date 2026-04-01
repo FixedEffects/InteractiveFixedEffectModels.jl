@@ -133,7 +133,7 @@ function regife(
     # demean variables
     if has_fes
         solve_residuals!(y, feM)
-        solve_residuals!(X, feM, progress_bar = false)
+        solve_residuals!(eachcol(X), feM, progress_bar = false)
     end
     
  
@@ -183,7 +183,7 @@ function regife(
             solve_residuals!(ym, newfeM, tol = tol, maxiter = maxiter)
             ym .= ym .* sqrtw
             Xm .= Xm ./ sqrtw
-            solve_residuals!(Xm, newfeM, tol = tol, maxiter = maxiter)
+            solve_residuals!(eachcol(Xm), newfeM, tol = tol, maxiter = maxiter)
             Xm .= Xm .* sqrtw
             ydiff = Xm  * (fs.b - Xm \ ym)
             if iterations >= maxiter || norm(ydiff)  <= 0.01 * norm(y)
@@ -269,7 +269,7 @@ function regife(
              oldX = convert(Matrix{Float64}, modelmatrix(formula_schema, subdf))
              oldX .= oldX .* sqrtw
             if has_regressors
-                LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, oldX, coef, 1.0, oldresiduals)
+                LinearAlgebra.BLAS.gemm!('N', 'N', -1.0, oldX, fs.b, 1.0, oldresiduals)
             end
             fp = FactorModel(oldresiduals, sqrtw, id.groups, time.groups, m.rank)
             subtract_factor!(fp, fs)

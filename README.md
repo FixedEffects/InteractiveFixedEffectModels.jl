@@ -1,114 +1,251 @@
 [![Build status](https://github.com/FixedEffects/InteractiveFixedEffectModels.jl/workflows/CI/badge.svg)](https://github.com/FixedEffects/InteractiveFixedEffectModels.jl/actions)
-[![Coverage Status](https://coveralls.io/repos/matthieugomez/InteractiveFixedEffectModels.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/matthieugomez/InteractiveFixedEffectModels.jl?branch=master)
 
-## Installation
-The package is registered in the [`General`](https://github.com/JuliaRegistries/General) registry and so can be installed at the REPL with 
+# InteractiveFixedEffectModels.jl
 
-`] add InteractiveFixedEffectModels`.
-
-## Motivation
-This package implements a novel, fast and robust algorithm to estimate interactive fixed effect models. 
-
-The definition of interactive fixed effects follows Bai (2009).Formally, denote `T(i)` and `I(i))` the two categorical dimensions associated with observation `i` (typically time and id).  This package estimates the set of coefficients `β`, of factors `(f1, .., fr)` and of loadings `(λ1, ..., λr)` in the model
+`InteractiveFixedEffectModels.jl` estimates interactive fixed effect models of the Bai (2009) form:
 
 ![minimization](img/minimization.png)
 
+The package is designed for panel settings with latent factors, optional high-dimensional fixed effects on the same panel dimensions, weights, clustering, and incomplete panels.
+
+It integrates with the Julia `StatsModels` / `FixedEffectModels` ecosystem:
+
+- formulas use `@formula(...)`
+- high-dimensional fixed effects use `fe(...)`
+- covariance estimators come from `Vcov.jl`
+
+## Installation
+
+The package is registered in the General registry:
+
 ```julia
-using DataFrames, RDatasets, InteractiveFixedEffectModels
-df = dataset("plm", "Cigar")
-regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State)))
-#                  Interactive Fixed Effect Model
-# ================================================================
-# Number of obs:             1380  Degree of freedom:           47
-# R2:                       0.976  R2 within:                0.435
-# Iterations:                 436  Converged:                 true
-# ================================================================
-#         Estimate Std.Error  t value Pr(>|t|) Lower 95% Upper 95%
-# ----------------------------------------------------------------
-# Price  -0.425372 0.0132871 -32.0139    0.000 -0.451438 -0.399306
-# ================================================================
+] add InteractiveFixedEffectModels
 ```
 
+Current package compatibility requires Julia `1.9+`.
 
-## Syntax
-- Formula
+## Quick Start
 
-	- Interactive fixed effects are indicated with the function  `ife`. For instance, to specify a factor model with id variable `State`, time variable `Year`, and rank 2, use `ife(State, Year, 2)`.
-
-	- High-dimensional Fixed effects can be used, as in `fe(State)` but only for the variables specified in the factor model. See [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl) for more information
-
-		```julia
-		regife(df, @formula(Sales ~ Price + ife(State, Year, 2)))
-		regife(df, @formula(Sales ~ Price + ife(State, Year, 2) + fe(State)))
-		```
-
-	To construct formula programatically, use
-	```julia
-	regife(df, Term(:Sales) ~ Term(:Price) + ife(Term(:State), Term(:Year), 2) + fe(Term(:State)))
-	```
-- Standard errors are indicated as follows
-	```julia
-	Vcov.robust()
-	Vcov.cluster(:State)
-	Vcov.cluster(:State, :Year)
-	```
-- The option `weights` can add weights
-	```julia
-	weights = :Pop
-	```
-	
-- The option `method` can be used to choose between two algorithms:
-	- `:levenberg_marquardt`
-	- `:dogleg` 
-
-- The option `save = true` saves a new dataframe storing residuals, factors, loadings and the eventual fixed effects. Importantly, the returned dataframe is aligned with the initial dataframe (rows not used in the estimation are simply filled with `missing`s).
-
-
-## FAQ
-
-
-#### Local minimum vs global minimum
-The algorithm can estimate models with missing observations per id x time, multiple observations per id x time, and weights.
-
-However, in these cases, the optimization problem may have local minima. The algorithm tries to catch these cases, and, if need be, restart the optimization until the global minimum is reached. However I am not sure that all the cases are caught. 
-
-
-#### Does the package estimate PCA / factor models?
-
-Yes. Factor models are a particular case of interactive fixed effect models. 
-
-To estimate a factor model without any demeaning
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
+
 df = dataset("plm", "Cigar")
-regife(df, @formula(Sales ~ 0 + ife(State, Year, 2)), save = true)
+
+result = regife(
+    df,
+    @formula(Sales ~ Price + ife(State, Year, 2) + fe(State))
+)
+
+display(result)
 ```
 
-To demean with respect to one dimension, use 
+Typical output:
+
+```text
+Interactive Fixed Effect Model
+Number of obs: ...
+R²: ...
+R² within: ...
+```
+
+## Model Specification
+
+Every `regife` formula must contain exactly one interactive fixed effect term:
+
+```julia
+ife(id, time, rank)
+```
+
+where:
+
+- `id` is the unit dimension
+- `time` is the time dimension
+- `rank` is the number of latent factors
+
+Example:
+
+```julia
+@formula(Sales ~ Price + ife(State, Year, 2))
+```
+
+High-dimensional fixed effects can also be added with `fe(...)`, but only on the same panel dimensions used in `ife(...)`:
+
+```julia
+@formula(Sales ~ Price + ife(State, Year, 2) + fe(State))
+@formula(Sales ~ Price + ife(State, Year, 2) + fe(Year))
+@formula(Sales ~ Price + ife(State, Year, 2) + fe(State) + fe(Year))
+```
+
+This is invalid:
+
+```julia
+@formula(Sales ~ Price + ife(State, Year, 2) + fe(Region))
+```
+
+unless `Region` is the same dimension as one of the `ife(...)` variables.
+
+## Main Options
+
+### Covariance Estimators
+
+Pass a `Vcov.jl` covariance estimator as the third positional argument:
+
+```julia
+regife(df, @formula(y ~ x + ife(id, time, 2)), Vcov.simple())
+regife(df, @formula(y ~ x + ife(id, time, 2)), Vcov.robust())
+regife(df, @formula(y ~ x + ife(id, time, 2)), Vcov.cluster(:id))
+regife(df, @formula(y ~ x + ife(id, time, 2)), Vcov.cluster(:id, :time))
+```
+
+### Weights
+
+Use a positive weight column:
+
+```julia
+regife(df, @formula(y ~ x + ife(id, time, 2)); weights = :w)
+```
+
+### Subsetting
+
+Restrict estimation to a subset while keeping saved outputs aligned with the original data:
+
+```julia
+regife(df, @formula(y ~ x + ife(id, time, 2)); subset = df.year .>= 1980)
+```
+
+### Optimization Method
+
+Available methods are:
+
+- `:dogleg`
+- `:levenberg_marquardt`
+- `:gauss_seidel`
+
+Example:
+
+```julia
+regife(df, @formula(y ~ x + ife(id, time, 2)); method = :dogleg)
+```
+
+### Saved Outputs
+
+With `save = true`, the returned object contains an `augmentdf` aligned with the original data. Depending on the specification, it can include:
+
+- `residuals`
+- `factors1`, `factors2`, ...
+- `loadings1`, `loadings2`, ...
+- absorbed fixed effects such as `fe_State`
+
+Rows excluded from estimation are filled with `missing`.
+
+## Worked Examples
+
+### Interactive Fixed Effect Regression
+
 ```julia
 using DataFrames, RDatasets, InteractiveFixedEffectModels
+
 df = dataset("plm", "Cigar")
-regife(df, @formula(Sales ~ ife(State, Year, 2) + fe(State)), save = true)
+
+result = regife(
+    df,
+    @formula(Sales ~ Price + ife(State, Year, 2) + fe(State)),
+    Vcov.cluster(:State);
+    save = true
+)
+
+coef(result)
+result.augmentdf
 ```
 
-The algorithm used in this package allows one to estimate models with multiple (or missing) observations per id x time.
+### Factor Model / PCA-Like Use
 
-#### When should one use interactive fixed effects models?
-Some litterature using this estimation procedure::
+Factor models are a special case with no observed regressors.
 
-- Eberhardt, Helmers, Strauss (2013) *Do spillovers matter when estimating private returns to R&D?*
-- Hagedorn, Karahan, Manovskii (2015) *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
-- Hagedorn, Karahan, Manovskii (2015) *The impact of unemployment benefit extensions on employment: the 2014 employment miracle?* 
-- Totty (2015) *The Effect of Minimum Wages on Employment: A Factor Model Approach*
+```julia
+using DataFrames, RDatasets, InteractiveFixedEffectModels
 
-#### How are standard errors computed?
-Errors are obtained by regressing y on x and covariates of the form `i.id#c.year` and `i.year#c.id`. This way of computing standard errors is hinted in section 6 of of Bai (2009).
+df = dataset("plm", "Cigar")
 
-#### Does this command implement the bias correction term in Bai (2009)?
-In presence of cross or time correlation beyond the factor structure, the estimate for beta is consistent but biased (see Theorem 3 in Bai 2009, which derives the correction term in special cases). However, this package does not implement any correction. You may want to check that your residuals are approximately i.i.d (in which case there is no need for bias correction).
+result = regife(
+    df,
+    @formula(Sales ~ 0 + ife(State, Year, 2));
+    save = true
+)
+```
 
+To demean with respect to one panel dimension:
+
+```julia
+regife(df, @formula(Sales ~ ife(State, Year, 2) + fe(State)); save = true)
+```
+
+### Programmatic Formula Construction
+
+```julia
+using StatsModels
+
+regife(
+    df,
+    Term(:Sales) ~ Term(:Price) + ife(Term(:State), Term(:Year), 2) + fe(Term(:State))
+)
+```
+
+## Returned Objects
+
+If the model includes regressors, `regife` returns an `InteractiveFixedEffectModel`, which behaves like a regression result and supports methods such as:
+
+- `coef`
+- `coefnames`
+- `vcov`
+- `confint`
+- `coeftable`
+- `nobs`
+- `r2`
+- `adjr2`
+
+If the model contains no regressors, it returns a lighter `FactorResult` with estimation metadata and the optional saved dataframe.
+
+## Notes and Caveats
+
+### Local Minima
+
+The package supports:
+
+- missing observations within the `id × time` panel
+- multiple observations per `id × time`
+- weights
+
+In those cases, the optimization problem can have local minima. The package includes a restart heuristic to reduce that risk, but it is still a numerical optimization problem rather than a closed-form estimator.
+
+### Standard Errors
+
+The reported standard errors are based on regressing on covariates of the form:
+
+- `i.id # c.time`
+- `i.time # c.id`
+
+This follows the discussion in Section 6 of Bai (2009).
+
+### Bias Correction
+
+The package does not implement the Bai (2009) bias correction for settings with residual cross-sectional or serial dependence beyond the factor structure. In such cases, coefficient estimates can remain consistent but biased in finite samples.
+
+### When should one use interactive fixed effects models?
+
+Some literature using this estimation procedure:
+
+- Eberhardt, Helmers, Strauss (2013), *Do spillovers matter when estimating private returns to R&D?*
+- Hagedorn, Karahan, Manovskii (2015), *Unemployment Benefits and Unemployment in the Great Recession: The Role of Macro Effects*
+- Hagedorn, Karahan, Manovskii (2015), *The impact of unemployment benefit extensions on employment: the 2014 employment miracle?*
+- Totty (2015), *The Effect of Minimum Wages on Employment: A Factor Model Approach*
 
 ## Related Packages
-- https://github.com/joidegn/FactorModels.jl : fits and predict factor models on matrices
-- https://github.com/madeleineudell/LowRankModels.jl : fits general low rank approximations on matrices
-- https://github.com/aaw/IncrementalSVD.jl: implementation of the backpropagation algorithm
+
+- [FixedEffectModels.jl](https://github.com/matthieugomez/FixedEffectModels.jl): linear models with high-dimensional fixed effects
+- [FactorModels.jl](https://github.com/joidegn/FactorModels.jl): factor models on matrices
+- [LowRankModels.jl](https://github.com/madeleineudell/LowRankModels.jl): general low-rank approximation models
+
+## Reference
+
+- Bai, Jushan (2009), "Panel Data Models With Interactive Fixed Effects," *Econometrica*.
