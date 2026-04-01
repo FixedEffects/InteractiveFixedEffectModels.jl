@@ -1,16 +1,19 @@
 name: TagBot
 on:
-  issue_comment:  # THIS BIT IS NEW
+  issue_comment:
     types:
       - created
   workflow_dispatch:
+    inputs:
+      lookback:
+        description: "[DEPRECATED] No longer has any effect"
+        default: "3"
 jobs:
   TagBot:
-    # THIS 'if' LINE IS NEW
     if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
-    # NOTHING BELOW HAS CHANGED
     runs-on: ubuntu-latest
     steps:
-      - uses: JuliaRegistries/TagBot@v1
+      - uses: JuliaRegistries/TagBot@cd42473a4fc34302627f0ece76783b591456d4a9 # v1.24.7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ssh: ${{ secrets.DOCUMENTER_KEY }}
